@@ -160,6 +160,15 @@ async function startCapture(streamId: string, _tabId: number, includeMicrophone 
   if (mediaRecorder && mediaRecorder.state === 'recording') {
     console.log('[LateMeet][offscreen] Capture started. Mic active:', Boolean(microphoneStream), '| MIME:', mediaRecorder.mimeType || 'default');
   return { microphoneActive: Boolean(microphoneStream) };
+    console.log(
+      '[LateMeet][offscreen] Capture already running. Mic active:',
+      Boolean(microphoneStream),
+      '| MIME:',
+      mediaRecorder.mimeType || 'default'
+    );
+    return {
+      microphoneActive: Boolean(microphoneStream)
+    };
   }
 
   mediaStream = await getTabAudioStream(streamId);
