@@ -13,7 +13,7 @@ const ELEVENLABS_STT_MODEL = 'scribe_v2';
 const MIN_MEETING_DURATION_FOR_WELCOME = 10;
 
 import { State } from './types';
-import { audioFileExtensionForMimeType, isChunkViable } from './audioProcessing';
+import { audioFileExtensionForMimeType } from './audioProcessing';
 
 const state: State = {
   isActive: false,
@@ -191,19 +191,13 @@ async function transcribeChunk(base64Audio: string, mimeType = 'audio/webm', pro
   const bytes = Uint8Array.from(atob(base64Audio), c => c.charCodeAt(0));
   const blob = new Blob([bytes], { type: mimeType });
 
-if (!isChunkViable(blob)) {
-  console.warn('[LateMeet] Audio chunk too small to transcribe, skipping:', blob.size, 'bytes');
-  return null;
-}
-
   if (elevenlabsKey) {
     try {
-    const normalizedMime = mimeType.split(';')[0].trim();
-const extension = audioFileExtensionForMimeType(normalizedMime);
+      const extension = audioFileExtensionForMimeType(mimeType);
 
-const formData = new FormData();
-formData.append('file', blob, `audio.${extension}`);
-formData.append('model_id', ELEVENLABS_STT_MODEL);
+      const formData = new FormData();
+      formData.append('file', blob, `audio.${extension}`);
+      formData.append('model_id', ELEVENLABS_STT_MODEL);
 
       const response = await fetch('https://api.elevenlabs.io/v1/speech-to-text', {
         method: 'POST',
@@ -214,42 +208,23 @@ formData.append('model_id', ELEVENLABS_STT_MODEL);
       });
 
       if (!response.ok) {
-  const text = await response.text();
+        const text = await response.text();
+        throw new Error(`ElevenLabs STT error ${response.status}: ${text}`);
+      }
 
-  console.error('[LateMeet] ElevenLabs API rejected chunk', {
-    status: response.status,
-    statusText: response.statusText,
-    response: text,
-    mimeType,
-    size: blob.size
-  });
-
-  throw new Error(`ElevenLabs STT error ${response.status}: ${text}`);
-}
-const data = await response.json();
-
-const transcript = (data.text || '').trim();
-
-if (!transcript) {
-  console.warn('[LateMeet] ElevenLabs returned empty transcript → triggering Whisper fallback');
-  throw new Error('Empty ElevenLabs transcript');
-}
-
-return transcript;
-
-} catch (err) {
-  console.warn('[LateMeet] ElevenLabs transcription failed, falling back to Whisper:', err);
-// Fallback to whisper
-}
-}
+      const data = await response.json();
+      return (data.text || '').trim();
+    } catch (err) {
+      console.error('[LateMeet] ElevenLabs transcription failed:', err);
+      // Fallback to whisper
+    }
+  }
 
   // Fallback to Whisper
   const apiKey = await getApiKey();
   if (!apiKey) return null;
 
-
-const normalizedMime = mimeType.split(';')[0].trim();
-const extension = audioFileExtensionForMimeType(normalizedMime);
+  const extension = audioFileExtensionForMimeType(mimeType);
 
   const formData = new FormData();
   formData.append('file', blob, `audio.${extension}`);

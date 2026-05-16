@@ -1,4 +1,4 @@
-import { VoiceActivityTracker, isChunkViable } from './audioProcessing';
+import { VoiceActivityTracker } from './audioProcessing';
 
 let mediaStream: MediaStream | null = null;
 let microphoneStream: MediaStream | null = null;
@@ -6,15 +6,16 @@ let recorderStream: MediaStream | null = null;
 let mediaRecorder: MediaRecorder | null = null;
 let audioContext: AudioContext | null = null;
 let analyserNode: AnalyserNode | null = null;
-let chunkTimer: ReturnType<typeof setInterval> | null = null;
-let vadTimer: ReturnType<typeof setInterval> | null = null;
+let chunkTimer: number | NodeJS.Timeout | null = null;
+let vadTimer: number | NodeJS.Timeout | null = null;
 let audioSources: MediaStreamAudioSourceNode[] = [];
 
 let pendingChunks: Blob[] = [];
+let isChunkRequested = false;
 let isStopping = false;
 let isDrainingQueue = false;
 
-const CHUNK_MS = 10000;
+const CHUNK_MS = 8000;
 const VAD_SAMPLE_MS = 250;
 const RMS_THRESHOLD = 0.012;
 let isFlushInProgress = false;
@@ -50,18 +51,9 @@ function pickSupportedMimeType(): string {
   const candidates = [
     'audio/webm;codecs=opus',
     'audio/webm',
-    'audio/ogg;codecs=opus',
-    'audio/ogg',
-    'audio/mp4'
+    'audio/ogg;codecs=opus'
   ];
-
-  const supported = candidates.find(type =>
-    MediaRecorder.isTypeSupported(type)
-  );
-
-  console.log('[LateMeet][offscreen] Selected MIME type:', supported);
-
-  return supported || '';
+  return candidates.find(type => MediaRecorder.isTypeSupported(type)) || '';
 }
 
 function getCurrentRms(): number {
@@ -80,22 +72,14 @@ function getCurrentRms(): number {
 }
 
 async function flushAudioChunk() {
-  if (
-    isFlushInProgress ||
-    !mediaRecorder ||
-    mediaRecorder.state !== 'recording'
-  ) {
-    return;
-  }
+  if (isFlushInProgress || isChunkRequested || !mediaRecorder || mediaRecorder.state !== 'recording') return;
 
   isFlushInProgress = true;
-
   try {
-    if (!voiceActivity.consumeShouldFlush()) {
-      return;
-    }
+    if (!voiceActivity.consumeShouldFlush()) return;
 
-    await drainPendingChunks();
+    isChunkRequested = true;
+    mediaRecorder.requestData();
   } finally {
     isFlushInProgress = false;
   }
@@ -103,33 +87,16 @@ async function flushAudioChunk() {
 
 async function postChunk(blob: Blob) {
   console.log('[LateMeet][offscreen] postChunk called, blob size:', blob?.size || 0);
-  if (!isChunkViable(blob)) { console.warn('[LateMeet][offscreen] Chunk too small, skipping:', blob?.size ?? 0, 'bytes'); return; }
+  if (!blob || blob.size < 1024) { console.log('[LateMeet][offscreen] Chunk too small, skipping'); return; }
 
   const audioBase64 = await blobToBase64(blob);
   const mimeType = mediaRecorder?.mimeType || 'audio/webm';
 
-  if (!mimeType) {
-  console.warn('[LateMeet][offscreen] Missing MIME type');
-  return;
-}
-
-  console.log('[LateMeet][offscreen] Sending chunk:', {
-  mimeType,
-  size: blob.size
-});
-
-  try {
   await chrome.runtime.sendMessage({
     type: 'OFFSCREEN_AUDIO_CHUNK',
     audioBase64,
     mimeType
   });
-} catch (err) {
-  console.error(
-    '[LateMeet][offscreen] Failed to send chunk:',
-    err
-  );
-}
 }
 
 async function drainPendingChunks() {
@@ -191,13 +158,8 @@ function connectSourceToRecorder(stream: MediaStream, destination: MediaStreamAu
 
 async function startCapture(streamId: string, _tabId: number, includeMicrophone = true) {
   if (mediaRecorder && mediaRecorder.state === 'recording') {
-    console.log(
-      '[LateMeet][offscreen] Capture already running. Mic active:',
-      Boolean(microphoneStream)
-    );
-    return {
-      microphoneActive: Boolean(microphoneStream)
-    };
+    console.log('[LateMeet][offscreen] Capture started. Mic active:', Boolean(microphoneStream), '| MIME:', mediaRecorder.mimeType || 'default');
+  return { microphoneActive: Boolean(microphoneStream) };
   }
 
   mediaStream = await getTabAudioStream(streamId);
@@ -230,16 +192,13 @@ async function startCapture(streamId: string, _tabId: number, includeMicrophone 
   mediaRecorder = mimeType ? new MediaRecorder(recorderStream, { mimeType }) : new MediaRecorder(recorderStream);
 
   mediaRecorder.addEventListener('dataavailable', (event: BlobEvent) => {
-    console.log('[LateMeet][offscreen] Chunk received:', {
-  type: event.data?.type,
-  size: event.data?.size
-});
     if (event.data && event.data.size > 0) {
       pendingChunks.push(event.data);
     }
+    isChunkRequested = false;
   });
 
-  mediaRecorder.start(CHUNK_MS);
+  mediaRecorder.start();
   voiceActivity = new VoiceActivityTracker({ rmsThreshold: RMS_THRESHOLD });
 
   vadTimer = setInterval(() => {
@@ -300,6 +259,7 @@ async function stopCapture() {
   analyserNode = null;
   audioSources = [];
   pendingChunks = [];
+  isChunkRequested = false;
   isStopping = false;
   voiceActivity = new VoiceActivityTracker({ rmsThreshold: RMS_THRESHOLD });
 }
