@@ -600,4 +600,117 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Load sessions on tab switch
   document.querySelector('[data-tab="sessions"]')?.addEventListener('click', loadSavedSessions);
+
+  // ——— Usage Stats Tab ———
+  document.querySelector('[data-tab="usage"]')?.addEventListener('click', loadUsageStats);
+
+  // Auto-refresh usage widget when storage changes (e.g. background writes new stats)
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'local' && changes.usageStats) {
+      loadUsageStats();
+    }
+  });
+
+  // Load usage stats on initial open
+  loadUsageStats();
+
+  async function loadUsageStats() {
+    try {
+      const usageStats: Record<string, {
+        promptTokens: number;
+        completionTokens: number;
+        totalTokens: number;
+        audioSeconds: number;
+        estimatedCost: number;
+      }> = await chrome.runtime.sendMessage({ type: 'GET_USAGE_STATS' });
+
+      const today = new Date().toISOString().slice(0, 10);
+      const todayStats = usageStats?.[today] ?? {
+        promptTokens: 0,
+        completionTokens: 0,
+        totalTokens: 0,
+        audioSeconds: 0,
+        estimatedCost: 0,
+      };
+
+      // Update date badge
+      const dateBadge = document.getElementById('usage-date-badge');
+      if (dateBadge) dateBadge.textContent = today;
+
+      // Update hero cost
+      const costEl = document.getElementById('usage-cost-value');
+      if (costEl) costEl.textContent = todayStats.estimatedCost.toFixed(4);
+
+      // Update stat cells
+      const totalEl = document.getElementById('usage-total-tokens');
+      if (totalEl) totalEl.textContent = todayStats.totalTokens.toLocaleString();
+
+      const promptEl = document.getElementById('usage-prompt-tokens');
+      if (promptEl) promptEl.textContent = todayStats.promptTokens.toLocaleString();
+
+      const completionEl = document.getElementById('usage-completion-tokens');
+      if (completionEl) completionEl.textContent = todayStats.completionTokens.toLocaleString();
+
+      const audioEl = document.getElementById('usage-audio-seconds');
+      if (audioEl) audioEl.textContent = `${Math.round(todayStats.audioSeconds)}s`;
+
+      // Render history
+      renderUsageHistory(usageStats);
+    } catch { /* background might be idle on first load */ }
+  }
+
+  function renderUsageHistory(usageStats: Record<string, {
+    promptTokens: number;
+    completionTokens: number;
+    totalTokens: number;
+    audioSeconds: number;
+    estimatedCost: number;
+  }>) {
+    const container = document.getElementById('usage-history-list');
+    if (!container) return;
+
+    const entries = Object.entries(usageStats || {}).sort((a, b) => b[0].localeCompare(a[0]));
+
+    if (entries.length === 0) {
+      container.innerHTML = '<div class="empty-msg">No usage data yet. Stats will appear after your first API call.</div>';
+      return;
+    }
+
+    container.innerHTML = entries.map(([date, s]) => `
+      <div class="usage-history-row">
+        <div class="usage-history-date">${escapeHtml(date)}</div>
+        <div class="usage-history-details">
+          <span class="usage-history-chip">🔡 ${s.totalTokens.toLocaleString()} tokens</span>
+          <span class="usage-history-chip">🎙 ${Math.round(s.audioSeconds)}s audio</span>
+          <span class="usage-history-cost">$${s.estimatedCost.toFixed(4)}</span>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  // ——— Dev: Simulate API Call Button ———
+  const simBtn = document.getElementById('dev-simulate-btn');
+  const simStatus = document.getElementById('dev-simulate-status');
+  let simCount = 0;
+
+  simBtn?.addEventListener('click', async () => {
+    simBtn.setAttribute('disabled', 'true');
+    if (simStatus) simStatus.textContent = 'Sending DEV_SIMULATE_CHUNK...';
+
+    try {
+      const response = await chrome.runtime.sendMessage({ type: 'DEV_SIMULATE_CHUNK' });
+      simCount++;
+      if (simStatus) {
+        simStatus.textContent = response?.success
+          ? `✓ Chunk #${simCount} simulated — "${response.mockText?.slice(0, 60)}..."`
+          : `✗ Failed: ${response?.error || 'unknown'}`;
+      }
+      // Refresh usage stats immediately
+      loadUsageStats();
+    } catch (err: any) {
+      if (simStatus) simStatus.textContent = `✗ Error: ${err.message || err}`;
+    } finally {
+      simBtn.removeAttribute('disabled');
+    }
+  });
 });

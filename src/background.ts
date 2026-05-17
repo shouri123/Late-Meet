@@ -1,4 +1,5 @@
-0// MV3 service worker for Late Meet
+// MV3 service worker for Late Meet
+console.log('[LateMeet] Service worker loaded at', new Date().toISOString());
 
 const OPENAI_CHAT_URL = 'https://api.openai.com/v1/chat/completions';
 const OPENAI_WHISPER_URL = 'https://api.openai.com/v1/audio/transcriptions';
@@ -14,6 +15,37 @@ const MIN_MEETING_DURATION_FOR_WELCOME = 10;
 
 import { State } from './types';
 import { audioFileExtensionForMimeType } from './audioProcessing';
+import { updateUsageStats } from './usageTracker';
+
+// ——— Development / Mock Mode ———
+// Set DEV_MODE = true to skip real API calls and simulate responses.
+// Also auto-activates when no API keys are configured.
+const DEV_MODE = false;
+
+async function isDevMode(): Promise<boolean> {
+  if (DEV_MODE) return true;
+  const result = await chrome.storage.local.get('dev_mode');
+  if (result.dev_mode) return true;
+  // Auto-enable when no API keys exist
+  const apiKey = await getApiKey();
+  const { elevenlabs_api_key } = await chrome.storage.local.get('elevenlabs_api_key');
+  return !apiKey && !elevenlabs_api_key;
+}
+
+const MOCK_TRANSCRIPTIONS = [
+  'We should focus on the Q3 roadmap and prioritize the authentication module.',
+  'I think the backend migration will take about two weeks if we start next Monday.',
+  'Let me share the latest metrics from the dashboard, they look really promising.',
+  'Can we schedule a follow-up to discuss the design review with the full team?',
+  'The deployment pipeline is ready, we just need to finalize the staging environment.',
+];
+let mockTranscriptIndex = 0;
+
+function getMockTranscription(): string {
+  const text = MOCK_TRANSCRIPTIONS[mockTranscriptIndex % MOCK_TRANSCRIPTIONS.length];
+  mockTranscriptIndex++;
+  return text;
+}
 
 const state: State = {
   isActive: false,
@@ -177,6 +209,14 @@ function getTranscriptionPrompt() {
 }
 
 async function transcribeChunk(base64Audio: string, mimeType = 'audio/webm', prompt = '') {
+  // Dev mode: return mock transcription without any network requests
+  if (await isDevMode()) {
+    const mockAudioSeconds = 15 + Math.random() * 30;
+    updateUsageStats({ elevenlabsSeconds: mockAudioSeconds }).catch(() => {});
+    console.log('[LateMeet][DEV] Mock transcription returned');
+    return getMockTranscription();
+  }
+
   // Use ElevenLabs API key if available, fallback to OpenAI if not? 
   // No, the requirement is to use ElevenLabs.
   const elevenlabsKey = await chrome.storage.local.get('elevenlabs_api_key').then(r => r.elevenlabs_api_key);
@@ -206,6 +246,9 @@ async function transcribeChunk(base64Audio: string, mimeType = 'audio/webm', pro
       }
 
       const data = await response.json();
+      // Estimate audio duration from blob size (WebM @ ~128 kbps → 16 000 B/s)
+      const estimatedSeconds = blob.size / 16000;
+      updateUsageStats({ elevenlabsSeconds: estimatedSeconds }).catch(() => {});
       return (data.text || '').trim();
     } catch (err) {
       console.error('[LateMeet] ElevenLabs transcription failed:', err);
@@ -241,6 +284,10 @@ async function transcribeChunk(base64Audio: string, mimeType = 'audio/webm', pro
   }
 
   const data = await response.json();
+  // verbose_json includes the actual audio duration — use it for accurate cost tracking
+  if (typeof data.duration === 'number' && data.duration > 0) {
+    updateUsageStats({ whisperSeconds: data.duration }).catch(() => {});
+  }
   return (data.text || '').trim();
 }
 
@@ -250,6 +297,15 @@ async function refineTranscription(rawText: string) {
   // Skip refinement for very short or likely-noise transcriptions
   const words = rawText.trim().split(/\s+/);
   if (words.length < 3) return rawText;
+
+  // Dev mode: simulate refinement token usage without API call
+  if (await isDevMode()) {
+    const pt = 180 + Math.floor(Math.random() * 200);
+    const ct = 80 + Math.floor(Math.random() * 100);
+    updateUsageStats({ promptTokens: pt, completionTokens: ct, totalTokens: pt + ct, model: 'gpt-4o-mini' }).catch(() => {});
+    console.log('[LateMeet][DEV] Mock refinement applied');
+    return rawText;
+  }
 
   const apiKey = await getApiKey();
   if (!apiKey) return rawText;
@@ -278,6 +334,14 @@ Return ONLY the corrected transcript text. If the input is unclear, inaudible, o
 
     if (!response.ok) return rawText;
     const data = await response.json();
+    if (data.usage) {
+      updateUsageStats({
+        promptTokens:     data.usage.prompt_tokens     ?? 0,
+        completionTokens: data.usage.completion_tokens ?? 0,
+        totalTokens:      data.usage.total_tokens      ?? 0,
+        model: 'gpt-4o-mini'
+      }).catch(() => {});
+    }
     const refined = data?.choices?.[0]?.message?.content?.trim() || rawText;
 
     // Guard against AI hallucination / apology responses
@@ -310,6 +374,21 @@ async function summarizeTranscriptIfNeeded() {
   const lastSum = state.lastSummarizedAt || 0;
   const elapsed = Math.floor((Date.now() - lastSum) / 1000);
   if (lastSum > 0 && elapsed < intervalSeconds) return;
+
+  // Dev mode: update state with mock summary data and track simulated tokens
+  if (await isDevMode()) {
+    const pt = 800 + Math.floor(Math.random() * 400);
+    const ct = 300 + Math.floor(Math.random() * 200);
+    updateUsageStats({ promptTokens: pt, completionTokens: ct, totalTokens: pt + ct, model: 'gpt-4o-mini' }).catch(() => {});
+    state.summary = `[DEV] Meeting in progress. ${state.transcript.length} transcript entries captured. Topics are being tracked automatically.`;
+    state.currentTopic = state.transcript.length > 0 ? 'Development mode testing' : 'Waiting for input';
+    state.sentiment = (['positive', 'neutral', 'mixed'] as const)[Math.floor(Math.random() * 3)];
+    state.keyInsights = ['Development mock mode is active', `${state.transcript.length} entries processed so far`];
+    if (state.topics.length === 0) state.topics = [{ name: 'Dev testing', status: 'active' }];
+    state.lastSummarizedAt = Date.now();
+    console.log('[LateMeet][DEV] Mock summarization applied');
+    return;
+  }
 
   const apiKey = await getApiKey();
   if (!apiKey) return;
@@ -378,6 +457,14 @@ Return a JSON object with these exact keys:
   }
 
   const data = await response.json();
+  if (data.usage) {
+    updateUsageStats({
+      promptTokens:     data.usage.prompt_tokens     ?? 0,
+      completionTokens: data.usage.completion_tokens ?? 0,
+      totalTokens:      data.usage.total_tokens      ?? 0,
+      model: settings.aiModel || 'gpt-4o-mini'
+    }).catch(() => {});
+  }
   const content = data?.choices?.[0]?.message?.content;
   if (!content) return;
 
@@ -428,6 +515,15 @@ async function generateLateJoinerMessage(joinerName: string) {
 
   const fallback = `Hi ${joinerName}, welcome to the meeting! We are currently discussing ${context.currentTopic || 'project updates'}.`;
 
+  // Dev mode: return fallback and track simulated tokens
+  if (await isDevMode()) {
+    const pt = 150 + Math.floor(Math.random() * 100);
+    const ct = 40 + Math.floor(Math.random() * 40);
+    updateUsageStats({ promptTokens: pt, completionTokens: ct, totalTokens: pt + ct, model: 'gpt-4o-mini' }).catch(() => {});
+    console.log('[LateMeet][DEV] Mock late-joiner message generated');
+    return fallback;
+  }
+
   try {
     const apiKey = await getApiKey();
     if (!apiKey) return fallback;
@@ -450,6 +546,14 @@ async function generateLateJoinerMessage(joinerName: string) {
 
     if (!response.ok) return fallback;
     const data = await response.json();
+    if (data.usage) {
+      updateUsageStats({
+        promptTokens:     data.usage.prompt_tokens     ?? 0,
+        completionTokens: data.usage.completion_tokens ?? 0,
+        totalTokens:      data.usage.total_tokens      ?? 0,
+        model: 'gpt-4o-mini'
+      }).catch(() => {});
+    }
     return data?.choices?.[0]?.message?.content?.trim() || fallback;
   } catch {
     return fallback;
@@ -678,6 +782,7 @@ chrome.tabs.onRemoved.addListener(async tabId => {
 });
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  console.log('[LateMeet] Message received:', message?.type, 'from:', sender?.url || sender?.id || 'unknown');
   (async () => {
     switch (message?.type) {
       case 'GET_STATE': {
@@ -774,6 +879,41 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return;
       }
 
+      case 'GET_USAGE_STATS': {
+        const { usageStats } = await chrome.storage.local.get('usageStats');
+        sendResponse(usageStats || {});
+        return;
+      }
+
+      case 'DEV_SIMULATE_CHUNK': {
+        // Simulate the full transcription → refinement → summarization pipeline
+        if (!state.isActive) {
+          resetState();
+          state.isActive = true;
+          state.startTime = Date.now();
+          state.meetingId = 'dev-mock-session';
+          state.participants = ['You', 'Dev Tester'];
+          state.participantCount = 2;
+          addTimeline('Mock meeting started (DEV)');
+        }
+
+        const mockText = getMockTranscription();
+        const mockAudioSec = 15 + Math.random() * 30;
+        updateUsageStats({ elevenlabsSeconds: mockAudioSec }).catch(() => {});
+
+        const pt = 180 + Math.floor(Math.random() * 200);
+        const ct = 80 + Math.floor(Math.random() * 100);
+        updateUsageStats({ promptTokens: pt, completionTokens: ct, totalTokens: pt + ct, model: 'gpt-4o-mini' }).catch(() => {});
+
+        state.transcript.push({ speaker: 'Audio', text: mockText, timestamp: Date.now() });
+        await summarizeTranscriptIfNeeded();
+        await broadcastStateUpdate();
+
+        console.log('[LateMeet][DEV] Simulated chunk processed:', mockText);
+        sendResponse({ success: true, mockText });
+        return;
+      }
+
       case 'GET_SAVED_SESSIONS': {
         const { savedSessions } = await chrome.storage.local.get('savedSessions');
         sendResponse(Array.isArray(savedSessions) ? savedSessions : []);
@@ -803,3 +943,4 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 // Proactive scan on startup/load
 scanForMeetTabs();
+console.log('[LateMeet] Message listener registered, service worker ready');
