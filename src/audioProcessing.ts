@@ -24,9 +24,16 @@ export class VoiceActivityTracker {
 }
 
 export function audioFileExtensionForMimeType(mimeType: string) {
-  if (mimeType.includes('ogg')) return 'ogg';
-  if (mimeType.includes('mp3')) return 'mp3';
-  if (mimeType.includes('wav')) return 'wav';
-  if (mimeType.includes('flac')) return 'flac';
-  return 'webm';
+  const normalized = mimeType.split(";")[0].trim().toLowerCase();
+  if (normalized.includes("ogg")) return "ogg";
+  if (normalized.includes("mp3")) return "mp3";
+  if (normalized.includes("mp4")) return "mp4";
+  if (normalized.includes("mpeg")) return "mp3";
+  if (normalized.includes("wav")) return "wav";
+  if (normalized.includes("flac")) return "flac";
+  return "webm";
+}
+
+export function isChunkViable(blob: Blob, minBytes = 15000): boolean {
+  return !!blob && blob.size >= minBytes;
 }

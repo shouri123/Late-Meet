@@ -37,8 +37,8 @@ Security is a priority for this project. If you discover a security issue or vul
 
 Instead, responsibly report it privately by emailing us at **chakrabortyshouri@gmail.com**. Please include:
 
-* A detailed description of the vulnerability.
-* Steps to reproduce the issue.
-* Any possible mitigation steps or workarounds if you have them.
+- A detailed description of the vulnerability.
+- Steps to reproduce the issue.
+- Any possible mitigation steps or workarounds if you have them.
 
 We will acknowledge your email promptly, investigate the issue, and release a fix as soon as possible. We ask that you do not publicly disclose the vulnerability until we have had a chance to issue a patch and notify our users.

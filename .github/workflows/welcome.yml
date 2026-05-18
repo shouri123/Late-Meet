@@ -1,0 +1,26 @@
+name: Welcome Contributors
+
+on:
+  pull_request_target:
+    types: [opened]
+
+permissions:
+  pull-requests: write
+
+jobs:
+  welcome:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/first-interaction@v1
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          pr-message: |
+            👋 Thank you for your first contribution to Late-Meet!
+
+            Please make sure:
+            - the issue was assigned to you
+            - your PR references the issue
+            - the extension builds correctly
+
+            We appreciate your contribution 🚀

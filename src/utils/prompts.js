@@ -22,11 +22,15 @@ CONTINUITY: You will receive previous analysis context. Build upon it — don't 
 export const SUMMARY_PROMPT = (transcript, previousSummary, aiContextWindow = []) => `
 Analyze this meeting transcript chunk and generate an UPDATED, comprehensive analysis.
 
-${previousSummary ? `PREVIOUS SUMMARY (build upon this, don't restart):\n"${previousSummary}"\n` : ''}
+${previousSummary ? `PREVIOUS SUMMARY (build upon this, don't restart):\n"${previousSummary}"\n` : ""}
 
-${aiContextWindow.length > 0 ? `RECENT AI ANALYSIS CONTEXT (for continuity):
-${aiContextWindow.map((ctx, i) => `[Analysis ${i + 1}] Topics: ${ctx.topicCount}, Decisions: ${ctx.decisionCount}, Focus: "${ctx.currentTopic}"`).join('\n')}
-` : ''}
+${
+  aiContextWindow.length > 0
+    ? `RECENT AI ANALYSIS CONTEXT (for continuity):
+${aiContextWindow.map((ctx, i) => `[Analysis ${i + 1}] Topics: ${ctx.topicCount}, Decisions: ${ctx.decisionCount}, Focus: "${ctx.currentTopic}"`).join("\n")}
+`
+    : ""
+}
 
 NEW TRANSCRIPT CHUNK:
 """
@@ -58,7 +62,14 @@ Respond in this exact JSON format:
   "questionsRaised": ["unresolved question 1", "question 2"]
 }`;
 
-export const LATE_JOINER_BRIEF_PROMPT = (summary, topics, decisions, actionItems, currentTopic, joinerName) => `
+export const LATE_JOINER_BRIEF_PROMPT = (
+  summary,
+  topics,
+  decisions,
+  actionItems,
+  currentTopic,
+  joinerName,
+) => `
 A participant named "${joinerName}" just joined the meeting late.
 Generate a warm, concise briefing so they can quickly catch up without feeling lost.
 

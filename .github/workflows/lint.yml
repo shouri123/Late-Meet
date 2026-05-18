@@ -1,0 +1,29 @@
+name: Lint & Format Check
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+
+      - run: npm ci
+
+      - name: Run Format Check
+        run: npm run format:check
+
+      - name: Run Lint Check
+        run: npm run lint
+
+      - name: Run Type Check
+        run: npm run type-check

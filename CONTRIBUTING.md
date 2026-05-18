@@ -1,51 +1,153 @@
 # Contributing to Late Meet
 
-First off, thank you for considering contributing to Late Meet! It's people like you that help make this a great tool for meeting productivity and privacy.
+First off, thank you for considering contributing to **Late Meet**! 🎉
+Your contributions help improve meeting productivity, accessibility, and privacy for everyone.
 
-## Prerequisites
+We welcome bug reports, feature suggestions, documentation improvements, UI enhancements, and code contributions from developers of all experience levels.
 
-Before you begin, ensure you have the following:
+---
 
-* **Node.js**: Version 18 or higher.
-* **Google Chrome**: Latest stable version with Developer Mode enabled.
-* **API Keys**: An [OpenAI API Key](https://platform.openai.com/api-keys) and optionally an [ElevenLabs API Key](https://elevenlabs.io/) for transcription.
+# Table of Contents
 
-## How to Fork and Clone
+- [Prerequisites](#prerequisites)
+- [Contribution Workflow & Assignment Rules](#contribution-workflow--assignment-rules)
+- [How to Fork and Clone](#how-to-fork-and-clone)
+- [How to Run Locally](#how-to-run-locally)
+- [Project Structure](#project-structure)
+- [How to Pick an Issue](#how-to-pick-an-issue)
+- [Branch Naming Convention](#branch-naming-convention)
+- [Pull Request Guidelines](#pull-request-guidelines)
+- [How to Test Changes](#how-to-test-changes)
+- [Code Style Guidelines](#code-style-guidelines)
+- [Need Help?](#need-help)
 
-1. Fork the project on GitHub by clicking the **Fork** button in the top right corner.
-2. Clone your fork locally:
-   ```bash
-   git clone https://github.com/<your-username>/Late-Meet.git
-   cd Late-Meet
+---
+
+# Prerequisites
+
+Before you begin, ensure you have the following installed/configured:
+
+- **Node.js**: Version 18 or higher
+- **Google Chrome**: Latest stable version with Developer Mode enabled
+- **API Keys**:
+  - OpenAI API Key
+  - Optional ElevenLabs API Key for transcription features
+
+> [!WARNING]
+> Some extension features rely on Chrome Manifest V3 APIs, Offscreen Documents, and `chrome.tabCapture` integration.
+> Using older Chrome versions may cause audio capture or transcription failures.
+
+To update Chrome:
+
+- Open `chrome://settings/help`
+- Update to the latest stable version
+
+---
+
+# Contribution Workflow & Assignment Rules
+
+To keep contributions organized during open-source programs like **GSSoC** and avoid duplicate work, please follow these rules before starting work on any issue.
+
+## Before You Start
+
+- Do **not** start working on an issue until it has been assigned to you by a maintainer.
+- Please avoid opening Pull Requests without prior assignment.
+- Forking the repository is completely allowed, but unassigned PRs may be closed.
+
+## Getting an Issue Assigned
+
+- Comment on the issue with your implementation approach instead of only writing:
+  - `"assign this issue to me"`
+
+- Issues are generally assigned on a **first meaningful interaction** basis.
+- Priority may be given to contributors who clearly demonstrate understanding of the issue.
+
+## Assignment Limits
+
+- Contributors may work on **one issue at a time** unless approved otherwise.
+- If no meaningful progress or PR activity is shown within a few days, the issue may be reassigned.
+
+## Pull Request Rules
+
+- PRs must reference the related issue number.
+- Duplicate PRs for already assigned issues are likely to be closed.
+- Large feature additions should first be discussed in an issue before implementation.
+
+## Maintainer Rights
+
+Maintainers reserve the right to:
+
+- reassign issues,
+- close inactive assignments,
+- reject unrelated or low-quality PRs,
+- and enforce repository contribution standards.
+
+---
+
+# How to Fork and Clone
+
+## 1. Fork the Repository
+
+Click the **Fork** button in the top-right corner of the GitHub repository page.
+
+## 2. Clone Your Fork
+
+```bash
+git clone https://github.com/<your-username>/Late-Meet.git
+cd Late-Meet
+```
+
+## 3. Add Upstream Remote
+
+```bash
+git remote add upstream https://github.com/shouri123/Late-Meet.git
+```
+
+---
+
+# How to Run Locally
+
+## Install Dependencies
+
+```bash
+npm install
+```
+
+## Build the Extension
+
+```bash
+npm run build
+```
+
+## Load the Extension in Chrome
+
+1. Open Chrome and navigate to:
+
+   ```txt
+   chrome://extensions/
    ```
-3. Add the original repository as an upstream remote:
-   ```bash
-   git remote add upstream https://github.com/shouri123/Late-Meet.git
-   ```
 
-## How to Run Locally
+2. Enable **Developer Mode** (top-right toggle)
 
-1. Install all dependencies:
-   ```bash
-   npm install
-   ```
-2. Build the extension:
-   ```bash
-   npm run build
-   ```
-3. Load the extension in Chrome:
-   - Open Chrome and navigate to `chrome://extensions/`
-   - Enable **Developer mode** (top right toggle)
-   - Click **Load unpacked** and select the **`dist/`** directory
-4. Configure API keys:
-   - Click the extension icon → **Options**
-   - Enter your ElevenLabs and OpenAI API keys
+3. Click **Load unpacked**
 
-## Project Structure
+4. Select the generated `dist/` directory
 
-The main source code is in the `src/` directory:
+---
 
-```text
+# Configure API Keys
+
+1. Click the extension icon
+2. Open **Options**
+3. Enter:
+   - OpenAI API Key
+   - Optional ElevenLabs API Key
+
+---
+
+# Project Structure
+
+```txt
 src/
 ├── background.ts        # Service worker — central state manager, AI coordination
 ├── offscreen.ts         # Audio capture engine via Chrome tabCapture API
@@ -68,55 +170,134 @@ src/
     └── api.js           # API helper functions
 ```
 
-## How to Pick an Issue
+---
 
-1. Check the [Issues](https://github.com/shouri123/Late-Meet/issues) tab for open issues.
-2. Look for issues labeled `good first issue` or `help wanted` if you're new to the project.
-3. Comment on the issue you want to work on so others know it's being handled.
-4. If you have a new idea, please open an issue to discuss it before you start coding!
+# How to Pick an Issue
 
-## Branch Naming
+- Check the **Issues** tab for open issues.
+- Look for:
+  - `good first issue`
+  - `help wanted`
+  - `gssoc`
+
+- Comment on the issue before starting work.
+- If you have a new feature idea, open an issue for discussion first.
+
+---
+
+# Branch Naming Convention
 
 Use descriptive branch names:
 
-- `feature/add-transcript-export`
-- `fix/meeting-detection-bug`
-- `docs/update-setup-guide`
-- `ui/improve-dark-mode`
+```txt
+feature/add-transcript-export
+fix/meeting-detection-bug
+docs/update-setup-guide
+ui/improve-dark-mode
+```
 
-## Pull Request Guidelines
+---
 
-1. **Create a new branch** for your feature or bug fix:
-   ```bash
-   git checkout -b feature/my-awesome-feature
-   ```
-2. Make your changes and commit with clear, descriptive messages.
-3. Push your branch to your fork:
-   ```bash
-   git push origin feature/my-awesome-feature
-   ```
-4. Open a Pull Request from your fork to the `main` branch of the original repository.
-5. Provide a detailed description. Link any relevant issues (e.g., "Fixes #12").
-6. **Add screenshots** for any UI changes.
-7. Wait for a review — we'll respond as soon as we can!
+# Pull Request Guidelines
 
-## How to Test Changes
+## Create a Branch
 
-1. Run the build to catch TypeScript errors:
-   ```bash
-   npm run build
-   ```
-2. Load the updated `dist/` folder in Chrome (or click the refresh icon on `chrome://extensions/`).
-3. **Manually test** by joining a Google Meet and verifying the copilot functionality.
-4. If adding new utility functions, write tests in a corresponding `.test.ts` file.
+```bash
+git checkout -b feature/my-awesome-feature
+```
 
-## Code Style
+## Commit Your Changes
 
-- Use **TypeScript** for all new source files.
-- Follow the existing **monochromatic UI design system** (deep blacks, whites, glassmorphism).
-- Use **vanilla CSS** — no CSS frameworks.
-- Prefer **zero-dependency** approaches where possible.
+Use clear and descriptive commit messages.
 
-## Need Help?
+Example:
 
-If you're stuck or have questions, feel free to open a [Discussion](https://github.com/shouri123/Late-Meet/discussions) or reach out via the issue you're working on.
+```txt
+fix: resolve duplicate participant detection
+docs: improve installation instructions
+ui: refine dashboard spacing
+```
+
+## Push Your Branch
+
+```bash
+git push origin feature/my-awesome-feature
+```
+
+## Open a Pull Request
+
+- Open the PR against the `main` branch
+- Link related issues:
+
+  ```txt
+  Fixes #12
+  ```
+
+- Add screenshots for UI changes
+- Clearly explain:
+  - what changed,
+  - why it changed,
+  - and how it was tested
+
+---
+
+# How to Test Changes
+
+## Run the Build
+
+```bash
+npm run build
+```
+
+## Reload the Extension
+
+- Open:
+
+  ```txt
+  chrome://extensions/
+  ```
+
+- Click the refresh icon for the extension
+
+## Manual Testing
+
+Join a Google Meet and verify:
+
+- meeting detection,
+- participant extraction,
+- overlays,
+- dashboard behavior,
+- and transcription flow.
+
+## Tests
+
+If adding utilities or reusable logic:
+
+- add corresponding `.test.ts` files when applicable.
+
+---
+
+# Code Style Guidelines
+
+- Use **TypeScript** for all new source files
+- Follow the existing monochromatic UI design system
+- Use:
+  - deep blacks,
+  - whites,
+  - subtle glassmorphism
+
+- Use **vanilla CSS only**
+- Avoid unnecessary dependencies
+- Prefer clean, modular, maintainable code
+
+---
+
+# Need Help?
+
+If you're stuck or have questions:
+
+- Open a **Discussion**
+- Comment on the issue you're working on
+- Reach out through the repository issue tracker
+
+We appreciate every contribution and look forward to collaborating with you 🚀

@@ -6,22 +6,25 @@ Need help using Late Meet or have a question? We're here for you!
 
 For general questions, troubleshooting, setup issues, or discussing ideas, please engage with the community:
 
-* **[Open a GitHub Discussion](https://github.com/shouri123/Late-Meet/discussions)**: This is the best place to ask for help so others can learn from the answers too!
-* **[Search existing Issues](https://github.com/shouri123/Late-Meet/issues)**: Your problem might have already been reported or solved.
+- **[Open a GitHub Discussion](https://github.com/shouri123/Late-Meet/discussions)**: This is the best place to ask for help so others can learn from the answers too!
+- **[Search existing Issues](https://github.com/shouri123/Late-Meet/issues)**: Your problem might have already been reported or solved.
 
 ## Common Issues
 
 ### Extension not detecting Google Meet
+
 - Make sure you're on a `meet.google.com` URL with an active meeting.
 - Reload the extension from `chrome://extensions/`.
 - Check that all required permissions are granted.
 
 ### Audio capture not working
+
 - Ensure no other extension is using tab capture simultaneously.
 - Try restarting the meeting and clicking **Start Copilot** again.
 - Check the browser console for error messages.
 
 ### API key errors
+
 - Verify your API keys are correct in the **Options** page.
 - Ensure your OpenAI/ElevenLabs accounts have available credits.
 - Check your internet connection.

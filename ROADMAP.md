@@ -5,6 +5,7 @@ This roadmap outlines the planned features and long-term vision for Late Meet. O
 ## ✅ Completed
 
 ### Phase 1: Core Foundation
+
 - [x] Native Google Meet integration without bot participants
 - [x] Real-time audio capture via Chrome Offscreen APIs
 - [x] Premium monochrome UI extension & side panel
@@ -12,6 +13,7 @@ This roadmap outlines the planned features and long-term vision for Late Meet. O
 - [x] Manifest V3 compliant architecture
 
 ### Phase 2: Local & Privacy Overhaul
+
 - [x] Strip all Supabase/backend dependencies
 - [x] Local-first session management via `chrome.storage.local`
 - [x] ElevenLabs Scribe integration for superior transcription
@@ -23,6 +25,7 @@ This roadmap outlines the planned features and long-term vision for Late Meet. O
 ## 🔄 Planned Features
 
 ### 🟢 Beginner-Friendly
+
 - [ ] Add screenshots and demo GIF to README
 - [ ] Export meeting summary as `.md` file
 - [ ] Copy-to-clipboard for action items and decisions
@@ -31,6 +34,7 @@ This roadmap outlines the planned features and long-term vision for Late Meet. O
 - [ ] Better error messages for invalid or expired API keys
 
 ### 🟡 Intermediate
+
 - [ ] Meeting summary templates (standup, retrospective, 1:1)
 - [ ] Local transcript search within side panel
 - [ ] Meeting history page with past session recall
@@ -39,6 +43,7 @@ This roadmap outlines the planned features and long-term vision for Late Meet. O
 - [ ] Action item detection with assignee routing
 
 ### 🔴 Advanced
+
 - [ ] Offline transcription using local Whisper / WebGPU
 - [ ] Speaker diarization (identify who said what)
 - [ ] Zoom and Microsoft Teams support
@@ -49,4 +54,4 @@ This roadmap outlines the planned features and long-term vision for Late Meet. O
 
 ---
 
-*Note: This roadmap is a living document. Priorities may shift based on community feedback and contributions. Have an idea? [Open an issue!](https://github.com/shouri123/Late-Meet/issues)*
+_Note: This roadmap is a living document. Priorities may shift based on community feedback and contributions. Have an idea? [Open an issue!](https://github.com/shouri123/Late-Meet/issues)_

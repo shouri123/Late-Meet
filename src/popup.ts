@@ -1,32 +1,32 @@
-import { State } from './types';
+import { State } from "./types";
 
-document.addEventListener('DOMContentLoaded', async () => {
-  const setupView = document.getElementById('setup-view') as HTMLDivElement;
-  const mainView = document.getElementById('main-view') as HTMLDivElement;
-  const meetingSection = document.getElementById('meeting-section') as HTMLDivElement;
-  const noMeetingSection = document.getElementById('no-meeting-section') as HTMLDivElement;
-  const sessionModal = document.getElementById('session-modal') as HTMLDivElement;
+document.addEventListener("DOMContentLoaded", async () => {
+  const setupView = document.getElementById("setup-view") as HTMLDivElement;
+  const mainView = document.getElementById("main-view") as HTMLDivElement;
+  const meetingSection = document.getElementById("meeting-section") as HTMLDivElement;
+  const noMeetingSection = document.getElementById("no-meeting-section") as HTMLDivElement;
+  const sessionModal = document.getElementById("session-modal") as HTMLDivElement;
 
   let lastState: State | null = null;
 
   // ——— Check if API key is configured ———
-  const config = await chrome.storage.local.get(['openai_api_key', 'elevenlabs_api_key']);
-  
+  const config = await chrome.storage.local.get(["openai_api_key", "elevenlabs_api_key"]);
+
   if (!config.openai_api_key && !config.elevenlabs_api_key) {
-    setupView.style.display = 'block';
-    mainView.style.display = 'none';
+    setupView.style.display = "block";
+    mainView.style.display = "none";
   } else {
-    setupView.style.display = 'none';
-    mainView.style.display = 'block';
+    setupView.style.display = "none";
+    mainView.style.display = "block";
   }
 
   // ——— Setup: Save Key ———
-  document.getElementById('save-keys')?.addEventListener('click', async () => {
-    const apiKeyInput = document.getElementById('api-key-input') as HTMLInputElement;
+  document.getElementById("save-keys")?.addEventListener("click", async () => {
+    const apiKeyInput = document.getElementById("api-key-input") as HTMLInputElement;
     const apiKey = apiKeyInput.value.trim();
 
     if (!apiKey) {
-      shakeElement(document.getElementById('api-key-input'));
+      shakeElement(document.getElementById("api-key-input"));
       return;
     }
 
@@ -34,23 +34,23 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Users can configure ElevenLabs in the options page.
     await chrome.storage.local.set({ openai_api_key: apiKey });
 
-    setupView.style.display = 'none';
-    mainView.style.display = 'block';
+    setupView.style.display = "none";
+    mainView.style.display = "block";
   });
 
   // ——— Toggle API Key Visibility ———
-  document.getElementById('toggle-key')?.addEventListener('click', () => {
-    const input = document.getElementById('api-key-input') as HTMLInputElement;
-    input.type = input.type === 'password' ? 'text' : 'password';
+  document.getElementById("toggle-key")?.addEventListener("click", () => {
+    const input = document.getElementById("api-key-input") as HTMLInputElement;
+    input.type = input.type === "password" ? "text" : "password";
   });
 
   // ——— Settings ———
-  document.getElementById('settings-btn')?.addEventListener('click', () => {
+  document.getElementById("settings-btn")?.addEventListener("click", () => {
     chrome.runtime.openOptionsPage();
   });
 
   // ——— Open Dashboard ———
-  document.getElementById('open-dashboard')?.addEventListener('click', () => {
+  document.getElementById("open-dashboard")?.addEventListener("click", () => {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       const tabId = tabs[0]?.id;
       if (tabId !== undefined) {
@@ -60,26 +60,26 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   // ——— Start Copilot (Audio Capture with User Gesture) ———
-  const copilotBtn = document.getElementById('start-copilot-btn') as HTMLButtonElement | null;
+  const copilotBtn = document.getElementById("start-copilot-btn") as HTMLButtonElement | null;
 
   async function handleStartAudio(btn: HTMLButtonElement) {
-    const textEl = btn.querySelector('.copilot-btn-text');
-    const originalText = textEl?.textContent || 'Start';
+    const textEl = btn.querySelector(".copilot-btn-text");
+    const originalText = textEl?.textContent || "Start";
 
     if (lastState?.audioActive) {
-      console.log('[LateMeet] Audio already active, skipping capture request.');
+      console.log("[LateMeet] Audio already active, skipping capture request.");
       return;
     }
 
     try {
       // Show loading state
       btn.disabled = true;
-      if (textEl) textEl.textContent = 'Starting...';
-      btn.classList.add('loading');
+      if (textEl) textEl.textContent = "Starting...";
+      btn.classList.add("loading");
 
-      chrome.tabs.query({ url: 'https://meet.google.com/*' }, (tabs) => {
+      chrome.tabs.query({ url: "https://meet.google.com/*" }, (tabs) => {
         if (tabs.length === 0) {
-          handleStartAudioError(new Error('No Google Meet tab found. Join a meeting first.'));
+          handleStartAudioError(new Error("No Google Meet tab found. Join a meeting first."));
           return;
         }
         const meetTab = tabs[0];
@@ -91,53 +91,61 @@ document.addEventListener('DOMContentLoaded', async () => {
         // --- Get Media Stream ID in foreground (popup) to ensure user gesture propagation ---
         chrome.tabCapture.getMediaStreamId({ targetTabId: meetTab.id }, async (streamId) => {
           if (chrome.runtime.lastError) {
-            const err = chrome.runtime.lastError.message || 'Unknown error';
-            console.error('[LateMeet] Popup getMediaStreamId error:', err);
+            const err = chrome.runtime.lastError.message || "Unknown error";
+            console.error("[LateMeet] Popup getMediaStreamId error:", err);
             // If already capturing, we can treat it as success or inform the background
-            if (err.includes('active stream')) {
+            if (err.includes("active stream")) {
               setCopilotActive(true);
               return;
             } else {
-              handleStartAudioError(new Error('Capture permission denied. Try clicking the extension icon again on the Meet tab.'));
+              handleStartAudioError(
+                new Error(
+                  "Capture permission denied. Try clicking the extension icon again on the Meet tab.",
+                ),
+              );
               return;
             }
           }
 
           if (!streamId) {
-            handleStartAudioError(new Error('Capture permission denied. Try clicking the extension icon again on the Meet tab.'));
+            handleStartAudioError(
+              new Error(
+                "Capture permission denied. Try clicking the extension icon again on the Meet tab.",
+              ),
+            );
             return;
           }
 
           try {
             const response = await chrome.runtime.sendMessage({
-              type: 'MANUAL_START_AUDIO',
+              type: "MANUAL_START_AUDIO",
               tabId: meetTab.id,
               meetingId: meetingId,
               streamId: streamId,
-              includeMicrophone: true
+              includeMicrophone: true,
             });
 
             if (response && response.success) {
               // Clear loading state before setting active state
               btn.disabled = false;
-              btn.classList.remove('loading');
+              btn.classList.remove("loading");
               setCopilotActive(true);
               // Immediately show meeting section and start timer
-              if (meetingSection) meetingSection.style.display = 'block';
-              if (noMeetingSection) noMeetingSection.style.display = 'none';
+              if (meetingSection) meetingSection.style.display = "block";
+              if (noMeetingSection) noMeetingSection.style.display = "none";
               if (meetingId) {
-                const meetingIdEl = document.getElementById('meeting-id');
+                const meetingIdEl = document.getElementById("meeting-id");
                 if (meetingIdEl) meetingIdEl.textContent = meetingId;
               }
-              const badge = document.getElementById('status-badge');
+              const badge = document.getElementById("status-badge");
               if (badge) {
-                badge.className = 'status-badge active';
-                const statusText = badge.querySelector('.status-text');
-                if (statusText) statusText.textContent = 'Recording...';
+                badge.className = "status-badge active";
+                const statusText = badge.querySelector(".status-text");
+                if (statusText) statusText.textContent = "Recording...";
               }
               startDurationTimer(Date.now());
             } else {
-              throw new Error(response?.error || 'Failed to start audio capture');
+              throw new Error(response?.error || "Failed to start audio capture");
             }
           } catch (err: any) {
             handleStartAudioError(err);
@@ -149,13 +157,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     function handleStartAudioError(err: any) {
-      console.error('Failed to start audio capture:', err);
+      console.error("Failed to start audio capture:", err);
       btn.disabled = false;
-      btn.classList.remove('loading');
+      btn.classList.remove("loading");
       if (textEl) {
-        textEl.textContent = err.message?.length > 40
-          ? 'Error — Check Console'
-          : err.message || 'Unknown error';
+        textEl.textContent =
+          err.message?.length > 40 ? "Error — Check Console" : err.message || "Unknown error";
         setTimeout(() => {
           if (textEl) textEl.textContent = originalText;
         }, 3000);
@@ -163,74 +170,84 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  copilotBtn?.addEventListener('click', () => handleStartAudio(copilotBtn));
-  document.getElementById('meeting-start-audio-btn')?.addEventListener('click', (e) => {
+  copilotBtn?.addEventListener("click", () => handleStartAudio(copilotBtn));
+  document.getElementById("meeting-start-audio-btn")?.addEventListener("click", (e) => {
     const btn = e.currentTarget as HTMLButtonElement | null;
     if (btn) handleStartAudio(btn);
   });
 
   function setCopilotActive(active: boolean) {
     if (!copilotBtn) return;
-    const miniBtn = document.getElementById('meeting-start-audio-btn');
-    const iconEl = copilotBtn.querySelector('.copilot-btn-icon');
-    const textEl = copilotBtn.querySelector('.copilot-btn-text');
-    
+    const miniBtn = document.getElementById("meeting-start-audio-btn");
+    const iconEl = copilotBtn.querySelector(".copilot-btn-icon");
+    const textEl = copilotBtn.querySelector(".copilot-btn-text");
+
     if (active) {
-      copilotBtn.classList.remove('loading');
-      copilotBtn.classList.add('active');
-      if (textEl) textEl.textContent = 'Recording...';
-      if (iconEl) iconEl.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>';
+      copilotBtn.classList.remove("loading");
+      copilotBtn.classList.add("active");
+      if (textEl) textEl.textContent = "Recording...";
+      if (iconEl)
+        iconEl.innerHTML =
+          '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>';
       copilotBtn.disabled = true;
-      if (miniBtn) miniBtn.style.display = 'none';
+      if (miniBtn) miniBtn.style.display = "none";
     } else {
-      copilotBtn.classList.remove('active');
-      if (textEl) textEl.textContent = 'Start Copilot';
-      if (iconEl) iconEl.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>';
+      copilotBtn.classList.remove("active");
+      if (textEl) textEl.textContent = "Start Copilot";
+      if (iconEl)
+        iconEl.innerHTML =
+          '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>';
       copilotBtn.disabled = false;
-      if (miniBtn) miniBtn.style.display = 'flex';
+      if (miniBtn) miniBtn.style.display = "flex";
     }
   }
 
   // ——— Session Save/Discard Modal ———
   function showSessionModal() {
-    sessionModal.style.display = 'flex';
-    requestAnimationFrame(() => sessionModal.classList.add('visible'));
+    sessionModal.style.display = "flex";
+    requestAnimationFrame(() => sessionModal.classList.add("visible"));
   }
 
   function hideSessionModal() {
-    sessionModal.classList.remove('visible');
-    setTimeout(() => { sessionModal.style.display = 'none'; }, 300);
+    sessionModal.classList.remove("visible");
+    setTimeout(() => {
+      sessionModal.style.display = "none";
+    }, 300);
   }
 
-  document.getElementById('save-session-btn')?.addEventListener('click', async () => {
-    await chrome.runtime.sendMessage({ type: 'SAVE_SESSION' });
+  document.getElementById("save-session-btn")?.addEventListener("click", async () => {
+    await chrome.runtime.sendMessage({ type: "SAVE_SESSION" });
     hideSessionModal();
   });
 
-  document.getElementById('discard-session-btn')?.addEventListener('click', async () => {
-    await chrome.runtime.sendMessage({ type: 'DISCARD_SESSION' });
+  document.getElementById("discard-session-btn")?.addEventListener("click", async () => {
+    await chrome.runtime.sendMessage({ type: "DISCARD_SESSION" });
     hideSessionModal();
   });
 
   // ——— Check for pending session on load ———
-  const { pendingSession } = await chrome.storage.local.get('pendingSession') as { pendingSession?: State };
+  const { pendingSession } = (await chrome.storage.local.get("pendingSession")) as {
+    pendingSession?: State;
+  };
   if (pendingSession && !pendingSession.isActive) {
     showSessionModal();
   }
 
   // ——— Get Initial state load ———
   try {
-    lastState = await chrome.runtime.sendMessage({ type: 'GET_STATE' });
+    lastState = await chrome.runtime.sendMessage({ type: "GET_STATE" });
     if (lastState) updateUI(lastState);
-  } catch { /* background script might be idle */ }
+  } catch {
+    /* background script might be idle */
+  }
 
   // ——— Listen for State Updates ———
   chrome.runtime.onMessage.addListener((message) => {
-    if (message.type === 'STATE_UPDATE') {
+    if (message.type === "STATE_UPDATE") {
       lastState = message.state;
       updateUI(message.state);
     }
-    if (message.type === 'SESSION_ENDED') {
+    if (message.type === "SESSION_ENDED") {
       showSessionModal();
     }
   });
@@ -240,10 +257,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   function startDurationTimer(startTime: number) {
     if (durationInterval) clearInterval(durationInterval as any);
-    
+
     durationInterval = setInterval(() => {
       const elapsed = Math.round((Date.now() - startTime) / 1000);
-      const timerEl = document.getElementById('meeting-duration');
+      const timerEl = document.getElementById("meeting-duration");
       if (timerEl) timerEl.textContent = formatDuration(elapsed);
     }, 1000);
   }
@@ -251,84 +268,94 @@ document.addEventListener('DOMContentLoaded', async () => {
   // ——— Update UI ———
   function updateUI(state: State) {
     if (state.isActive) {
-      if (meetingSection) meetingSection.style.display = 'block';
-      if (noMeetingSection) noMeetingSection.style.display = 'none';
-      
-      const badge = document.getElementById('status-badge');
+      if (meetingSection) meetingSection.style.display = "block";
+      if (noMeetingSection) noMeetingSection.style.display = "none";
+
+      const badge = document.getElementById("status-badge");
       if (badge) {
-        badge.className = 'status-badge active';
-        const statusText = badge.querySelector('.status-text');
-        if (statusText) statusText.textContent = state.audioActive ? 'Recording...' : 'Meeting active';
+        badge.className = "status-badge active";
+        const statusText = badge.querySelector(".status-text");
+        if (statusText)
+          statusText.textContent = state.audioActive ? "Recording..." : "Meeting active";
       }
-      
-      const meetingIdEl = document.getElementById('meeting-id');
-      if (meetingIdEl) meetingIdEl.textContent = state.meetingId || '—';
-      
+
+      const meetingIdEl = document.getElementById("meeting-id");
+      if (meetingIdEl) meetingIdEl.textContent = state.meetingId || "—";
+
       if (state.startTime) startDurationTimer(state.startTime);
-      
-      const summaryEl = document.getElementById('summary-text');
-      if (summaryEl) summaryEl.textContent = state.summary || 'Waiting for conversation...';
-      
-      const topicEl = document.getElementById('current-topic');
-      if (topicEl) topicEl.textContent = state.currentTopic || 'Detecting...';
-      
-      const participantsCountEl = document.getElementById('participant-count');
-      if (participantsCountEl) participantsCountEl.textContent = String(state.participants?.length || 0);
-      
-      const decisionCountEl = document.getElementById('decision-count');
+
+      const summaryEl = document.getElementById("summary-text");
+      if (summaryEl) summaryEl.textContent = state.summary || "Waiting for conversation...";
+
+      const topicEl = document.getElementById("current-topic");
+      if (topicEl) topicEl.textContent = state.currentTopic || "Detecting...";
+
+      const participantsCountEl = document.getElementById("participant-count");
+      if (participantsCountEl)
+        participantsCountEl.textContent = String(state.participants?.length || 0);
+
+      const decisionCountEl = document.getElementById("decision-count");
       if (decisionCountEl) decisionCountEl.textContent = String(state.decisions?.length || 0);
-      
-      const actionCountEl = document.getElementById('action-count');
+
+      const actionCountEl = document.getElementById("action-count");
       if (actionCountEl) actionCountEl.textContent = String(state.actionItems?.length || 0);
-      
-      const sentimentEl = document.getElementById('sentiment-icon');
+
+      const sentimentEl = document.getElementById("sentiment-icon");
       if (sentimentEl) sentimentEl.textContent = getSentimentEmoji(state.sentiment);
 
       setCopilotActive(state.audioActive || false);
-      
-      const topicsList = document.getElementById('topics-list');
+
+      const topicsList = document.getElementById("topics-list");
       if (topicsList) {
         if (state.topics && state.topics.length > 0) {
-          topicsList.innerHTML = state.topics.map(t => `
+          topicsList.innerHTML = state.topics
+            .map(
+              (t) => `
             <div class="topic-item">
               <div class="topic-dot ${sanitizeTopicStatus(t.status)}"></div>
-              <span class="topic-name">${escapeHtml(t.name || '')}</span>
-              <span class="topic-status ${sanitizeTopicStatus(t.status)}">${escapeHtml(t.status || 'active')}</span>
+              <span class="topic-name">${escapeHtml(t.name || "")}</span>
+              <span class="topic-status ${sanitizeTopicStatus(t.status)}">${escapeHtml(t.status || "active")}</span>
             </div>
-          `).join('');
+          `,
+            )
+            .join("");
         } else {
           topicsList.innerHTML = '<div class="empty-state">No topics detected yet</div>';
         }
       }
-      
-      const lateSection = document.getElementById('late-joiners-section');
-      const lateList = document.getElementById('late-joiners-list');
+
+      const lateSection = document.getElementById("late-joiners-section");
+      const lateList = document.getElementById("late-joiners-list");
       if (lateSection && lateList) {
         if (state.lateJoiners && state.lateJoiners.length > 0) {
-          lateSection.style.display = 'block';
-          lateList.innerHTML = state.lateJoiners.map(name => `
+          lateSection.style.display = "block";
+          lateList.innerHTML = state.lateJoiners
+            .map(
+              (name) => `
             <div class="late-joiner-item">
               <span class="joiner-icon">🚪</span>
-              <span class="joiner-name">${escapeHtml(name || '')}</span>
+              <span class="joiner-name">${escapeHtml(name || "")}</span>
               <span style="color: #64748B; font-size: 10px;">briefed ✓</span>
             </div>
-          `).join('');
+          `,
+            )
+            .join("");
         } else {
-          lateSection.style.display = 'none';
-          lateList.innerHTML = '';
+          lateSection.style.display = "none";
+          lateList.innerHTML = "";
         }
       }
     } else {
-      if (meetingSection) meetingSection.style.display = 'none';
-      if (noMeetingSection) noMeetingSection.style.display = 'block';
-      
-      const badge = document.getElementById('status-badge');
+      if (meetingSection) meetingSection.style.display = "none";
+      if (noMeetingSection) noMeetingSection.style.display = "block";
+
+      const badge = document.getElementById("status-badge");
       if (badge) {
-        badge.className = 'status-badge inactive';
-        const statusText = badge.querySelector('.status-text');
-        if (statusText) statusText.textContent = 'No active meeting';
+        badge.className = "status-badge inactive";
+        const statusText = badge.querySelector(".status-text");
+        if (statusText) statusText.textContent = "No active meeting";
       }
-      
+
       if (durationInterval) {
         clearInterval(durationInterval as any);
         durationInterval = null;
@@ -341,31 +368,36 @@ document.addEventListener('DOMContentLoaded', async () => {
     const h = Math.floor(seconds / 3600);
     const m = Math.floor((seconds % 3600) / 60);
     const s = Math.floor(seconds % 60);
-    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
   }
 
   function getSentimentEmoji(sentiment: string) {
-    const map: Record<string, string> = { positive: '😊', negative: '😟', neutral: '😐', mixed: '🤔' };
-    return map[sentiment] || '—';
+    const map: Record<string, string> = {
+      positive: "😊",
+      negative: "😟",
+      neutral: "😐",
+      mixed: "🤔",
+    };
+    return map[sentiment] || "—";
   }
 
   function sanitizeTopicStatus(status: string) {
-    return status === 'completed' ? 'completed' : 'active';
+    return status === "completed" ? "completed" : "active";
   }
 
   function escapeHtml(value: string | null | undefined) {
-    const div = document.createElement('div');
-    div.textContent = String(value || '');
+    const div = document.createElement("div");
+    div.textContent = String(value || "");
     return div.innerHTML;
   }
 
   function shakeElement(el: HTMLElement | null) {
     if (!el) return;
-    el.style.borderColor = '#EF4444';
-    el.style.animation = 'shake 0.4s ease';
+    el.style.borderColor = "#EF4444";
+    el.style.animation = "shake 0.4s ease";
     setTimeout(() => {
-      el.style.borderColor = '';
-      el.style.animation = '';
+      el.style.borderColor = "";
+      el.style.animation = "";
     }, 400);
   }
 

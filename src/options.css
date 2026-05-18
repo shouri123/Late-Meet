@@ -1,13 +1,21 @@
 /* Options Page Styles — AI Meeting Copilot */
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap");
 
-* { margin: 0; padding: 0; box-sizing: border-box; }
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
 
 body {
-  font-family: 'Inter', -apple-system, 'Segoe UI', sans-serif;
+  font-family:
+    "Inter",
+    -apple-system,
+    "Segoe UI",
+    sans-serif;
   background: #000000;
-  color: #FFFFFF;
+  color: #ffffff;
   min-height: 100vh;
 }
 
@@ -31,13 +39,13 @@ body {
   justify-content: center;
   width: 48px;
   height: 48px;
-  color: #FFFFFF;
+  color: #ffffff;
 }
 
 .options-title {
   font-size: 24px;
   font-weight: 800;
-  color: #FFFFFF;
+  color: #ffffff;
 }
 
 .options-subtitle {
@@ -64,11 +72,11 @@ body {
   font-size: 16px;
   font-weight: 700;
   margin-bottom: 20px;
-  color: #FFFFFF;
+  color: #ffffff;
 }
 
 .section-title svg {
-  color: #A3A3A3;
+  color: #a3a3a3;
 }
 
 /* Form Groups */
@@ -76,17 +84,22 @@ body {
   margin-bottom: 20px;
 }
 
-.form-group:last-child { margin-bottom: 0; }
+.form-group:last-child {
+  margin-bottom: 0;
+}
 
 .form-label {
   display: block;
   font-size: 13px;
   font-weight: 600;
-  color: #FFFFFF;
+  color: #ffffff;
   margin-bottom: 4px;
 }
 
-.required { color: #A3A3A3; font-weight: 400; }
+.required {
+  color: #a3a3a3;
+  font-weight: 400;
+}
 
 .form-hint {
   font-size: 12px;
@@ -100,7 +113,7 @@ body {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 8px;
-  color: #FFFFFF;
+  color: #ffffff;
   font-family: inherit;
   font-size: 13px;
   outline: none;
@@ -108,18 +121,22 @@ body {
 }
 
 .form-input:focus {
-  border-color: #FFFFFF;
+  border-color: #ffffff;
   background: rgba(255, 255, 255, 0.1);
 }
 
-.form-input::placeholder { color: #525252; }
+.form-input::placeholder {
+  color: #525252;
+}
 
 .input-row {
   display: flex;
   gap: 8px;
 }
 
-.input-row .form-input { flex: 1; }
+.input-row .form-input {
+  flex: 1;
+}
 
 .toggle-vis {
   display: flex;
@@ -129,14 +146,14 @@ body {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 8px;
-  color: #A3A3A3;
+  color: #a3a3a3;
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.25, 1, 0.5, 1);
 }
 
 .toggle-vis:hover {
   background: rgba(255, 255, 255, 0.1);
-  color: #FFFFFF;
+  color: #ffffff;
 }
 
 /* Select */
@@ -146,7 +163,7 @@ body {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 8px;
-  color: #FFFFFF;
+  color: #ffffff;
   font-family: inherit;
   font-size: 13px;
   outline: none;
@@ -159,13 +176,13 @@ body {
 }
 
 .form-select:focus {
-  border-color: #FFFFFF;
+  border-color: #ffffff;
   background-color: rgba(255, 255, 255, 0.1);
 }
 
 .form-select option {
-  background: #0A0A0A;
-  color: #FFFFFF;
+  background: #0a0a0a;
+  color: #ffffff;
 }
 
 /* Range Slider */
@@ -189,7 +206,7 @@ body {
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  background: #FFFFFF;
+  background: #ffffff;
   cursor: pointer;
   box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.1);
   transition: all 0.2s cubic-bezier(0.25, 1, 0.5, 1);
@@ -203,7 +220,7 @@ body {
 .range-value {
   font-size: 13px;
   font-weight: 600;
-  color: #FFFFFF;
+  color: #ffffff;
   min-width: 32px;
   text-align: right;
   font-variant-numeric: tabular-nums;
@@ -224,12 +241,14 @@ body {
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-.toggle-item:last-child { border-bottom: none; }
+.toggle-item:last-child {
+  border-bottom: none;
+}
 
 .toggle-label {
   font-size: 13px;
   font-weight: 600;
-  color: #FFFFFF;
+  color: #ffffff;
 }
 
 .toggle-hint {
@@ -246,7 +265,11 @@ body {
   flex-shrink: 0;
 }
 
-.toggle-switch input { opacity: 0; width: 0; height: 0; }
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
 
 .toggle-slider {
   position: absolute;
@@ -258,19 +281,19 @@ body {
 }
 
 .toggle-slider::before {
-  content: '';
+  content: "";
   position: absolute;
   height: 18px;
   width: 18px;
   left: 3px;
   bottom: 3px;
-  background: #A3A3A3;
+  background: #a3a3a3;
   border-radius: 50%;
   transition: 0.3s cubic-bezier(0.25, 1, 0.5, 1);
 }
 
 .toggle-switch input:checked + .toggle-slider {
-  background: #FFFFFF;
+  background: #ffffff;
 }
 
 .toggle-switch input:checked + .toggle-slider::before {
@@ -291,7 +314,7 @@ body {
   gap: 8px;
   width: 100%;
   padding: 14px;
-  background: #FFFFFF;
+  background: #ffffff;
   color: #000000;
   border: none;
   border-radius: 8px;
@@ -303,7 +326,7 @@ body {
 }
 
 .save-btn:hover {
-  background: #E5E5E5;
+  background: #e5e5e5;
   transform: scale(0.99);
 }
 
@@ -318,12 +341,14 @@ body {
 .save-status {
   margin-top: 12px;
   font-size: 13px;
-  color: #A3A3A3;
+  color: #a3a3a3;
   opacity: 0;
   transition: opacity 0.3s ease;
 }
 
-.save-status.visible { opacity: 1; }
+.save-status.visible {
+  opacity: 1;
+}
 
 /* Footer */
 .options-footer {
@@ -332,4 +357,3 @@ body {
   font-size: 12px;
   color: #525252;
 }
-

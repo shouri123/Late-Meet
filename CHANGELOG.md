@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ## [1.0.0] - 2025-05-13
 
 ### Added
+
 - Native Google Meet integration via Chrome `tabCapture` API — no bot participants.
 - Real-time audio capture using Offscreen Documents and `MediaRecorder` API.
 - ElevenLabs Scribe v2 integration for high-fidelity, multilingual transcription.
@@ -23,9 +24,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Manifest V3 compliant architecture with TypeScript and Vite 5 build system.
 
 ### Removed
+
 - All Supabase/backend dependencies (migrated to fully local architecture).
 
 ### Security
+
 - No telemetry, no analytics, no user tracking.
 - API keys stored only in local browser storage.
 - No data transmitted to any server other than user-configured API endpoints.

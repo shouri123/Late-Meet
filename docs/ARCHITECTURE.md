@@ -56,16 +56,16 @@ Late Meet is a **Manifest V3 Chrome Extension** built with TypeScript and Vite 5
 
 ## Core Components
 
-| Component | File(s) | Responsibility |
-|-----------|---------|----------------|
-| **Background Service Worker** | `background.ts` | Central state machine. Detects Meet tabs, routes audio to STT APIs, coordinates LLM summarization, manages session lifecycle, and handles participant tracking. |
-| **Offscreen Audio Engine** | `offscreen.ts`, `offscreen.html` | Runs a hidden offscreen document for `chrome.tabCapture`. Captures audio via `MediaRecorder`, processes chunks, and forwards blobs to the background worker. |
-| **Content Script** | `content.ts`, `content.css` | Injects floating UI elements into Google Meet pages. Handles the "Start Copilot" button, late-joiner briefing overlays, and chat automation for welcome messages. |
-| **Side Panel Dashboard** | `dashboard.ts`, `dashboard.html`, `dashboard.css` | Real-time intelligence display. Shows live summary, topics, decisions, action items, sentiment analysis, and meeting timeline. |
-| **Popup** | `popup.ts`, `popup.html`, `popup.css` | Quick-access extension controls. Start/stop copilot, view meeting status, navigate to dashboard. |
-| **Options Page** | `options.ts`, `options.html`, `options.css` | API key configuration. Users enter their ElevenLabs and OpenAI keys (BYOK model). |
-| **Audio Processing** | `audioProcessing.ts` | Utility functions for audio format handling and MIME type detection. |
-| **Type Definitions** | `types.ts` | TypeScript interfaces for meeting state, participants, timeline entries, etc. |
+| Component                     | File(s)                                           | Responsibility                                                                                                                                                    |
+| ----------------------------- | ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Background Service Worker** | `background.ts`                                   | Central state machine. Detects Meet tabs, routes audio to STT APIs, coordinates LLM summarization, manages session lifecycle, and handles participant tracking.   |
+| **Offscreen Audio Engine**    | `offscreen.ts`, `offscreen.html`                  | Runs a hidden offscreen document for `chrome.tabCapture`. Captures audio via `MediaRecorder`, processes chunks, and forwards blobs to the background worker.      |
+| **Content Script**            | `content.ts`, `content.css`                       | Injects floating UI elements into Google Meet pages. Handles the "Start Copilot" button, late-joiner briefing overlays, and chat automation for welcome messages. |
+| **Side Panel Dashboard**      | `dashboard.ts`, `dashboard.html`, `dashboard.css` | Real-time intelligence display. Shows live summary, topics, decisions, action items, sentiment analysis, and meeting timeline.                                    |
+| **Popup**                     | `popup.ts`, `popup.html`, `popup.css`             | Quick-access extension controls. Start/stop copilot, view meeting status, navigate to dashboard.                                                                  |
+| **Options Page**              | `options.ts`, `options.html`, `options.css`       | API key configuration. Users enter their ElevenLabs and OpenAI keys (BYOK model).                                                                                 |
+| **Audio Processing**          | `audioProcessing.ts`                              | Utility functions for audio format handling and MIME type detection.                                                                                              |
+| **Type Definitions**          | `types.ts`                                        | TypeScript interfaces for meeting state, participants, timeline entries, etc.                                                                                     |
 
 ## Data Flow
 
@@ -98,13 +98,13 @@ Late Meet is a **Manifest V3 Chrome Extension** built with TypeScript and Vite 5
 
 ## Technology Stack
 
-| Category | Technology |
-|----------|-----------|
-| Extension Platform | Chrome Manifest V3 |
-| Language | TypeScript |
-| Build Tool | Vite 5 with `@crxjs/vite-plugin` |
-| Styling | Vanilla CSS (monochrome design system) |
-| Storage | `chrome.storage.local` |
-| Transcription | ElevenLabs Scribe v2 (primary), OpenAI Whisper (fallback) |
-| Summarization | OpenAI GPT models (configurable) |
-| Audio Capture | Chrome `tabCapture` + Offscreen Documents API |
+| Category           | Technology                                                |
+| ------------------ | --------------------------------------------------------- |
+| Extension Platform | Chrome Manifest V3                                        |
+| Language           | TypeScript                                                |
+| Build Tool         | Vite 5 with `@crxjs/vite-plugin`                          |
+| Styling            | Vanilla CSS (monochrome design system)                    |
+| Storage            | `chrome.storage.local`                                    |
+| Transcription      | ElevenLabs Scribe v2 (primary), OpenAI Whisper (fallback) |
+| Summarization      | OpenAI GPT models (configurable)                          |
+| Audio Capture      | Chrome `tabCapture` + Offscreen Documents API             |

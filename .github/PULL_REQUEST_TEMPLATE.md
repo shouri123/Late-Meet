@@ -27,12 +27,16 @@ Please describe the tests you ran to verify your changes:
 
 ## Screenshots (if applicable)
 
-Add screenshots of UI changes here.
+Add screenshots or screen recordings of UI/visual changes here.
 
 ## Checklist
 
+- [ ] I have **starred the repository** ⭐ (helps us grow and show your support!).
 - [ ] My code follows the project's style guidelines (TypeScript, vanilla CSS, monochrome UI)
 - [ ] I have performed a self-review of my code
 - [ ] I have commented my code where necessary
+- [ ] My code follows the formatting of this project (run `npm run format`)
+- [ ] ESLint checks pass locally without any errors (run `npm run lint`)
+- [ ] TypeScript type checks pass locally (run `npm run type-check`)
 - [ ] My changes generate no new warnings or errors
 - [ ] I have updated the documentation if needed

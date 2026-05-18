@@ -1,0 +1,72 @@
+name: Issue & Contributor Star Reminder
+
+on:
+  issues:
+    types: [opened]
+  issue_comment:
+    types: [created]
+
+permissions:
+  issues: write
+
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Respond to Issue or Assignment Request
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const eventName = context.eventName;
+
+            if (eventName === 'issues') {
+              const issueNumber = context.issue.number;
+              const commenter = context.payload.issue.user.login;
+              const owner = context.repo.owner;
+              
+              // Skip if it's a bot or the repository owner
+              if (context.payload.issue.user.type === 'Bot' || commenter === owner) return;
+
+              const body = `👋 Hi @${commenter}, thank you for opening this issue! Late-Meet is an open-source project and we appreciate your support.\n\n` +
+                `If you'd like to work on this issue, feel free to request assignment. Let us know if you have any questions or ideas! 🚀`;
+
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issueNumber,
+                body: body
+              });
+            } else if (eventName === 'issue_comment') {
+              const commentBody = context.payload.comment.body.toLowerCase();
+              const commenter = context.payload.comment.user.login;
+              const owner = context.repo.owner;
+
+              // Don't respond to bots or the repository owner
+              if (context.payload.comment.user.type === 'Bot' || commenter === owner) return;
+
+              // Check if commenter is requesting assignment
+              const assignKeywords = [
+                "assign me",
+                "assign this to me",
+                "please assign",
+                "can i work on this",
+                "i want to work on this",
+                "i'd like to work on this",
+                "/assign"
+              ];
+
+              const matchesAssign = assignKeywords.some(keyword => commentBody.includes(keyword));
+
+              if (matchesAssign) {
+                const body = `Hello @${commenter}! Thanks for your interest in contributing to Late-Meet. 🚀\n\n` +
+                  `Before we can assign this issue to you, please make sure you have read our [CONTRIBUTING.md](https://github.com/${context.repo.owner}/${context.repo.repo}/blob/main/CONTRIBUTING.md) guidelines.\n\n` +
+                  `Once you confirm you have read them and are ready, please reply here and a maintainer will assign it to you!`;
+
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: context.issue.number,
+                  body: body
+                });
+              }
+            }

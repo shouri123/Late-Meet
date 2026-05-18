@@ -15,7 +15,7 @@ PROJECT_RULES.md
 
 # Node
 node_modules/
-package-lock.json
+
 
 # Environment & secrets
 .env

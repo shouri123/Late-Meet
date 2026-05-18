@@ -2,7 +2,7 @@
 
 export interface Topic {
   name: string;
-  status: 'active' | 'completed';
+  status: "active" | "completed";
   duration?: string;
   startTime?: string;
 }
