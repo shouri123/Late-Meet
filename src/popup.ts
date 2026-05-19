@@ -437,11 +437,52 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   }
 
+  // ——— Dev: Simulate API Call Button ———
+  const simCard = document.getElementById("dev-simulate-card");
+  const simBtn = document.getElementById("dev-simulate-btn");
+  const simStatus = document.getElementById("dev-simulate-status");
+  let simCount = 0;
+
+  simBtn?.addEventListener("click", async () => {
+    simBtn.setAttribute("disabled", "true");
+    if (simStatus) simStatus.textContent = "Sending DEV_SIMULATE_CHUNK...";
+
+    try {
+      const response = await chrome.runtime.sendMessage({ type: "DEV_SIMULATE_CHUNK" });
+      simCount++;
+      if (simStatus) {
+        simStatus.textContent = response?.success
+          ? `✓ Chunk #${simCount} simulated — "${response.mockText?.slice(0, 60)}..."`
+          : `✗ Failed: ${response?.error || "unknown"}`;
+      }
+      // Refresh usage stats immediately
+      loadPopupUsage();
+    } catch (err: any) {
+      if (simStatus) simStatus.textContent = `✗ Error: ${err.message || err}`;
+    } finally {
+      simBtn.removeAttribute("disabled");
+    }
+  });
+
+  // Check dev_mode on initial open to toggle Dev Tools card visibility
+  chrome.storage.local.get("dev_mode", (result) => {
+    if (simCard) {
+      simCard.style.display = result.dev_mode ? "block" : "none";
+    }
+  });
+
   loadPopupUsage();
 
   chrome.storage.onChanged.addListener((changes, area) => {
-    if (area === "local" && changes.usageStats) {
-      loadPopupUsage();
+    if (area === "local") {
+      if (changes.usageStats) {
+        loadPopupUsage();
+      }
+      if (changes.dev_mode) {
+        if (simCard) {
+          simCard.style.display = changes.dev_mode.newValue ? "block" : "none";
+        }
+      }
     }
   });
 });

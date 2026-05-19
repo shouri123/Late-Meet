@@ -682,13 +682,29 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // Auto-refresh usage widget when storage changes (e.g. background writes new stats)
   chrome.storage.onChanged.addListener((changes, area) => {
-    if (area === "local" && changes.usageStats) {
-      loadUsageStats();
+    if (area === "local") {
+      if (changes.usageStats) {
+        loadUsageStats();
+      }
+      if (changes.dev_mode) {
+        const simCard = document.getElementById("dev-simulate-card");
+        if (simCard) {
+          simCard.style.display = changes.dev_mode.newValue ? "block" : "none";
+        }
+      }
     }
   });
 
   // Load usage stats on initial open
   loadUsageStats();
+
+  // Check dev_mode on initial open to toggle Dev Tools card visibility
+  chrome.storage.local.get("dev_mode", (result) => {
+    const simCard = document.getElementById("dev-simulate-card");
+    if (simCard) {
+      simCard.style.display = result.dev_mode ? "block" : "none";
+    }
+  });
 
   async function loadUsageStats() {
     try {
