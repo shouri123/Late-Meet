@@ -467,11 +467,14 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     try {
       const response = await chrome.runtime.sendMessage({ type: "DEV_SIMULATE_CHUNK" });
-      simCount++;
       if (simStatus) {
-        simStatus.textContent = response?.success
-          ? `✓ Chunk #${simCount} simulated — "${response.mockText?.slice(0, 60)}..."`
-          : `✗ Failed: ${response?.error || "unknown"}`;
+        if (response?.success) {
+          simCount++;
+          simStatus.textContent = `✓ Chunk #${simCount} simulated — "${response.mockText?.slice(0, 60)}..."`;
+        } else {
+          simStatus.textContent = `✗ Failed: ${response?.error || "unknown"}`;
+        }
+      }
       }
       // Refresh usage stats immediately
       loadPopupUsage();
