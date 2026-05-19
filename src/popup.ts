@@ -10,7 +10,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   let lastState: State | null = null;
 
   // ——— Check if API key is configured ———
-  const config = await chrome.storage.local.get(["openai_api_key", "elevenlabs_api_key"]);
+  const config = await chrome.storage.session.get(["openai_api_key", "elevenlabs_api_key"]);
 
   if (!config.openai_api_key && !config.elevenlabs_api_key) {
     setupView.style.display = "block";
@@ -32,7 +32,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // Since the popup only has one input currently, we'll save it as openai_api_key
     // Users can configure ElevenLabs in the options page.
-    await chrome.storage.local.set({ openai_api_key: apiKey });
+    await chrome.storage.session.set({ openai_api_key: apiKey });
 
     setupView.style.display = "none";
     mainView.style.display = "block";

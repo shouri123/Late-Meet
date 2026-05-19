@@ -34,6 +34,6 @@ export function audioFileExtensionForMimeType(mimeType: string) {
   return "webm";
 }
 
-export function isChunkViable(blob: Blob, minBytes = 15000): boolean {
+export function isChunkViable(blob: Blob, minBytes = 5000): boolean {
   return !!blob && blob.size >= minBytes;
 }

@@ -6,7 +6,6 @@ let recorderStream: MediaStream | null = null;
 let mediaRecorder: MediaRecorder | null = null;
 let audioContext: AudioContext | null = null;
 let analyserNode: AnalyserNode | null = null;
-let chunkTimer: ReturnType<typeof setInterval> | null = null;
 let vadTimer: ReturnType<typeof setInterval> | null = null;
 let audioSources: MediaStreamAudioSourceNode[] = [];
 
@@ -14,14 +13,27 @@ let pendingChunks: Blob[] = [];
 let isStopping = false;
 let isDrainingQueue = false;
 
-const CHUNK_MS = 10000;
 const VAD_SAMPLE_MS = 250;
+const SILENCE_FLUSH_MS = 1500;
+const MAX_BUFFER_MS = 25000;
+const SILENCE_FLUSH_TICKS = Math.ceil(SILENCE_FLUSH_MS / VAD_SAMPLE_MS);
 let rmsThreshold = 0.012;
 
 let isFlushInProgress = false;
+let isVadBusy = false;
+let silenceTicks = 0;
+let bufferStartTime = 0;
 let voiceActivity = new VoiceActivityTracker({
   rmsThreshold: rmsThreshold,
 });
+
+// Forwards a log line to the background service worker so it appears in the
+// SW console (chrome://extensions → service worker), which is far easier to
+// open than the offscreen DevTools.
+function relay(message: string) {
+  console.log(`[LateMeet][offscreen] ${message}`);
+  chrome.runtime.sendMessage({ type: "OFFSCREEN_LOG", message }).catch(() => {});
+}
 
 function blobToBase64(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -86,7 +98,7 @@ function getCurrentRms(): number {
   return Math.sqrt(sumSquares / buffer.length);
 }
 
-async function flushAudioChunk() {
+async function flushAudioChunk(force = false) {
   if (isFlushInProgress || !mediaRecorder || mediaRecorder.state !== "recording") {
     return;
   }
@@ -94,27 +106,49 @@ async function flushAudioChunk() {
   isFlushInProgress = true;
 
   try {
-    if (!voiceActivity.consumeShouldFlush()) {
+    const hasSpeech = voiceActivity.consumeShouldFlush();
+
+    if (!force && !hasSpeech) {
       return;
     }
 
-    await drainPendingChunks();
+    // In continuous mode, dataavailable only fires on requestData() or stop().
+    // We must wait for the event before draining so the new blob lands in pendingChunks.
+    // A 1 000 ms timeout guards against the event never firing (browser throttling,
+    // system load) which would otherwise leave isFlushInProgress permanently true.
+    await new Promise<void>((resolve) => {
+      const recorder = mediaRecorder!;
+      let settled = false;
+      const finish = () => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timeoutId);
+        recorder.removeEventListener("dataavailable", onData);
+        resolve();
+      };
+      const onData = () => finish();
+      const timeoutId = setTimeout(() => {
+        relay("requestData timeout — resuming with queued chunks");
+        finish();
+      }, 1000);
+      recorder.addEventListener("dataavailable", onData, { once: true });
+      try {
+        recorder.requestData();
+      } catch (err) {
+        console.error("[LateMeet][offscreen] requestData failed:", err);
+        finish();
+      }
+    });
 
-    try {
-      mediaRecorder.requestData();
-    } catch (err) {
-      console.error("[LateMeet][offscreen] requestData failed:", err);
-    }
+    await drainPendingChunks();
   } finally {
     isFlushInProgress = false;
   }
 }
 
 async function postChunk(blob: Blob) {
-  console.log("[LateMeet][offscreen] postChunk called, blob size:", blob?.size || 0);
-
   if (!isChunkViable(blob)) {
-    console.warn("[LateMeet][offscreen] Chunk too small, skipping:", blob?.size ?? 0, "bytes");
+    relay(`chunk too small, skipped — ${blob?.size ?? 0} bytes (min 5 000)`);
     return;
   }
 
@@ -122,15 +156,7 @@ async function postChunk(blob: Blob) {
   const audioBase64 = await blobToBase64(blob);
   const mimeType = currentRecorder?.mimeType || "audio/webm";
 
-  if (!mimeType) {
-    console.warn("[LateMeet][offscreen] Missing MIME type");
-    return;
-  }
-
-  console.log("[LateMeet][offscreen] Sending chunk:", {
-    mimeType,
-    size: blob.size,
-  });
+  relay(`sending chunk — ${blob.size} bytes  mimeType=${mimeType}`);
 
   try {
     await chrome.runtime.sendMessage({
@@ -189,6 +215,9 @@ async function cleanupResources() {
   audioSources = [];
   pendingChunks = [];
   isStopping = false;
+  isVadBusy = false;
+  silenceTicks = 0;
+  bufferStartTime = 0;
 
   voiceActivity = new VoiceActivityTracker({
     rmsThreshold: rmsThreshold,
@@ -238,7 +267,12 @@ function connectSourceToRecorder(
   audioSources.push(source);
 }
 
-async function startCapture(streamId: string, _tabId: number, includeMicrophone = true) {
+async function startCapture(
+  streamId: string,
+  _tabId: number,
+  includeMicrophone = true,
+  vadThreshold?: number,
+) {
   if (mediaRecorder && mediaRecorder.state === "recording") {
     console.log("[LateMeet][offscreen] Capture already running");
 
@@ -246,9 +280,9 @@ async function startCapture(streamId: string, _tabId: number, includeMicrophone 
       microphoneActive: Boolean(microphoneStream),
     };
   }
-  const config = await chrome.storage.local.get("settings");
-
-  rmsThreshold = config?.settings?.vadThreshold || 0.012;
+  // Offscreen documents cannot access chrome.storage — threshold is forwarded
+  // by the background service worker which reads it before sending this message.
+  rmsThreshold = vadThreshold ?? 0.012;
 
   mediaStream = await getTabAudioStream(streamId);
 
@@ -320,28 +354,52 @@ async function startCapture(streamId: string, _tabId: number, includeMicrophone 
     }
   });
 
-  mediaRecorder.start(CHUNK_MS);
+  // Continuous mode: no timeslice argument — we control flush timing via VAD.
+  mediaRecorder.start();
 
   voiceActivity = new VoiceActivityTracker({
     rmsThreshold: rmsThreshold,
   });
 
-  vadTimer = setInterval(() => {
-    voiceActivity.observe(getCurrentRms());
+  silenceTicks = 0;
+  bufferStartTime = Date.now();
+
+  vadTimer = setInterval(async () => {
+    if (isStopping || isVadBusy) return;
+
+    isVadBusy = true;
+
+    try {
+      const rms = getCurrentRms();
+      voiceActivity.observe(rms);
+
+      if (rms < rmsThreshold) {
+        silenceTicks++;
+      } else {
+        silenceTicks = 0;
+      }
+
+      const naturalPause = silenceTicks >= SILENCE_FLUSH_TICKS;
+      const overflowReached = Date.now() - bufferStartTime >= MAX_BUFFER_MS;
+
+      if (naturalPause || overflowReached) {
+        const reason = naturalPause ? "silence-pause" : "overflow-cap";
+        relay(
+          `flush triggered — reason=${reason} rms=${rms.toFixed(4)} silenceTicks=${silenceTicks}`,
+        );
+        silenceTicks = 0;
+        bufferStartTime = Date.now();
+        // Force-flush on overflow so silent audio doesn't block the buffer cap.
+        await flushAudioChunk(overflowReached && !naturalPause);
+      }
+    } catch (err) {
+      console.error("[LateMeet][offscreen] VAD loop error:", err);
+    } finally {
+      isVadBusy = false;
+    }
   }, VAD_SAMPLE_MS);
 
-  chunkTimer = setInterval(async () => {
-    try {
-      if (isStopping) return;
-
-      await flushAudioChunk();
-      await drainPendingChunks();
-    } catch (err) {
-      console.error("[LateMeet][offscreen] Chunk pipeline error:", err);
-    }
-  }, CHUNK_MS);
-
-  console.log("[LateMeet][offscreen] Capture started");
+  relay(`capture started — mic=${Boolean(microphoneStream)} rmsThreshold=${rmsThreshold}`);
 
   return {
     microphoneActive: Boolean(microphoneStream),
@@ -357,11 +415,6 @@ async function stopCapture() {
   isStopping = true;
 
   try {
-    if (chunkTimer) {
-      clearInterval(chunkTimer);
-      chunkTimer = null;
-    }
-
     if (vadTimer) {
       clearInterval(vadTimer);
       vadTimer = null;
@@ -410,6 +463,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
           message.streamId,
           message.tabId,
           message.includeMicrophone !== false,
+          message.vadThreshold,
         );
 
         sendResponse({

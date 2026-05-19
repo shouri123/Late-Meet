@@ -9,7 +9,7 @@ const OPENAI_WHISPER_URL = "https://api.openai.com/v1/audio/transcriptions";
  * Get the stored OpenAI API key
  */
 export async function getApiKey() {
-  const result = await chrome.storage.local.get("openai_api_key");
+  const result = await chrome.storage.session.get("openai_api_key");
   return result.openai_api_key || null;
 }
 
