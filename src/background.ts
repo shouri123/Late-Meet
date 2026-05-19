@@ -1,6 +1,5 @@
 // MV3 service worker for Late Meet
-console.log('[LateMeet] Service worker loaded at', new Date().toISOString());
-0; // MV3 service worker for Late Meet
+console.log("[LateMeet] Service worker loaded at", new Date().toISOString());
 
 const OPENAI_CHAT_URL = "https://api.openai.com/v1/chat/completions";
 const OPENAI_WHISPER_URL = "https://api.openai.com/v1/audio/transcriptions";
@@ -14,9 +13,9 @@ const ELEVENLABS_STT_MODEL = "scribe_v2";
 // Delay late-joiner auto messages until 10s to avoid lobby/join churn spam.
 const MIN_MEETING_DURATION_FOR_WELCOME = 10;
 
-import { State } from './types';
-import { audioFileExtensionForMimeType } from './audioProcessing';
-import { updateUsageStats } from './usageTracker';
+import { State } from "./types";
+import { audioFileExtensionForMimeType, isChunkViable } from "./audioProcessing";
+import { updateUsageStats } from "./usageTracker";
 
 // ——— Development / Mock Mode ———
 // Set DEV_MODE = true to skip real API calls and simulate responses.
@@ -25,20 +24,20 @@ const DEV_MODE = false;
 
 async function isDevMode(): Promise<boolean> {
   if (DEV_MODE) return true;
-  const result = await chrome.storage.local.get('dev_mode');
+  const result = await chrome.storage.local.get("dev_mode");
   if (result.dev_mode) return true;
   // Auto-enable when no API keys exist
   const apiKey = await getApiKey();
-  const { elevenlabs_api_key } = await chrome.storage.local.get('elevenlabs_api_key');
+  const { elevenlabs_api_key } = await chrome.storage.local.get("elevenlabs_api_key");
   return !apiKey && !elevenlabs_api_key;
 }
 
 const MOCK_TRANSCRIPTIONS = [
-  'We should focus on the Q3 roadmap and prioritize the authentication module.',
-  'I think the backend migration will take about two weeks if we start next Monday.',
-  'Let me share the latest metrics from the dashboard, they look really promising.',
-  'Can we schedule a follow-up to discuss the design review with the full team?',
-  'The deployment pipeline is ready, we just need to finalize the staging environment.',
+  "We should focus on the Q3 roadmap and prioritize the authentication module.",
+  "I think the backend migration will take about two weeks if we start next Monday.",
+  "Let me share the latest metrics from the dashboard, they look really promising.",
+  "Can we schedule a follow-up to discuss the design review with the full team?",
+  "The deployment pipeline is ready, we just need to finalize the staging environment.",
 ];
 let mockTranscriptIndex = 0;
 
@@ -47,8 +46,6 @@ function getMockTranscription(): string {
   mockTranscriptIndex++;
   return text;
 }
-import { State } from "./types";
-import { audioFileExtensionForMimeType, isChunkViable } from "./audioProcessing";
 
 const state: State = {
   isActive: false,
@@ -229,19 +226,16 @@ function getTranscriptionPrompt() {
   return recentTexts.slice(-200);
 }
 
-async function transcribeChunk(base64Audio: string, mimeType = 'audio/webm', prompt = '') {
+async function transcribeChunk(base64Audio: string, mimeType = "audio/webm", prompt = "") {
   // Dev mode: return mock transcription without any network requests
   if (await isDevMode()) {
     const mockAudioSeconds = 15 + Math.random() * 30;
     updateUsageStats({ elevenlabsSeconds: mockAudioSeconds }).catch(() => {});
-    console.log('[LateMeet][DEV] Mock transcription returned');
+    console.log("[LateMeet][DEV] Mock transcription returned");
     return getMockTranscription();
   }
 
-  // Use ElevenLabs API key if available, fallback to OpenAI if not? 
-async function transcribeChunk(base64Audio: string, mimeType = "audio/webm", prompt = "") {
-  // Use ElevenLabs API key if available, fallback to OpenAI if not?
-  // No, the requirement is to use ElevenLabs.
+  // Use ElevenLabs API key if available, fallback to OpenAI if not
   const elevenlabsKey = await chrome.storage.local
     .get("elevenlabs_api_key")
     .then((r) => r.elevenlabs_api_key);
@@ -284,11 +278,11 @@ async function transcribeChunk(base64Audio: string, mimeType = "audio/webm", pro
 
         throw new Error(`ElevenLabs STT error ${response.status}: ${text}`);
       }
+
       const data = await response.json();
       // Estimate audio duration from blob size (WebM @ ~128 kbps → 16 000 B/s)
       const estimatedSeconds = blob.size / 16000;
       updateUsageStats({ elevenlabsSeconds: estimatedSeconds }).catch(() => {});
-      return (data.text || '').trim();
 
       const transcript = (data.text || "").trim();
 
@@ -336,10 +330,9 @@ async function transcribeChunk(base64Audio: string, mimeType = "audio/webm", pro
 
   const data = await response.json();
   // verbose_json includes the actual audio duration — use it for accurate cost tracking
-  if (typeof data.duration === 'number' && data.duration > 0) {
+  if (typeof data.duration === "number" && data.duration > 0) {
     updateUsageStats({ whisperSeconds: data.duration }).catch(() => {});
   }
-  return (data.text || '').trim();
   return (data.text || "").trim();
 }
 
@@ -354,8 +347,13 @@ async function refineTranscription(rawText: string) {
   if (await isDevMode()) {
     const pt = 180 + Math.floor(Math.random() * 200);
     const ct = 80 + Math.floor(Math.random() * 100);
-    updateUsageStats({ promptTokens: pt, completionTokens: ct, totalTokens: pt + ct, model: 'gpt-4o-mini' }).catch(() => {});
-    console.log('[LateMeet][DEV] Mock refinement applied');
+    updateUsageStats({
+      promptTokens: pt,
+      completionTokens: ct,
+      totalTokens: pt + ct,
+      model: "gpt-4o-mini",
+    }).catch(() => {});
+    console.log("[LateMeet][DEV] Mock refinement applied");
     return rawText;
   }
 
@@ -388,10 +386,10 @@ Return ONLY the corrected transcript text. If the input is unclear, inaudible, o
     const data = await response.json();
     if (data.usage) {
       updateUsageStats({
-        promptTokens:     data.usage.prompt_tokens     ?? 0,
+        promptTokens: data.usage.prompt_tokens ?? 0,
         completionTokens: data.usage.completion_tokens ?? 0,
-        totalTokens:      data.usage.total_tokens      ?? 0,
-        model: 'gpt-4o-mini'
+        totalTokens: data.usage.total_tokens ?? 0,
+        model: "gpt-4o-mini",
       }).catch(() => {});
     }
     const refined = data?.choices?.[0]?.message?.content?.trim() || rawText;
@@ -432,14 +430,23 @@ async function summarizeTranscriptIfNeeded() {
   if (await isDevMode()) {
     const pt = 800 + Math.floor(Math.random() * 400);
     const ct = 300 + Math.floor(Math.random() * 200);
-    updateUsageStats({ promptTokens: pt, completionTokens: ct, totalTokens: pt + ct, model: 'gpt-4o-mini' }).catch(() => {});
+    updateUsageStats({
+      promptTokens: pt,
+      completionTokens: ct,
+      totalTokens: pt + ct,
+      model: "gpt-4o-mini",
+    }).catch(() => {});
     state.summary = `[DEV] Meeting in progress. ${state.transcript.length} transcript entries captured. Topics are being tracked automatically.`;
-    state.currentTopic = state.transcript.length > 0 ? 'Development mode testing' : 'Waiting for input';
-    state.sentiment = (['positive', 'neutral', 'mixed'] as const)[Math.floor(Math.random() * 3)];
-    state.keyInsights = ['Development mock mode is active', `${state.transcript.length} entries processed so far`];
-    if (state.topics.length === 0) state.topics = [{ name: 'Dev testing', status: 'active' }];
+    state.currentTopic =
+      state.transcript.length > 0 ? "Development mode testing" : "Waiting for input";
+    state.sentiment = (["positive", "neutral", "mixed"] as const)[Math.floor(Math.random() * 3)];
+    state.keyInsights = [
+      "Development mock mode is active",
+      `${state.transcript.length} entries processed so far`,
+    ];
+    if (state.topics.length === 0) state.topics = [{ name: "Dev testing", status: "active" }];
     state.lastSummarizedAt = Date.now();
-    console.log('[LateMeet][DEV] Mock summarization applied');
+    console.log("[LateMeet][DEV] Mock summarization applied");
     return;
   }
 
@@ -512,10 +519,10 @@ Return a JSON object with these exact keys:
   const data = await response.json();
   if (data.usage) {
     updateUsageStats({
-      promptTokens:     data.usage.prompt_tokens     ?? 0,
+      promptTokens: data.usage.prompt_tokens ?? 0,
       completionTokens: data.usage.completion_tokens ?? 0,
-      totalTokens:      data.usage.total_tokens      ?? 0,
-      model: settings.aiModel || 'gpt-4o-mini'
+      totalTokens: data.usage.total_tokens ?? 0,
+      model: settings.aiModel || "gpt-4o-mini",
     }).catch(() => {});
   }
   const content = data?.choices?.[0]?.message?.content;
@@ -594,8 +601,13 @@ async function generateLateJoinerMessage(joinerName: string) {
   if (await isDevMode()) {
     const pt = 150 + Math.floor(Math.random() * 100);
     const ct = 40 + Math.floor(Math.random() * 40);
-    updateUsageStats({ promptTokens: pt, completionTokens: ct, totalTokens: pt + ct, model: 'gpt-4o-mini' }).catch(() => {});
-    console.log('[LateMeet][DEV] Mock late-joiner message generated');
+    updateUsageStats({
+      promptTokens: pt,
+      completionTokens: ct,
+      totalTokens: pt + ct,
+      model: "gpt-4o-mini",
+    }).catch(() => {});
+    console.log("[LateMeet][DEV] Mock late-joiner message generated");
     return fallback;
   }
 
@@ -623,10 +635,10 @@ async function generateLateJoinerMessage(joinerName: string) {
     const data = await response.json();
     if (data.usage) {
       updateUsageStats({
-        promptTokens:     data.usage.prompt_tokens     ?? 0,
+        promptTokens: data.usage.prompt_tokens ?? 0,
         completionTokens: data.usage.completion_tokens ?? 0,
-        totalTokens:      data.usage.total_tokens      ?? 0,
-        model: 'gpt-4o-mini'
+        totalTokens: data.usage.total_tokens ?? 0,
+        model: "gpt-4o-mini",
       }).catch(() => {});
     }
     return data?.choices?.[0]?.message?.content?.trim() || fallback;
@@ -857,7 +869,7 @@ chrome.tabs.onActivated.addListener(async (activeInfo) => {
         await broadcastStateUpdate();
       }
     }
-  } catch (err) {
+  } catch {
     // Tab might be closed by now
   }
 });
@@ -875,7 +887,12 @@ chrome.tabs.onRemoved.addListener(async (tabId) => {
 });
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  console.log('[LateMeet] Message received:', message?.type, 'from:', sender?.url || sender?.id || 'unknown');
+  console.log(
+    "[LateMeet] Message received:",
+    message?.type,
+    "from:",
+    sender?.url || sender?.id || "unknown",
+  );
   (async () => {
     switch (message?.type) {
       case "GET_STATE": {
@@ -982,22 +999,26 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return;
       }
 
-      case 'GET_USAGE_STATS': {
-        const { usageStats } = await chrome.storage.local.get('usageStats');
+      case "GET_USAGE_STATS": {
+        const { usageStats } = await chrome.storage.local.get("usageStats");
         sendResponse(usageStats || {});
         return;
       }
 
-      case 'DEV_SIMULATE_CHUNK': {
+      case "DEV_SIMULATE_CHUNK": {
+        if (!(await isDevMode())) {
+          sendResponse({ success: false, error: "Simulation only allowed in DEV mode" });
+          return;
+        }
         // Simulate the full transcription → refinement → summarization pipeline
         if (!state.isActive) {
           resetState();
           state.isActive = true;
           state.startTime = Date.now();
-          state.meetingId = 'dev-mock-session';
-          state.participants = ['You', 'Dev Tester'];
+          state.meetingId = "dev-mock-session";
+          state.participants = ["You", "Dev Tester"];
           state.participantCount = 2;
-          addTimeline('Mock meeting started (DEV)');
+          addTimeline("Mock meeting started (DEV)");
         }
 
         const mockText = getMockTranscription();
@@ -1006,19 +1027,22 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
         const pt = 180 + Math.floor(Math.random() * 200);
         const ct = 80 + Math.floor(Math.random() * 100);
-        updateUsageStats({ promptTokens: pt, completionTokens: ct, totalTokens: pt + ct, model: 'gpt-4o-mini' }).catch(() => {});
+        updateUsageStats({
+          promptTokens: pt,
+          completionTokens: ct,
+          totalTokens: pt + ct,
+          model: "gpt-4o-mini",
+        }).catch(() => {});
 
-        state.transcript.push({ speaker: 'Audio', text: mockText, timestamp: Date.now() });
+        state.transcript.push({ speaker: "Audio", text: mockText, timestamp: Date.now() });
         await summarizeTranscriptIfNeeded();
         await broadcastStateUpdate();
 
-        console.log('[LateMeet][DEV] Simulated chunk processed:', mockText);
+        console.log("[LateMeet][DEV] Simulated chunk processed:", mockText);
         sendResponse({ success: true, mockText });
         return;
       }
 
-      case 'GET_SAVED_SESSIONS': {
-        const { savedSessions } = await chrome.storage.local.get('savedSessions');
       case "GET_SAVED_SESSIONS": {
         const { savedSessions } = await chrome.storage.local.get("savedSessions");
         sendResponse(Array.isArray(savedSessions) ? savedSessions : []);
@@ -1048,4 +1072,4 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 // Proactive scan on startup/load
 scanForMeetTabs();
-console.log('[LateMeet] Message listener registered, service worker ready');
+console.log("[LateMeet] Message listener registered, service worker ready");
