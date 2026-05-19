@@ -404,31 +404,40 @@ document.addEventListener("DOMContentLoaded", async () => {
   // ——— Popup Usage Stats Widget ———
   async function loadPopupUsage() {
     try {
-      const usageStats: Record<string, {
-        totalTokens: number;
-        audioSeconds: number;
-        estimatedCost: number;
-      }> = await chrome.runtime.sendMessage({ type: 'GET_USAGE_STATS' });
+      const usageStats: Record<
+        string,
+        {
+          totalTokens: number;
+          audioSeconds: number;
+          estimatedCost: number;
+        }
+      > = await chrome.runtime.sendMessage({ type: "GET_USAGE_STATS" });
 
-      const today = new Date().toISOString().slice(0, 10);
+      const d = new Date();
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      const today = `${year}-${month}-${day}`;
       const s = usageStats?.[today];
       if (!s) return;
 
-      const costEl = document.getElementById('popup-usage-cost');
+      const costEl = document.getElementById("popup-usage-cost");
       if (costEl) costEl.textContent = `$${s.estimatedCost.toFixed(4)}`;
 
-      const tokensEl = document.getElementById('popup-total-tokens');
+      const tokensEl = document.getElementById("popup-total-tokens");
       if (tokensEl) tokensEl.textContent = s.totalTokens.toLocaleString();
 
-      const audioEl = document.getElementById('popup-audio-seconds');
+      const audioEl = document.getElementById("popup-audio-seconds");
       if (audioEl) audioEl.textContent = `${Math.round(s.audioSeconds)}s`;
-    } catch { /* background idle */ }
+    } catch {
+      /* background idle */
+    }
   }
 
   loadPopupUsage();
 
   chrome.storage.onChanged.addListener((changes, area) => {
-    if (area === 'local' && changes.usageStats) {
+    if (area === "local" && changes.usageStats) {
       loadPopupUsage();
     }
   });
