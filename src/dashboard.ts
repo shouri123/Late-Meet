@@ -706,25 +706,45 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   });
 
+  function sanitizeUsageStats(stats: any): Record<
+    string,
+    {
+      promptTokens: number;
+      completionTokens: number;
+      totalTokens: number;
+      audioSeconds: number;
+      estimatedCost: number;
+    }
+  > {
+    const sanitized: Record<string, any> = {};
+    if (!stats || typeof stats !== "object") return sanitized;
+    for (const [key, val] of Object.entries(stats)) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(key)) continue;
+      if (val && typeof val === "object") {
+        const v = val as any;
+        sanitized[key] = {
+          promptTokens: Number(v.promptTokens) || 0,
+          completionTokens: Number(v.completionTokens) || 0,
+          totalTokens: Number(v.totalTokens) || 0,
+          audioSeconds: Number(v.audioSeconds) || 0,
+          estimatedCost: Number(v.estimatedCost) || 0,
+        };
+      }
+    }
+    return sanitized;
+  }
+
   async function loadUsageStats() {
     try {
-      const usageStats: Record<
-        string,
-        {
-          promptTokens: number;
-          completionTokens: number;
-          totalTokens: number;
-          audioSeconds: number;
-          estimatedCost: number;
-        }
-      > = await chrome.runtime.sendMessage({ type: "GET_USAGE_STATS" });
+      const rawStats = await chrome.runtime.sendMessage({ type: "GET_USAGE_STATS" });
+      const usageStats = sanitizeUsageStats(rawStats);
 
       const d = new Date();
       const year = d.getFullYear();
       const month = String(d.getMonth() + 1).padStart(2, "0");
       const day = String(d.getDate()).padStart(2, "0");
       const today = `${year}-${month}-${day}`;
-      const todayStats = usageStats?.[today] ?? {
+      const todayStats = usageStats[today] ?? {
         promptTokens: 0,
         completionTokens: 0,
         totalTokens: 0,
