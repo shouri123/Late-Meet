@@ -418,8 +418,11 @@ document.addEventListener("DOMContentLoaded", async () => {
       const month = String(d.getMonth() + 1).padStart(2, "0");
       const day = String(d.getDate()).padStart(2, "0");
       const today = `${year}-${month}-${day}`;
-      const s = usageStats?.[today];
-      if (!s) return;
+      const s = usageStats?.[today] ?? {
+        totalTokens: 0,
+        audioSeconds: 0,
+        estimatedCost: 0,
+      };
 
       const costEl = document.getElementById("popup-usage-cost");
       if (costEl) costEl.textContent = `$${s.estimatedCost.toFixed(4)}`;
