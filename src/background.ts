@@ -161,11 +161,20 @@ interface Settings {
   summarizationInterval?: number;
   aiModel?: string;
   vadThreshold?: number;
+  lateJoinerBriefing?: boolean;
+  topicDetection?: boolean;
+  decisionDetection?: boolean;
+  actionExtraction?: boolean;
+  sentimentAnalysis?: boolean;
 }
 
 async function getSettings(): Promise<Settings> {
   const result = await chrome.storage.local.get("settings");
   return result.settings || {};
+}
+
+function isFeatureEnabled(settings: Settings, key: keyof Settings): boolean {
+  return settings[key] !== false;
 }
 
 function sanitizePromptText(value: string | null) {
@@ -340,6 +349,192 @@ async function transcribeChunk(
   }
 
   const data = await response.json();
+  const data = await response.json();
+  return (data.text || "").trim();
+}
+
+async function refineTranscription(rawText: string) {
+  if (!rawText || rawText.length < 5) return rawText;
+
+  // Skip refinement for very short or likely-noise transcriptions
+  const words = rawText.trim().split(/\s+/);
+  if (words.length < 3) return rawText;
+
+  const apiKey = await getApiKey();
+  if (!apiKey) return rawText;
+
+  const systemPrompt = `You are an expert AI transcription editor. 
+Your task is to correct errors, remove filler words (um, uh, like), and improve the clarity of the provided meeting transcript segment while strictly preserving the speaker's original meaning and intent. 
+Return ONLY the corrected transcript text. If the input is unclear, inaudible, or empty, return the exact input unchanged. Never add commentary, apologies, or meta-responses.`;
+
+  try {
+    const response = await fetch(OPENAI_CHAT_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: "gpt-4o-mini",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: rawText },
+        ],
+        temperature: 0.1,
+        max_tokens: 500,
+      }),
+    });
+
+    if (!response.ok) return rawText;
+    const data = await response.json();
+    const refined = data?.choices?.[0]?.message?.content?.trim() || rawText;
+
+    // Guard against AI hallucination / apology responses
+    const lowerRefined = refined.toLowerCase();
+    if (
+      lowerRefined.startsWith("i'm sorry") ||
+      lowerRefined.startsWith("i apologize") ||
+      lowerRefined.startsWith("sorry,") ||
+      lowerRefined.includes("no text provided") ||
+      lowerRefined.includes("please provide") ||
+      lowerRefined.includes("i cannot") ||
+      lowerRefined.includes("there is no")
+    ) {
+      return rawText;
+    }
+
+    return refined;
+  } catch (err) {
+    console.error("[LateMeet] Refinement failed:", err);
+    return rawText;
+  }
+}
+
+async function summarizeTranscriptIfNeeded() {
+  if (!state.isActive || state.transcript.length === 0) return;
+
+  const settings = await getSettings();
+  const requestedInterval = Number(settings.summarizationInterval);
+  const intervalSeconds =
+    Number.isFinite(requestedInterval) && requestedInterval > 0 ? requestedInterval : 30;
+  const lastSum = state.lastSummarizedAt || 0;
+  const elapsed = Math.floor((Date.now() - lastSum) / 1000);
+  if (lastSum > 0 && elapsed < intervalSeconds) return;
+
+  const apiKey = await getApiKey();
+  if (!apiKey) return;
+
+  const transcriptWindow = state.transcript
+    .slice(-TRANSCRIPT_WINDOW_SIZE)
+    .map((e) => `${sanitizePromptText(e.speaker)}: ${sanitizePromptText(e.text)}`)
+    .join("\n");
+  if (!transcriptWindow.trim()) return;
+
+  const topicDetectionEnabled = isFeatureEnabled(settings, "topicDetection");
+  const decisionDetectionEnabled = isFeatureEnabled(settings, "decisionDetection");
+  const actionExtractionEnabled = isFeatureEnabled(settings, "actionExtraction");
+  const sentimentAnalysisEnabled = isFeatureEnabled(settings, "sentimentAnalysis");
+  const outputFields = [
+    '"summary": "Updated meeting summary..."',
+    ...(topicDetectionEnabled
+      ? [
+          '"topics": [{"name": "Topic", "status": "active|completed"}]',
+          '"currentTopic": "Identifying the current main topic"',
+        ]
+      : []),
+    ...(decisionDetectionEnabled ? ['"decisions": ["Decision 1", ...]'] : []),
+    ...(actionExtractionEnabled ? ['"actionItems": ["Action 1", ...]'] : []),
+    ...(sentimentAnalysisEnabled ? ['"sentiment": "positive|neutral|negative|mixed"'] : []),
+    '"keyInsights": ["Insight 1", ...]',
+    '"questionsRaised": ["Question 1", ...]',
+  ];
+
+  const systemPrompt = `You are a World-Class Meeting Intelligence Engine. 
+Your goal is to extract high-fidelity insights from meeting transcripts.
+
+OUTPUT GUIDELINES:
+- Provide a concise yet professional summary (business grade).
+- Extract only the fields requested by the user prompt.
+${topicDetectionEnabled ? "- Identify distinct topics and their statuses (active/completed)." : ""}
+${decisionDetectionEnabled ? "- Precisely capture decisions if mentioned." : ""}
+${actionExtractionEnabled ? "- Precisely capture action items with assignees if mentioned." : ""}
+${sentimentAnalysisEnabled ? "- Detect the prevailing sentiment and emotional dynamics." : ""}
+- Extract "Key Insights" that go beyond a simple summary (strategic value).
+- Track specific questions raised that remain unanswered.
+
+You must return ONLY a JSON object.`;
+
+  const userPrompt = `Analyze the following meeting transcript segment.
+Integrate this new data with the previous context.
+
+PREVIOUS CONTEXT (Summary): 
+${state.summary || "Initial session"}
+
+RECENT TRANSCRIPT:
+${transcriptWindow}
+
+Return a JSON object with these exact keys:
+{
+  ${outputFields.join(",\n  ")}
+}`;
+
+  const response = await fetch(OPENAI_CHAT_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: settings.aiModel || "gpt-4o-mini",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      temperature: 0.2,
+      response_format: { type: "json_object" },
+      max_tokens: SUMMARIZATION_MAX_TOKENS,
+    }),
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Chat API error ${response.status}: ${text}`);
+  }
+
+  const data = await response.json();
+  const content = data?.choices?.[0]?.message?.content;
+  if (!content) return;
+
+  const parsed = JSON.parse(content);
+  state.summary = parsed.summary || state.summary;
+  if (topicDetectionEnabled) {
+    state.topics = Array.isArray(parsed.topics) ? parsed.topics : state.topics;
+    state.currentTopic = parsed.currentTopic || state.currentTopic;
+  } else {
+    state.topics = [];
+    state.currentTopic = "";
+  }
+  if (decisionDetectionEnabled) {
+    state.decisions = Array.isArray(parsed.decisions) ? parsed.decisions : state.decisions;
+  } else {
+    state.decisions = [];
+  }
+  if (actionExtractionEnabled) {
+    state.actionItems = Array.isArray(parsed.actionItems) ? parsed.actionItems : state.actionItems;
+  } else {
+    state.actionItems = [];
+  }
+  if (sentimentAnalysisEnabled) {
+    state.sentiment = parsed.sentiment || state.sentiment;
+  } else {
+    state.sentiment = "neutral";
+  }
+  state.keyInsights = Array.isArray(parsed.keyInsights) ? parsed.keyInsights : state.keyInsights;
+  state.questionsRaised = Array.isArray(parsed.questionsRaised)
+    ? parsed.questionsRaised
+    : state.questionsRaised;
+  state.lastSummarizedAt = Date.now();
+}
 
   if (typeof data.duration === "number") {
     updateUsageStats({
@@ -378,6 +573,10 @@ async function maybeWelcomeJoiners(
 
   const normalizedSelf =
     normalizeParticipantName(selfParticipantName);
+  const settings = await getSettings();
+  if (!isFeatureEnabled(settings, "lateJoinerBriefing")) return;
+
+  const normalizedSelf = normalizeParticipantName(selfParticipantName);
 
   for (const joiner of joiners) {
     const name = String(joiner || "").trim();
