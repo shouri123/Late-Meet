@@ -1,5 +1,8 @@
 /* Content Script Styles — Injected into Google Meet pages */
-/* Monochrome theme — matches popup/dashboard */
+/* Theme-agnostic design — matches popup/dashboard */
+
+/* --- THEME TOKENS --- */
+@import "./theme.css";
 
 /* ——— Floating Dashboard Button ——— */
 #mc-float-btn {
@@ -36,30 +39,26 @@
   width: 52px;
   height: 52px;
   border-radius: 16px;
-  background: #000000;
-  border: 1px solid #262626;
+  background: var(--bg-app);
+  border: 1px solid var(--border-sub);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow:
-    0 4px 20px rgba(0, 0, 0, 0.6),
-    0 0 40px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 4px 20px var(--shadow-main);
   transition: all 0.3s ease;
-  color: #ffffff;
+  color: var(--text-main);
 }
 
 #mc-float-btn:hover .mc-float-btn-inner {
-  box-shadow:
-    0 6px 30px rgba(0, 0, 0, 0.8),
-    0 0 60px rgba(255, 255, 255, 0.05);
-  border-color: #404040;
+  box-shadow: 0 6px 30px var(--shadow-main);
+  border-color: hsl(var(--accent-color));
 }
 
 .mc-float-pulse {
   position: absolute;
   inset: -3px;
   border-radius: 18px;
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  border: 1px solid var(--border-element);
   opacity: 0.5;
   animation: mc-pulse 2s ease-in-out infinite;
 }
@@ -81,13 +80,14 @@
   font-size: 24px;
   z-index: 1;
   display: flex;
-  color: #ffffff;
+  color: var(--text-main);
 }
 
 .mc-float-label {
-  background: rgba(0, 0, 0, 0.95);
+  background: var(--bg-app);
   backdrop-filter: blur(12px);
-  color: #fafafa;
+  -webkit-backdrop-filter: blur(12px);
+  color: var(--text-main);
   font-size: 12px;
   font-weight: 600;
   font-family: "Inter", "Segoe UI", sans-serif;
@@ -97,7 +97,7 @@
   opacity: 0;
   transform: translateX(8px);
   transition: all 0.3s ease;
-  border: 1px solid #262626;
+  border: 1px solid var(--border-sub);
 }
 
 /* ——— Private Brief Overlay ——— */
@@ -128,18 +128,19 @@
   width: 100%;
   max-height: calc(100vh - 48px);
   overflow-y: auto;
-  background: rgba(0, 0, 0, 0.97);
+  background: var(--bg-app);
   backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   border-radius: 20px;
-  border: 1px solid #262626;
-  box-shadow: 0 25px 80px rgba(0, 0, 0, 0.8);
+  border: 1px solid var(--border-sub);
+  box-shadow: 0 25px 80px var(--shadow-main);
+  color: var(--text-main);
   padding: 24px;
   font-family:
     "Inter",
     "Segoe UI",
     -apple-system,
     sans-serif;
-  color: #fafafa;
 }
 
 .mc-brief-card::-webkit-scrollbar {
@@ -147,7 +148,7 @@
 }
 
 .mc-brief-card::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.2);
+  background: var(--border-element);
   border-radius: 4px;
 }
 
@@ -157,12 +158,12 @@
   gap: 10px;
   margin-bottom: 20px;
   padding-bottom: 16px;
-  border-bottom: 1px solid #171717;
+  border-bottom: 1px solid var(--border-main);
 }
 
 .mc-brief-icon {
   font-size: 24px;
-  color: #ffffff;
+  color: var(--text-main);
 }
 
 .mc-brief-title {
@@ -171,13 +172,13 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 1px;
-  color: #ffffff;
+  color: var(--text-main);
 }
 
 .mc-brief-close {
-  background: #171717;
-  border: 1px solid #262626;
-  color: #a3a3a3;
+  background: var(--bg-card);
+  border: 1px solid var(--border-sub);
+  color: var(--text-sub);
   width: 32px;
   height: 32px;
   border-radius: 10px;
@@ -190,30 +191,30 @@
 }
 
 .mc-brief-close:hover {
-  background: #262626;
-  border-color: #404040;
-  color: #ffffff;
+  background: var(--bg-element);
+  border-color: var(--border-element);
+  color: var(--text-main);
 }
 
 .mc-brief-greeting {
   font-size: 20px;
   font-weight: 700;
   margin-bottom: 6px;
-  color: #ffffff;
+  color: var(--text-main);
 }
 
 .mc-brief-text {
   font-size: 14px;
-  color: #a3a3a3;
+  color: var(--text-sub);
   margin-bottom: 20px;
 }
 
 .mc-brief-section {
   margin-bottom: 16px;
   padding: 14px;
-  background: #0a0a0a;
+  background: var(--bg-surface);
   border-radius: 12px;
-  border: 1px solid #171717;
+  border: 1px solid var(--border-main);
 }
 
 .mc-brief-label {
@@ -221,7 +222,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  color: #fafafa;
+  color: var(--text-main);
   margin-bottom: 8px;
   display: flex;
   align-items: center;
@@ -237,7 +238,7 @@
   position: relative;
   padding: 6px 0 6px 18px;
   font-size: 13px;
-  color: #a3a3a3;
+  color: var(--text-sub);
   line-height: 1.5;
 }
 
@@ -245,26 +246,26 @@
   content: "•";
   position: absolute;
   left: 0;
-  color: #ffffff;
+  color: var(--text-sub);
   font-weight: 700;
 }
 
 .mc-brief-current {
   font-size: 14px;
-  color: #fafafa;
+  color: var(--text-main);
   font-weight: 500;
   padding: 8px 12px;
-  background: #171717;
+  background: var(--bg-card);
   border-radius: 8px;
-  border-left: 3px solid #ffffff;
+  border-left: 3px solid hsl(var(--accent-color));
 }
 
 .mc-brief-footer {
   text-align: center;
   font-size: 11px;
-  color: #525252;
+  color: var(--text-muted);
   margin-top: 16px;
   padding-top: 12px;
-  border-top: 1px solid #171717;
+  border-top: 1px solid var(--border-main);
   font-style: italic;
 }

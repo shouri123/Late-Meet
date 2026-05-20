@@ -1,4 +1,7 @@
 import { State } from "./types";
+import { initTheme } from "./theme.js";
+
+initTheme();
 
 document.addEventListener("DOMContentLoaded", async () => {
   const setupView = document.getElementById("setup-view") as HTMLDivElement;

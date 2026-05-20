@@ -1,6 +1,18 @@
 // AI Prompt Templates for Meeting Copilot — Enhanced for Contextual Intelligence
 
-export const SYSTEM_PROMPT = `You are an elite AI Meeting Intelligence Analyst. Your role is to analyze real-time meeting transcripts with exceptional precision and produce structured, actionable intelligence.
+import type { Topic, Decision, ActionItem } from "../types";
+
+// ── Types ──────────────────────────────────────────────────────────────────
+
+export interface AiContextEntry {
+  topicCount: number;
+  decisionCount: number;
+  currentTopic: string;
+}
+
+// ── Prompts ────────────────────────────────────────────────────────────────
+
+export const SYSTEM_PROMPT: string = `You are an elite AI Meeting Intelligence Analyst. Your role is to analyze real-time meeting transcripts with exceptional precision and produce structured, actionable intelligence.
 
 CORE DIRECTIVES:
 1. You MUST respond in valid JSON only. No markdown, no explanation, no preamble — just the JSON object.
@@ -19,7 +31,11 @@ EXTRACTION RULES:
 
 CONTINUITY: You will receive previous analysis context. Build upon it — don't restart from scratch. Merge new information with existing summaries seamlessly.`;
 
-export const SUMMARY_PROMPT = (transcript, previousSummary, aiContextWindow = []) => `
+export const SUMMARY_PROMPT = (
+  transcript: string,
+  previousSummary: string | null,
+  aiContextWindow: AiContextEntry[] = [],
+): string => `
 Analyze this meeting transcript chunk and generate an UPDATED, comprehensive analysis.
 
 ${previousSummary ? `PREVIOUS SUMMARY (build upon this, don't restart):\n"${previousSummary}"\n` : ""}
@@ -63,13 +79,13 @@ Respond in this exact JSON format:
 }`;
 
 export const LATE_JOINER_BRIEF_PROMPT = (
-  summary,
-  topics,
-  decisions,
-  actionItems,
-  currentTopic,
-  joinerName,
-) => `
+  summary: string,
+  topics: Topic[],
+  decisions: Decision[],
+  actionItems: ActionItem[],
+  currentTopic: string,
+  joinerName: string,
+): string => `
 A participant named "${joinerName}" just joined the meeting late.
 Generate a warm, concise briefing so they can quickly catch up without feeling lost.
 
@@ -91,7 +107,7 @@ Respond in this exact JSON format:
   "fullBrief": "A single natural paragraph combining everything above"
 }`;
 
-export const SPEAKER_ANALYSIS_PROMPT = (transcript) => `
+export const SPEAKER_ANALYSIS_PROMPT = (transcript: string): string => `
 Analyze speaker patterns in this transcript:
 """
 ${transcript}

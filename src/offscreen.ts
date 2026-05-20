@@ -1,4 +1,7 @@
 import { VoiceActivityTracker, isChunkViable } from "./audioProcessing";
+import { initTheme } from "./theme.js";
+
+initTheme();
 
 let mediaStream: MediaStream | null = null;
 let microphoneStream: MediaStream | null = null;

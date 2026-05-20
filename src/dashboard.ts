@@ -1,4 +1,7 @@
 import { State, Topic, TranscriptEntry, TimelineEvent, Decision, ActionItem } from "./types";
+import { initTheme } from "./theme.js";
+
+initTheme();
 
 document.addEventListener("DOMContentLoaded", async () => {
   // ——— Tab Switching ———
@@ -486,56 +489,139 @@ document.addEventListener("DOMContentLoaded", async () => {
     container.scrollTop = container.scrollHeight;
   }
 
-  // ——— Export ———
-  document.getElementById("export-btn")?.addEventListener("click", async () => {
+  // ——— Export Helpers ———
+  function generateMarkdown(state: State): string {
+    let markdown = `# Meeting Summary\n\n`;
+    markdown += `**Date:** ${new Date().toLocaleDateString()}\n`;
+    markdown += `**Duration:** ${formatDuration(state.duration || 0)}\n`;
+    markdown += `**Participants:** ${state.participants?.join(", ") || "N/A"}\n\n`;
+    markdown += `## Summary\n${state.summary || "N/A"}\n\n`;
+    if (state.topics?.length) {
+      markdown += `## Topics\n`;
+      state.topics.forEach((t: Topic) => (markdown += `- ${t.name} (${t.status})\n`));
+      markdown += "\n";
+    }
+    if (state.decisions?.length) {
+      markdown += `## Decisions\n`;
+      state.decisions.forEach(
+        (d: Decision) => (markdown += `- ${d.text}${d.by ? ` — ${d.by}` : ""}\n`),
+      );
+      markdown += "\n";
+    }
+    if (state.actionItems?.length) {
+      markdown += `## Action Items\n`;
+      state.actionItems.forEach((a: ActionItem) => {
+        markdown += `- [ ] ${a.task}`;
+        if (a.owner) markdown += ` → ${a.owner}`;
+        if (a.deadline) markdown += ` (due: ${a.deadline})`;
+        markdown += "\n";
+      });
+    }
+    return markdown;
+  }
+
+  let exportToastTimer: number | null = null;
+
+  function showToast(message: string, type: "success" | "error" = "success"): void {
+    const toast = document.getElementById("export-toast") as HTMLDivElement;
+    if (!toast) return;
+    if (exportToastTimer) window.clearTimeout(exportToastTimer);
+    toast.textContent = message;
+    toast.className = `export-toast ${type} show`;
+    exportToastTimer = window.setTimeout(() => {
+      toast.className = "export-toast";
+      exportToastTimer = null;
+    }, 3000);
+  }
+
+  function downloadFile(content: string, filename: string, mimeType: string): void {
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = filename;
+    anchor.click();
+    window.setTimeout(() => {
+      URL.revokeObjectURL(url);
+    }, 0);
+  }
+
+  // ——— Export Dropdown ———
+  const exportBtn = document.getElementById("export-btn") as HTMLButtonElement;
+  const exportDropdown = document.getElementById("export-dropdown") as HTMLDivElement;
+
+  exportBtn?.addEventListener("click", () => {
+    const isHidden = exportDropdown.hasAttribute("hidden");
+    if (isHidden) {
+      exportDropdown.removeAttribute("hidden");
+      exportBtn.setAttribute("aria-expanded", "true");
+    } else {
+      exportDropdown.setAttribute("hidden", "");
+      exportBtn.setAttribute("aria-expanded", "false");
+    }
+  });
+
+  document.addEventListener("click", (e: MouseEvent) => {
+    const wrapper = document.getElementById("export-wrapper");
+    if (wrapper && !wrapper.contains(e.target as Node)) {
+      exportDropdown?.setAttribute("hidden", "");
+      exportBtn?.setAttribute("aria-expanded", "false");
+    }
+  });
+
+  document.getElementById("export-md-btn")?.addEventListener("click", async () => {
+    try {
+      const state = await chrome.runtime.sendMessage({ type: "GET_STATE" });
+      if (!state) throw new Error("No meeting data available");
+      const markdown = generateMarkdown(state);
+      const filename = `meeting-summary-${new Date().toISOString().slice(0, 10)}.md`;
+      downloadFile(markdown, filename, "text/markdown");
+      showToast("Downloaded as .md file", "success");
+    } catch (err) {
+      showToast("Failed to export: " + (err instanceof Error ? err.message : String(err)), "error");
+    } finally {
+      exportDropdown?.setAttribute("hidden", "");
+      exportBtn?.setAttribute("aria-expanded", "false");
+    }
+  });
+
+  document.getElementById("export-json-btn")?.addEventListener("click", async () => {
+    try {
+      const state = await chrome.runtime.sendMessage({ type: "GET_STATE" });
+      if (!state) throw new Error("No meeting data available");
+      const sessionData = {
+        exportedAt: new Date().toISOString(),
+        summary: state.summary || "",
+        participants: state.participants || [],
+        topics: state.topics || [],
+        decisions: state.decisions || [],
+        actionItems: state.actionItems || [],
+        transcript: state.transcript || [],
+        timeline: state.timeline || [],
+      };
+      const filename = `meeting-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      downloadFile(JSON.stringify(sessionData, null, 2), filename, "application/json");
+      showToast("Downloaded as .json backup", "success");
+    } catch (err) {
+      showToast("Failed to export: " + (err instanceof Error ? err.message : String(err)), "error");
+    } finally {
+      exportDropdown?.setAttribute("hidden", "");
+      exportBtn?.setAttribute("aria-expanded", "false");
+    }
+  });
+
+  document.getElementById("export-clipboard-btn")?.addEventListener("click", async () => {
     try {
       const state = await chrome.runtime.sendMessage({ type: "GET_STATE" });
       if (!state) return;
-
-      let markdown = `# Meeting Summary\n\n`;
-      markdown += `**Date:** ${new Date().toLocaleDateString()}\n`;
-      markdown += `**Duration:** ${formatDuration(state.duration || 0)}\n`;
-      markdown += `**Participants:** ${state.participants?.join(", ") || "N/A"}\n\n`;
-      markdown += `## Summary\n${state.summary || "N/A"}\n\n`;
-
-      if (state.topics?.length) {
-        markdown += `## Topics\n`;
-        state.topics.forEach((t: Topic) => (markdown += `- ${t.name} (${t.status})\n`));
-        markdown += "\n";
-      }
-
-      if (state.decisions?.length) {
-        markdown += `## Decisions\n`;
-        state.decisions.forEach(
-          (d: Decision) => (markdown += `- ${d.text}${d.by ? ` — ${d.by}` : ""}\n`),
-        );
-        markdown += "\n";
-      }
-
-      if (state.actionItems?.length) {
-        markdown += `## Action Items\n`;
-        state.actionItems.forEach((a: ActionItem) => {
-          markdown += `- [ ] ${a.task}`;
-          if (a.owner) markdown += ` → ${a.owner}`;
-          if (a.deadline) markdown += ` (due: ${a.deadline})`;
-          markdown += "\n";
-        });
-      }
-
-      // Copy to clipboard
+      const markdown = generateMarkdown(state);
       await navigator.clipboard.writeText(markdown);
-
-      const btn = document.getElementById("export-btn") as HTMLButtonElement | null;
-      if (btn) {
-        const originalContent = btn.innerHTML;
-        btn.innerHTML =
-          '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon" style="margin-right:6px"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> Copied to clipboard!';
-        setTimeout(() => {
-          btn.innerHTML = originalContent;
-        }, 2000);
-      }
-    } catch (err) {
-      console.error("Export failed:", err);
+      showToast("Copied to clipboard", "success");
+    } catch {
+      showToast("Failed to copy to clipboard", "error");
+    } finally {
+      exportDropdown?.setAttribute("hidden", "");
+      exportBtn?.setAttribute("aria-expanded", "false");
     }
   });
 
@@ -669,9 +755,17 @@ document.addEventListener("DOMContentLoaded", async () => {
       });
     }
 
-    navigator.clipboard.writeText(md).then(() => {
-      alert("Session exported to clipboard as Markdown!");
-    });
+    navigator.clipboard
+      .writeText(md)
+      .then(() => {
+        showToast("Session exported to clipboard", "success");
+      })
+      .catch((err) => {
+        showToast(
+          "Failed to export session: " + (err instanceof Error ? err.message : String(err)),
+          "error",
+        );
+      });
   }
 
   // Load sessions on tab switch

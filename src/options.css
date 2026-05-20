@@ -2,6 +2,9 @@
 
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap");
 
+/* --- THEME TOKENS --- */
+@import "./theme.css";
+
 * {
   margin: 0;
   padding: 0;
@@ -14,8 +17,8 @@ body {
     -apple-system,
     "Segoe UI",
     sans-serif;
-  background: #000000;
-  color: #ffffff;
+  background: var(--bg-app);
+  color: var(--text-main);
   min-height: 100vh;
 }
 
@@ -39,18 +42,18 @@ body {
   justify-content: center;
   width: 48px;
   height: 48px;
-  color: #ffffff;
+  color: var(--text-main);
 }
 
 .options-title {
   font-size: 24px;
   font-weight: 800;
-  color: #ffffff;
+  color: var(--text-main);
 }
 
 .options-subtitle {
   font-size: 13px;
-  color: #737373;
+  color: var(--text-muted);
   margin-top: 2px;
 }
 
@@ -58,8 +61,8 @@ body {
 .options-section {
   margin-bottom: 32px;
   padding: 24px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-main);
   border-radius: 12px;
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
@@ -72,11 +75,11 @@ body {
   font-size: 16px;
   font-weight: 700;
   margin-bottom: 20px;
-  color: #ffffff;
+  color: var(--text-main);
 }
 
 .section-title svg {
-  color: #a3a3a3;
+  color: var(--text-sub);
 }
 
 /* Form Groups */
@@ -92,41 +95,45 @@ body {
   display: block;
   font-size: 13px;
   font-weight: 600;
-  color: #ffffff;
+  color: var(--text-main);
   margin-bottom: 4px;
 }
 
 .required {
-  color: #a3a3a3;
+  color: var(--text-sub);
   font-weight: 400;
 }
 
 .form-hint {
   font-size: 12px;
-  color: #737373;
+  color: var(--text-muted);
   margin-bottom: 8px;
 }
 
-.form-input {
+/* Inputs & Interactive Items */
+.form-input,
+.form-select,
+.toggle-vis {
   width: 100%;
   padding: 12px 16px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: var(--bg-card);
+  border: 1px solid var(--border-sub);
   border-radius: 8px;
-  color: #ffffff;
+  color: var(--text-main);
   font-family: inherit;
   font-size: 13px;
   outline: none;
   transition: all 0.2s cubic-bezier(0.25, 1, 0.5, 1);
 }
 
-.form-input:focus {
-  border-color: #ffffff;
-  background: rgba(255, 255, 255, 0.1);
+.form-input:focus,
+.form-select:focus {
+  border-color: var(--text-main);
+  background: var(--bg-element);
 }
 
 .form-input::placeholder {
-  color: #525252;
+  color: var(--text-muted);
 }
 
 .input-row {
@@ -143,46 +150,28 @@ body {
   align-items: center;
   justify-content: center;
   width: 44px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 8px;
-  color: #a3a3a3;
+  color: var(--text-sub);
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.25, 1, 0.5, 1);
 }
 
 .toggle-vis:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: #ffffff;
+  background: var(--bg-element);
+  color: var(--text-main);
 }
 
-/* Select */
+/* Select Specifics */
 .form-select {
-  width: 100%;
-  padding: 12px 16px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 8px;
-  color: #ffffff;
-  font-family: inherit;
-  font-size: 13px;
-  outline: none;
   cursor: pointer;
   appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M6 8L1 3h10z' fill='%23FFFFFF'/%3E%3C/svg%3E");
+  /* Using currentColor so the arrow matches whatever the text color is natively! */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M6 8L1 3h10z' fill='currentColor'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 16px center;
-  transition: all 0.2s cubic-bezier(0.25, 1, 0.5, 1);
-}
-
-.form-select:focus {
-  border-color: #ffffff;
-  background-color: rgba(255, 255, 255, 0.1);
 }
 
 .form-select option {
-  background: #0a0a0a;
-  color: #ffffff;
+  background: var(--bg-surface);
+  color: var(--text-main);
 }
 
 /* Range Slider */
@@ -196,7 +185,7 @@ body {
   flex: 1;
   height: 4px;
   appearance: none;
-  background: rgba(255, 255, 255, 0.15);
+  background: var(--border-sub);
   border-radius: 2px;
   outline: none;
 }
@@ -206,21 +195,21 @@ body {
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  background: #ffffff;
+  background: var(--text-main);
   cursor: pointer;
-  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.1);
+  box-shadow: 0 0 0 4px var(--border-main);
   transition: all 0.2s cubic-bezier(0.25, 1, 0.5, 1);
 }
 
 .form-range::-webkit-slider-thumb:hover {
   transform: scale(1.2);
-  box-shadow: 0 0 0 6px rgba(255, 255, 255, 0.15);
+  box-shadow: 0 0 0 6px var(--border-sub);
 }
 
 .range-value {
   font-size: 13px;
   font-weight: 600;
-  color: #ffffff;
+  color: var(--text-main);
   min-width: 32px;
   text-align: right;
   font-variant-numeric: tabular-nums;
@@ -238,7 +227,7 @@ body {
   align-items: center;
   justify-content: space-between;
   padding: 14px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid var(--border-main);
 }
 
 .toggle-item:last-child {
@@ -248,12 +237,12 @@ body {
 .toggle-label {
   font-size: 13px;
   font-weight: 600;
-  color: #ffffff;
+  color: var(--text-main);
 }
 
 .toggle-hint {
   font-size: 12px;
-  color: #737373;
+  color: var(--text-muted);
   margin-top: 2px;
 }
 
@@ -275,7 +264,7 @@ body {
   position: absolute;
   cursor: pointer;
   inset: 0;
-  background: rgba(255, 255, 255, 0.15);
+  background: var(--border-element);
   border-radius: 24px;
   transition: 0.3s cubic-bezier(0.25, 1, 0.5, 1);
 }
@@ -287,18 +276,18 @@ body {
   width: 18px;
   left: 3px;
   bottom: 3px;
-  background: #a3a3a3;
+  background: var(--bg-app);
   border-radius: 50%;
   transition: 0.3s cubic-bezier(0.25, 1, 0.5, 1);
 }
 
 .toggle-switch input:checked + .toggle-slider {
-  background: #ffffff;
+  background: var(--text-main);
 }
 
 .toggle-switch input:checked + .toggle-slider::before {
   transform: translateX(20px);
-  background: #000000;
+  background: var(--text-invert);
 }
 
 /* Save Button */
@@ -314,8 +303,8 @@ body {
   gap: 8px;
   width: 100%;
   padding: 14px;
-  background: #ffffff;
-  color: #000000;
+  background: var(--text-main);
+  color: var(--text-invert);
   border: none;
   border-radius: 8px;
   font-family: inherit;
@@ -326,7 +315,7 @@ body {
 }
 
 .save-btn:hover {
-  background: #e5e5e5;
+  filter: brightness(0.9);
   transform: scale(0.99);
 }
 
@@ -335,13 +324,13 @@ body {
 }
 
 .save-btn svg {
-  color: #000000;
+  color: var(--text-invert);
 }
 
 .save-status {
   margin-top: 12px;
   font-size: 13px;
-  color: #a3a3a3;
+  color: var(--text-sub);
   opacity: 0;
   transition: opacity 0.3s ease;
 }
@@ -355,5 +344,33 @@ body {
   margin-top: 40px;
   text-align: center;
   font-size: 12px;
-  color: #525252;
+  color: var(--text-muted);
+}
+
+/* Color Circle Grid Picker Styles */
+.accent-picker-grid {
+  display: flex;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.color-dot {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.color-dot:hover {
+  transform: scale(1.15);
+}
+
+/* Draw a clear white/dark focus border frame ring around the chosen color ring bubble option */
+.color-dot.active {
+  box-shadow:
+    0 0 0 2px var(--bg-app),
+    0 0 0 4px var(--text-main);
+  transform: scale(1.05);
 }

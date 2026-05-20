@@ -45,6 +45,94 @@
           <p class="options-subtitle">Settings & Configuration</p>
         </div>
       </header>
+      <!-- Theme Section-->
+      <div class="options-section">
+        <div class="section-title">
+          <!-- Inline SVG for styling icon -->
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path
+              d="m12 3-1.912 5.886a1 1 0 0 1-.951.691H2.918l4.909 3.567a1 1 0 0 1 .364 1.118L6.28 20.151l4.91-3.567a1 1 0 0 1 1.12 0l4.91 3.567-1.911-5.889a1 1 0 0 1 .364-1.118l4.909-3.567h-6.22a1 1 0 0 1-.951-.691Z"
+            />
+          </svg>
+          <span>Appearance Personalization</span>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="theme-select">Interface Theme</label>
+          <div class="form-hint">
+            Choose how the Copilot interface handles background lighting profiles.
+          </div>
+          <select id="theme-select" class="form-select">
+            <option value="system">System Default</option>
+            <option value="light">Light Mode</option>
+            <option value="dark">Dark Mode</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Accent Focus Color</label>
+          <div class="form-hint">
+            Pick a custom highlight token for active components, key metric fields, and buttons.
+          </div>
+          <div class="accent-picker-grid">
+            <button
+              type="button"
+              class="color-dot"
+              data-color="210, 100%, 50%"
+              aria-label="Accent color: Blue"
+              aria-pressed="false"
+              style="background-color: hsl(210, 100%, 50%)"
+            ></button>
+            <!-- Blue -->
+            <button
+              type="button"
+              class="color-dot"
+              data-color="145, 65%, 45%"
+              aria-label="Accent color: Green"
+              aria-pressed="false"
+              style="background-color: hsl(145, 65%, 45%)"
+            ></button>
+            <!-- Green -->
+            <button
+              type="button"
+              class="color-dot"
+              data-color="280, 75%, 60%"
+              aria-label="Accent color: Purple"
+              aria-pressed="false"
+              style="background-color: hsl(280, 75%, 60%)"
+            ></button>
+            <!-- Purple -->
+            <button
+              type="button"
+              class="color-dot"
+              data-color="15, 95%, 55%"
+              aria-label="Accent color: Orange"
+              aria-pressed="false"
+              style="background-color: hsl(15, 95%, 55%)"
+            ></button>
+            <!-- Orange -->
+            <button
+              type="button"
+              class="color-dot"
+              data-color="340, 85%, 55%"
+              aria-label="Accent color: Pink"
+              aria-pressed="false"
+              style="background-color: hsl(340, 85%, 55%)"
+            ></button>
+            <!-- Pink -->
+          </div>
+        </div>
+      </div>
 
       <!-- API Keys Section -->
       <section class="options-section">

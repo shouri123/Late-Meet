@@ -1,0 +1,38 @@
+/* --- THEME TOKENS --- */
+:root,
+[data-theme="light"] {
+  --bg-app: #ffffff;
+  --bg-surface: #f5f5f5;
+  --bg-card: #ededed;
+  --bg-element: #e5e5e5;
+
+  --border-main: #e5e5e5;
+  --border-sub: #d4d4d4;
+  --border-element: #cacaca;
+
+  --text-main: #0a0a0a;
+  --text-sub: #525252;
+  --text-muted: #737373;
+  --text-invert: #ffffff;
+
+  --shadow-main: rgba(0, 0, 0, 0.1);
+  --accent-color: 210, 100%, 50%; /* Default Dynamic Accent HSL */
+}
+
+[data-theme="dark"] {
+  --bg-app: #000000;
+  --bg-surface: #0a0a0a;
+  --bg-card: #171717;
+  --bg-element: #262626;
+
+  --border-main: #171717;
+  --border-sub: #262626;
+  --border-element: #404040;
+
+  --text-main: #fafafa;
+  --text-sub: #a3a3a3;
+  --text-muted: #525252;
+  --text-invert: #000000;
+
+  --shadow-main: rgba(0, 0, 0, 0.8);
+}

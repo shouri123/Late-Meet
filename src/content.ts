@@ -4,6 +4,10 @@ import {
   type ParticipantNameCandidate,
 } from "./participantDetection.ts";
 
+import { initTheme } from "./theme.js";
+
+initTheme();
+
 (() => {
   const COPILOT_PREFIX = "[LateMeet]";
 

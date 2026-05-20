@@ -5,22 +5,53 @@ import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
 const OPENAI_CHAT_URL = "https://api.openai.com/v1/chat/completions";
 const OPENAI_WHISPER_URL = "https://api.openai.com/v1/audio/transcriptions";
 
+// ── Types ──────────────────────────────────────────────────────────────────
+
+export interface WhisperSegment {
+  id: number;
+  start: number;
+  end: number;
+  text: string;
+}
+
+export interface TranscriptionResult {
+  text: string;
+  language: string;
+  segments: WhisperSegment[];
+  duration: number;
+}
+
+export interface ChatMessage {
+  role: "system" | "user" | "assistant";
+  content: string;
+}
+
+export interface ChatCompletionResponse {
+  choices: Array<{
+    message: {
+      content: string;
+    };
+  }>;
+}
+
+// ── API Functions ──────────────────────────────────────────────────────────
+
 /**
  * Get the stored OpenAI API key
  */
-export async function getApiKey() {
+export async function getApiKey(): Promise<string | null> {
   const result = await chrome.storage.session.get("openai_api_key");
-  return result.openai_api_key || null;
+  return (result.openai_api_key as string) || null;
 }
-
 /**
  * Call OpenAI Chat Completions API
- * @param {string} systemPrompt - System prompt for the AI
- * @param {string} userPrompt - User prompt with transcript data
- * @param {string} apiKey - OpenAI API key
- * @param {string} model - Model to use (default: gpt-4o-mini)
  */
-export async function chatCompletion(systemPrompt, userPrompt, apiKey, model = "gpt-4o-mini") {
+export async function chatCompletion(
+  systemPrompt: string,
+  userPrompt: string,
+  apiKey: string,
+  model: string = "gpt-4o-mini",
+): Promise<Record<string, unknown> | null> {
   if (!apiKey) throw new Error("OpenAI API key not configured");
 
   const response = await fetch(OPENAI_CHAT_URL, {
@@ -34,9 +65,9 @@ export async function chatCompletion(systemPrompt, userPrompt, apiKey, model = "
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
-      ],
-      temperature: 0.2, // Lowered from 0.3 for more consistent, precise extraction
-      max_tokens: 3000, // Increased from 2000 for richer responses
+      ] as ChatMessage[],
+      temperature: 0.2,
+      max_tokens: 3000,
       response_format: { type: "json_object" },
     }),
   });
@@ -46,11 +77,11 @@ export async function chatCompletion(systemPrompt, userPrompt, apiKey, model = "
     throw new Error(`OpenAI API error: ${response.status} — ${err}`);
   }
 
-  const data = await response.json();
+  const data = (await response.json()) as ChatCompletionResponse;
   const content = data.choices[0]?.message?.content;
 
   try {
-    return JSON.parse(content);
+    return JSON.parse(content) as Record<string, unknown>;
   } catch {
     console.error("Failed to parse OpenAI response:", content);
     return null;
@@ -58,9 +89,12 @@ export async function chatCompletion(systemPrompt, userPrompt, apiKey, model = "
 }
 
 /**
- * Transcribe audio using OpenAI Whisper API (multilingual)
+ * Transcribe audio using OpenAI Whisper API
  */
-export async function whisperTranscribe(audioBlob, apiKey) {
+export async function whisperTranscribe(
+  audioBlob: Blob,
+  apiKey: string,
+): Promise<TranscriptionResult> {
   if (!apiKey) throw new Error("OpenAI API key not configured");
 
   const formData = new FormData();
@@ -81,7 +115,13 @@ export async function whisperTranscribe(audioBlob, apiKey) {
     throw new Error(`Whisper API error: ${response.status} — ${err}`);
   }
 
-  const data = await response.json();
+  const data = (await response.json()) as {
+    text: string;
+    language: string;
+    segments?: WhisperSegment[];
+    duration: number;
+  };
+
   return {
     text: data.text,
     language: data.language,
@@ -93,7 +133,10 @@ export async function whisperTranscribe(audioBlob, apiKey) {
 /**
  * Transcribe audio using ElevenLabs Speech-to-Text API
  */
-export async function elevenlabsTranscribe(audioBlob, apiKey) {
+export async function elevenlabsTranscribe(
+  audioBlob: Blob,
+  apiKey: string,
+): Promise<TranscriptionResult> {
   if (!apiKey) throw new Error("ElevenLabs API key not configured");
 
   const elevenlabs = new ElevenLabsClient({ apiKey });
@@ -101,12 +144,12 @@ export async function elevenlabsTranscribe(audioBlob, apiKey) {
 
   const response = await elevenlabs.speechToText.convert({
     file: file,
-    model_id: "scribe_v1", // Scribe v1 is the primary STT model
+    modelId: "scribe_v1",
   });
 
   return {
     text: response.text,
-    language: "unknown", // ElevenLabs SDK response format
+    language: "unknown",
     segments: [],
     duration: 0,
   };
