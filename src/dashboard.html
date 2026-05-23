@@ -84,6 +84,7 @@
       <button class="dash-tab" data-tab="people">People</button>
       <button class="dash-tab" data-tab="timeline">Timeline</button>
       <button class="dash-tab" data-tab="sessions">Sessions</button>
+      <button class="dash-tab" data-tab="usage">Usage</button>
     </nav>
 
     <!-- Tab Content -->
@@ -567,6 +568,134 @@
           <div id="dash-sessions-list" class="sessions-list">
             <div class="empty-msg">No saved sessions yet</div>
           </div>
+        </div>
+      </section>
+
+      <!-- USAGE TAB -->
+      <section id="tab-usage" class="tab-panel">
+        <!-- Cost Hero Card -->
+        <div class="dash-card usage-hero-card">
+          <div class="dash-card-head">
+            <span class="dash-card-icon">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="icon"
+              >
+                <circle cx="12" cy="12" r="10"></circle>
+                <path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"></path>
+                <path d="M12 18V6"></path>
+              </svg>
+            </span>
+            <span class="dash-card-title">API Cost Tracker</span>
+            <span id="usage-date-badge" class="usage-date-badge">Today</span>
+          </div>
+          <div class="usage-cost-hero">
+            <span class="usage-cost-symbol">$</span>
+            <span id="usage-cost-value" class="usage-cost-number">0.0000</span>
+            <span class="usage-cost-label">estimated cost today</span>
+          </div>
+          <div class="usage-stats-grid">
+            <div class="usage-stat-cell">
+              <div id="usage-total-tokens" class="usage-stat-value">0</div>
+              <div class="usage-stat-label">Total Tokens</div>
+            </div>
+            <div class="usage-stat-cell">
+              <div id="usage-prompt-tokens" class="usage-stat-value">0</div>
+              <div class="usage-stat-label">Prompt Tokens</div>
+            </div>
+            <div class="usage-stat-cell">
+              <div id="usage-completion-tokens" class="usage-stat-value">0</div>
+              <div class="usage-stat-label">Completion Tokens</div>
+            </div>
+            <div class="usage-stat-cell">
+              <div id="usage-audio-seconds" class="usage-stat-value">0s</div>
+              <div class="usage-stat-label">Audio Processed</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Usage History -->
+        <div class="dash-card">
+          <div class="dash-card-head">
+            <span class="dash-card-icon">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="icon"
+              >
+                <path d="M3 3v5h5"></path>
+                <path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"></path>
+                <path d="M12 7v5l4 2"></path>
+              </svg>
+            </span>
+            <span class="dash-card-title">Usage History</span>
+          </div>
+          <div id="usage-history-list" class="usage-history-list">
+            <div class="empty-msg">
+              No usage data yet. Stats will appear after your first API call.
+            </div>
+          </div>
+        </div>
+
+        <!-- Dev: Simulate API Call -->
+        <div class="dash-card" id="dev-simulate-card" style="display: none">
+          <div class="dash-card-head">
+            <span class="dash-card-icon">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="icon"
+              >
+                <path d="M12 20h9"></path>
+                <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+              </svg>
+            </span>
+            <span class="dash-card-title">Dev Tools</span>
+          </div>
+          <button id="dev-simulate-btn" class="dev-simulate-btn">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              class="icon"
+              style="margin-right: 6px"
+            >
+              <polygon points="5 3 19 12 5 21 5 3"></polygon>
+            </svg>
+            Simulate API Call
+          </button>
+          <div
+            id="dev-simulate-status"
+            style="font-size: 11px; color: #525252; margin-top: 8px"
+          ></div>
         </div>
       </section>
     </main>

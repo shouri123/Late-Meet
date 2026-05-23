@@ -403,4 +403,110 @@ document.addEventListener("DOMContentLoaded", async () => {
       el.style.animation = "";
     }, 400);
   }
+
+  // ——— Popup Usage Stats Widget ———
+  function sanitizeUsageStats(stats: any): Record<
+    string,
+    {
+      totalTokens: number;
+      audioSeconds: number;
+      estimatedCost: number;
+    }
+  > {
+    const sanitized: Record<string, any> = {};
+    if (!stats || typeof stats !== "object") return sanitized;
+    for (const [key, val] of Object.entries(stats)) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(key)) continue;
+      if (val && typeof val === "object") {
+        const v = val as any;
+        sanitized[key] = {
+          totalTokens: Number(v.totalTokens) || 0,
+          audioSeconds: Number(v.audioSeconds) || 0,
+          estimatedCost: Number(v.estimatedCost) || 0,
+        };
+      }
+    }
+    return sanitized;
+  }
+
+  async function loadPopupUsage() {
+    try {
+      const rawStats = await chrome.runtime.sendMessage({ type: "GET_USAGE_STATS" });
+      const usageStats = sanitizeUsageStats(rawStats);
+
+      const d = new Date();
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      const today = `${year}-${month}-${day}`;
+      const s = usageStats[today] ?? {
+        totalTokens: 0,
+        audioSeconds: 0,
+        estimatedCost: 0,
+      };
+
+      const costEl = document.getElementById("popup-usage-cost");
+      if (costEl) costEl.textContent = `$${s.estimatedCost.toFixed(4)}`;
+
+      const tokensEl = document.getElementById("popup-total-tokens");
+      if (tokensEl) tokensEl.textContent = s.totalTokens.toLocaleString();
+
+      const audioEl = document.getElementById("popup-audio-seconds");
+      if (audioEl) audioEl.textContent = `${Math.round(s.audioSeconds)}s`;
+    } catch {
+      /* background idle */
+    }
+  }
+
+  // ——— Dev: Simulate API Call Button ———
+  const simCard = document.getElementById("dev-simulate-card");
+  const simBtn = document.getElementById("dev-simulate-btn");
+  const simStatus = document.getElementById("dev-simulate-status");
+  let simCount = 0;
+
+  simBtn?.addEventListener("click", async () => {
+    simBtn.setAttribute("disabled", "true");
+    if (simStatus) simStatus.textContent = "Sending DEV_SIMULATE_CHUNK...";
+
+    try {
+      const response = await chrome.runtime.sendMessage({ type: "DEV_SIMULATE_CHUNK" });
+      if (simStatus) {
+        if (response?.success) {
+          simCount++;
+          simStatus.textContent = `✓ Chunk #${simCount} simulated — "${response.mockText?.slice(0, 60)}..."`;
+        } else {
+          simStatus.textContent = `✗ Failed: ${response?.error || "unknown"}`;
+        }
+      }
+      }
+      // Refresh usage stats immediately
+      loadPopupUsage();
+    } catch (err: any) {
+      if (simStatus) simStatus.textContent = `✗ Error: ${err.message || err}`;
+    } finally {
+      simBtn.removeAttribute("disabled");
+    }
+  });
+
+  // Check dev_mode on initial open to toggle Dev Tools card visibility
+  chrome.storage.local.get("dev_mode", (result) => {
+    if (simCard) {
+      simCard.style.display = result.dev_mode ? "block" : "none";
+    }
+  });
+
+  loadPopupUsage();
+
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === "local") {
+      if (changes.usageStats) {
+        loadPopupUsage();
+      }
+      if (changes.dev_mode) {
+        if (simCard) {
+          simCard.style.display = changes.dev_mode.newValue ? "block" : "none";
+        }
+      }
+    }
+  });
 });

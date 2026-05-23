@@ -880,4 +880,172 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // Load sessions on tab switch
   document.querySelector('[data-tab="sessions"]')?.addEventListener("click", loadSavedSessions);
+
+  // ——— Usage Stats Tab ———
+  document.querySelector('[data-tab="usage"]')?.addEventListener("click", loadUsageStats);
+
+  // Auto-refresh usage widget when storage changes (e.g. background writes new stats)
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === "local") {
+      if (changes.usageStats) {
+        loadUsageStats();
+      }
+      if (changes.dev_mode) {
+        const simCard = document.getElementById("dev-simulate-card");
+        if (simCard) {
+          simCard.style.display = changes.dev_mode.newValue ? "block" : "none";
+        }
+      }
+    }
+  });
+
+  // Load usage stats on initial open
+  loadUsageStats();
+
+  // Check dev_mode on initial open to toggle Dev Tools card visibility
+  chrome.storage.local.get("dev_mode", (result) => {
+    const simCard = document.getElementById("dev-simulate-card");
+    if (simCard) {
+      simCard.style.display = result.dev_mode ? "block" : "none";
+    }
+  });
+
+  function sanitizeUsageStats(stats: any): Record<
+    string,
+    {
+      promptTokens: number;
+      completionTokens: number;
+      totalTokens: number;
+      audioSeconds: number;
+      estimatedCost: number;
+    }
+  > {
+    const sanitized: Record<string, any> = {};
+    if (!stats || typeof stats !== "object") return sanitized;
+    for (const [key, val] of Object.entries(stats)) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(key)) continue;
+      if (val && typeof val === "object") {
+        const v = val as any;
+        sanitized[key] = {
+          promptTokens: Number(v.promptTokens) || 0,
+          completionTokens: Number(v.completionTokens) || 0,
+          totalTokens: Number(v.totalTokens) || 0,
+          audioSeconds: Number(v.audioSeconds) || 0,
+          estimatedCost: Number(v.estimatedCost) || 0,
+        };
+      }
+    }
+    return sanitized;
+  }
+
+  async function loadUsageStats() {
+    try {
+      const rawStats = await chrome.runtime.sendMessage({ type: "GET_USAGE_STATS" });
+      const usageStats = sanitizeUsageStats(rawStats);
+
+      const d = new Date();
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      const today = `${year}-${month}-${day}`;
+      const todayStats = usageStats[today] ?? {
+        promptTokens: 0,
+        completionTokens: 0,
+        totalTokens: 0,
+        audioSeconds: 0,
+        estimatedCost: 0,
+      };
+
+      // Update date badge
+      const dateBadge = document.getElementById("usage-date-badge");
+      if (dateBadge) dateBadge.textContent = today;
+
+      // Update hero cost
+      const costEl = document.getElementById("usage-cost-value");
+      if (costEl) costEl.textContent = todayStats.estimatedCost.toFixed(4);
+
+      // Update stat cells
+      const totalEl = document.getElementById("usage-total-tokens");
+      if (totalEl) totalEl.textContent = todayStats.totalTokens.toLocaleString();
+
+      const promptEl = document.getElementById("usage-prompt-tokens");
+      if (promptEl) promptEl.textContent = todayStats.promptTokens.toLocaleString();
+
+      const completionEl = document.getElementById("usage-completion-tokens");
+      if (completionEl) completionEl.textContent = todayStats.completionTokens.toLocaleString();
+
+      const audioEl = document.getElementById("usage-audio-seconds");
+      if (audioEl) audioEl.textContent = `${Math.round(todayStats.audioSeconds)}s`;
+
+      // Render history
+      renderUsageHistory(usageStats);
+    } catch {
+      /* background might be idle on first load */
+    }
+  }
+
+  function renderUsageHistory(
+    usageStats: Record<
+      string,
+      {
+        promptTokens: number;
+        completionTokens: number;
+        totalTokens: number;
+        audioSeconds: number;
+        estimatedCost: number;
+      }
+    >,
+  ) {
+    const container = document.getElementById("usage-history-list");
+    if (!container) return;
+
+    const entries = Object.entries(usageStats || {}).sort((a, b) => b[0].localeCompare(a[0]));
+
+    if (entries.length === 0) {
+      container.innerHTML =
+        '<div class="empty-msg">No usage data yet. Stats will appear after your first API call.</div>';
+      return;
+    }
+
+    container.innerHTML = entries
+      .map(
+        ([date, s]) => `
+      <div class="usage-history-row">
+        <div class="usage-history-date">${escapeHtml(date)}</div>
+        <div class="usage-history-details">
+          <span class="usage-history-chip">🔡 ${s.totalTokens.toLocaleString()} tokens</span>
+          <span class="usage-history-chip">🎙 ${Math.round(s.audioSeconds)}s audio</span>
+          <span class="usage-history-cost">$${s.estimatedCost.toFixed(4)}</span>
+        </div>
+      </div>
+    `,
+      )
+      .join("");
+  }
+
+  // ——— Dev: Simulate API Call Button ———
+  const simBtn = document.getElementById("dev-simulate-btn");
+  const simStatus = document.getElementById("dev-simulate-status");
+  let simCount = 0;
+
+  simBtn?.addEventListener("click", async () => {
+    simBtn.setAttribute("disabled", "true");
+    if (simStatus) simStatus.textContent = "Sending DEV_SIMULATE_CHUNK...";
+
+    try {
+      const response = await chrome.runtime.sendMessage({ type: "DEV_SIMULATE_CHUNK" });
+      simCount++;
+      if (simStatus) {
+        simStatus.textContent = response?.success
+          ? `✓ Chunk #${simCount} simulated — "${response.mockText?.slice(0, 60)}..."`
+          : `✗ Failed: ${response?.error || "unknown"}`;
+      }
+      // Refresh usage stats immediately
+      loadUsageStats();
+    } catch (err: any) {
+      if (simStatus) simStatus.textContent = `✗ Error: ${err.message || err}`;
+    } finally {
+      simBtn.removeAttribute("disabled");
+    }
+  });
 });
