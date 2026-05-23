@@ -324,11 +324,15 @@ initTheme();
     }
 
     if (message?.type === "STATE_UPDATE") {
-      const btn = document.getElementById("late-meet-floating-btn");
-      if (btn && message.state.isActive) {
+      const btn = document.getElementById("late-meet-floating-btn") as HTMLButtonElement | null;
+      const isActive = message.state?.isActive;
+      if (btn && isActive) {
         btn.style.display = "none";
-      } else if (btn && !message.state.isActive) {
+      } else if (btn && !isActive) {
         btn.style.display = "flex";
+        btn.disabled = false;
+        const textSpan = btn.querySelector(".late-meet-btn-text");
+        if (textSpan) textSpan.textContent = "Start Copilot";
       }
       sendResponse({ success: true });
       return false;

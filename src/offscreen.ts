@@ -10,6 +10,7 @@ let mediaRecorder: MediaRecorder | null = null;
 let audioContext: AudioContext | null = null;
 let analyserNode: AnalyserNode | null = null;
 let vadTimer: ReturnType<typeof setInterval> | null = null;
+let waveformTimer: ReturnType<typeof setInterval> | null = null;
 let audioSources: MediaStreamAudioSourceNode[] = [];
 
 let pendingChunks: Blob[] = [];
@@ -17,6 +18,9 @@ let isStopping = false;
 let isDrainingQueue = false;
 
 const VAD_SAMPLE_MS = 250;
+const WAVEFORM_INTERVAL_MS = 50;
+const WAVEFORM_BUCKETS = 32;
+const WAVEFORM_GAIN = 6;
 const SILENCE_FLUSH_MS = 1500;
 const MAX_BUFFER_MS = 25000;
 const SILENCE_FLUSH_TICKS = Math.ceil(SILENCE_FLUSH_MS / VAD_SAMPLE_MS);
@@ -99,6 +103,26 @@ function getCurrentRms(): number {
   }
 
   return Math.sqrt(sumSquares / buffer.length);
+}
+
+function sampleAndSendWaveform() {
+  if (!analyserNode || !mediaRecorder || mediaRecorder.state !== "recording" || isStopping) return;
+
+  const buffer = new Uint8Array(analyserNode.fftSize);
+  analyserNode.getByteTimeDomainData(buffer);
+
+  const bucketSize = Math.floor(buffer.length / WAVEFORM_BUCKETS);
+  const buckets: number[] = [];
+
+  for (let i = 0; i < WAVEFORM_BUCKETS; i++) {
+    let sum = 0;
+    for (let j = 0; j < bucketSize; j++) {
+      sum += Math.abs((buffer[i * bucketSize + j] - 128) / 128);
+    }
+    buckets.push(Math.min(1, (sum / bucketSize) * WAVEFORM_GAIN));
+  }
+
+  chrome.runtime.sendMessage({ type: "WAVEFORM_DATA", buckets }).catch(() => {});
 }
 
 async function flushAudioChunk(force = false) {
@@ -202,6 +226,11 @@ async function cleanupResources() {
   mediaStream = null;
   microphoneStream = null;
   recorderStream = null;
+
+  if (waveformTimer) {
+    clearInterval(waveformTimer);
+    waveformTimer = null;
+  }
 
   if (audioContext) {
     try {
@@ -309,6 +338,10 @@ async function startCapture(
 
   audioContext = new AudioContext();
 
+  if (audioContext.state === "suspended") {
+    await audioContext.resume();
+  }
+
   const destination = audioContext.createMediaStreamDestination();
 
   analyserNode = audioContext.createAnalyser();
@@ -359,6 +392,8 @@ async function startCapture(
 
   // Continuous mode: no timeslice argument — we control flush timing via VAD.
   mediaRecorder.start();
+
+  waveformTimer = setInterval(sampleAndSendWaveform, WAVEFORM_INTERVAL_MS);
 
   voiceActivity = new VoiceActivityTracker({
     rmsThreshold: rmsThreshold,
@@ -421,6 +456,11 @@ async function stopCapture() {
     if (vadTimer) {
       clearInterval(vadTimer);
       vadTimer = null;
+    }
+
+    if (waveformTimer) {
+      clearInterval(waveformTimer);
+      waveformTimer = null;
     }
 
     if (mediaRecorder && mediaRecorder.state !== "inactive") {

@@ -190,8 +190,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       settings: newSettings,
     };
 
-    if (openaiKey) saveData.openai_api_key = openaiKey;
-    if (elevenlabsKey) saveData.elevenlabs_api_key = elevenlabsKey;
+    saveData.openai_api_key = openaiKey || "";
+    saveData.elevenlabs_api_key = elevenlabsKey || "";
 
     await chrome.storage.local.set(saveData);
 

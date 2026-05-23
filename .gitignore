@@ -12,6 +12,7 @@ PROJECT_RULES.md
 .gemini/
 .agent/
 .agents/
+.antigravitycli/
 
 # Node
 node_modules/

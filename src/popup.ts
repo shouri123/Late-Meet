@@ -259,7 +259,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   let durationInterval: number | NodeJS.Timeout | null = null;
 
   function startDurationTimer(startTime: number) {
-    if (durationInterval) clearInterval(durationInterval as any);
+    if (durationInterval) return;
 
     durationInterval = setInterval(() => {
       const elapsed = Math.round((Date.now() - startTime) / 1000);

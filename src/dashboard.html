@@ -91,6 +91,33 @@
     <main class="dash-content">
       <!-- OVERVIEW TAB -->
       <section id="tab-overview" class="tab-panel active">
+        <!-- Audio Waveform Visualizer -->
+        <div class="dash-card waveform-card" id="waveform-card">
+          <div class="dash-card-head">
+            <span class="dash-card-icon">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="icon"
+              >
+                <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                <line x1="12" x2="12" y1="19" y2="22"></line>
+              </svg>
+            </span>
+            <span class="dash-card-title">Audio Input</span>
+            <span id="waveform-status" class="waveform-status-badge">IDLE</span>
+          </div>
+          <canvas id="waveform-canvas" class="waveform-canvas"></canvas>
+        </div>
+
         <!-- Live Summary -->
         <div class="dash-card glow-card">
           <div class="dash-card-head">
