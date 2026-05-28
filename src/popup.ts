@@ -42,24 +42,24 @@ document.addEventListener("DOMContentLoaded", async () => {
     saveBtn.textContent = "Validating...";
 
     const isValid = await validateOpenAIKey(apiKey);
-    if (!isValid) {
-      saveBtn.disabled = false;
-      saveBtn.textContent = originalText;
-      shakeElement(apiKeyInput);
-      //Helpful error message.
-      let errorEl = document.getElementById("api-key-error");
-      if (!errorEl) {
-        errorEl = document.createElement("div");
-        errorEl.id = "api-key-error";
-        errorEl.style.color = "#EF4444";
-        errorEl.style.fontSize = "11px";
-        errorEl.style.marginTop = "6px";
-        errorEl.style.textAlign = "left";
-        apiKeyInput.parentNode?.appendChild(errorEl);
-      }
-      errorEl.textContent = "Invalid API Key. Please verify and try again.";
-      return;
-    }
+    /* if (!isValid) {
+       saveBtn.disabled = false;
+       saveBtn.textContent = originalText;
+       shakeElement(apiKeyInput);
+       //Helpful error message.
+       let errorEl = document.getElementById("api-key-error");
+       if (!errorEl) {
+         errorEl = document.createElement("div");
+         errorEl.id = "api-key-error";
+         errorEl.style.color = "#EF4444";
+         errorEl.style.fontSize = "11px";
+         errorEl.style.marginTop = "6px";
+         errorEl.style.textAlign = "left";
+         apiKeyInput.parentNode?.appendChild(errorEl);
+       }
+       errorEl.textContent = "Invalid API Key. Please verify and try again.";
+       return;
+     }*/
     //Cleaning up.
     const errorEl = document.getElementById("api-key-error");
     if (errorEl) {

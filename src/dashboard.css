@@ -1037,3 +1037,35 @@ body::-webkit-scrollbar-thumb,
   border-color: rgba(239, 68, 68, 0.4);
   color: #fca5a5;
 }
+
+/* ——— Header Export Controls (New) ——— */
+.export-controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.btn-glass {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  padding: 6px 12px;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  backdrop-filter: blur(10px);
+  transition: all 0.2s ease-in-out;
+}
+
+.btn-glass:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.btn-glass svg {
+  opacity: 0.8;
+}

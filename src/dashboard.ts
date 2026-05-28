@@ -999,4 +999,36 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // Load sessions on tab switch
   document.querySelector('[data-tab="sessions"]')?.addEventListener("click", loadSavedSessions);
+
+  // ——— PHASE 1: NEW HEADER EXPORT BUTTON WIRING ———
+  const headerMdBtn = document.getElementById("export-md-btn");
+  const headerPdfBtn = document.getElementById("export-pdf-btn");
+
+  if (headerMdBtn) {
+    headerMdBtn.addEventListener("click", async () => {
+      try {
+        const state = await chrome.runtime.sendMessage({ type: "GET_STATE" });
+        if (!state) throw new Error("No meeting data available");
+
+        // Reusing the maintainer's built-in markdown generation!
+        const markdown = generateMarkdown(state);
+        const filename = `meeting-summary-${new Date().toISOString().slice(0, 10)}.md`;
+
+        // Reusing the maintainer's secure download function!
+        downloadFile(markdown, filename, "text/markdown");
+        showToast("Downloaded as .md file", "success");
+      } catch (err) {
+        showToast(
+          "Failed to export: " + (err instanceof Error ? err.message : String(err)),
+          "error",
+        );
+      }
+    });
+  }
+
+  if (headerPdfBtn) {
+    headerPdfBtn.addEventListener("click", () => {
+      showToast("PDF UI active! Ready for Phase 2 library integration.", "success");
+    });
+  }
 });
