@@ -1,6 +1,10 @@
 import Redis from "ioredis";
 
-const redis = new Redis(process.env.REDIS_URL || "redis://localhost:6379");
+const redis = new Redis(process.env.REDIS_URL || "redis://localhost:6379", {
+  connectTimeout: 2000,
+  maxRetriesPerRequest: 1,
+  enableOfflineQueue: false,
+});
 
 export const getCache = async (key: string): Promise<any> => {
   try {
