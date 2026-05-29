@@ -478,7 +478,6 @@ document.addEventListener("DOMContentLoaded", async () => {
           simStatus.textContent = `✗ Failed: ${response?.error || "unknown"}`;
         }
       }
-      }
       // Refresh usage stats immediately
       loadPopupUsage();
     } catch (err: any) {
