@@ -1433,5 +1433,48 @@ chrome.commands.onCommand.addListener(async (command) => {
   }
 });
 
+function createContextMenu() {
+  chrome.contextMenus.removeAll(() => {
+    chrome.contextMenus.create({
+      id: "transcribe-tab",
+      title: "🎙️ Transcribe current tab with Late-Meet",
+      contexts: ["page"],
+    });
+  });
+}
+
+chrome.runtime.onInstalled.addListener(() => {
+  createContextMenu();
+});
+
+chrome.runtime.onStartup.addListener(() => {
+  createContextMenu();
+});
+
+chrome.contextMenus.onClicked.addListener(async (info, tab) => {
+  if (info.menuItemId !== "transcribe-tab") return;
+  if (!tab?.id) return;
+
+  const isMeetTab = Boolean(tab.url?.includes("meet.google.com/"));
+  const meetingId = isMeetTab
+    ? (tab.url?.match(/meet\.google\.com\/([a-z\-]+)/)?.[1] ?? null)
+    : null;
+  const meetingUrl = tab.url || null;
+
+  if (!state.audioActive) {
+    try {
+      await startAudioCapture(tab.id, meetingId || "unknown", meetingUrl);
+    } catch (err) {
+      console.error("[LateMeet] Failed to start capture from context menu:", err);
+    }
+  }
+
+  try {
+    await chrome.sidePanel.open({ tabId: tab.id });
+  } catch (openError) {
+    console.error("[LateMeet] Failed to open side panel from context menu:", openError);
+  }
+});
+
 // Proactive scan on startup/load
 scanForMeetTabs();

@@ -449,6 +449,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     const peopleCountEl = document.getElementById("dash-people-count");
     if (peopleCountEl) peopleCountEl.textContent = String(state.participants?.length || 0);
 
+    const isMeetTab = Boolean(state.meetingUrl?.includes("meet.google.com/"));
+    const lateJoinersCard = document.getElementById("late-joiners-card");
+    if (lateJoinersCard && !isMeetTab) {
+      lateJoinersCard.style.display = "none";
+    }
+
     // Sentiment
     updateSentiment(state.sentiment);
 
