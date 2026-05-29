@@ -1,5 +1,6 @@
 // OpenAI and ElevenLabs API wrappers for Meeting Copilot
 
+// @ts-ignore
 import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
 import { getOpenAiApiKey } from "./credentials";
 
@@ -41,13 +42,29 @@ export interface ChatCompletionResponse {
 // ── API Functions ──────────────────────────────────────────────────────────
 
 /**
- * Get the stored OpenAI API key
+ * @description Retrieves the stored OpenAI API key from browser storage
+ * @returns {Promise<string | null>} The API key if available, or null if not set
+ * @example
+ *   const key = await getApiKey();
+ *   if (key) console.log("API key is configured");
  */
 export async function getApiKey(): Promise<string | null> {
   return getOpenAiApiKey();
 }
 /**
- * Call OpenAI Chat Completions API
+ * @description Sends a chat message to OpenAI API and receives a JSON response
+ * @param {string} systemPrompt - System instructions that define the AI's behavior
+ * @param {string} userPrompt - The user's message or question
+ * @param {string} apiKey - OpenAI API key for authentication
+ * @param {string} [model="gpt-4o-mini"] - The AI model to use (defaults to gpt-4o-mini)
+ * @returns {Promise<Record<string, unknown> | null>} Parsed JSON response, or null if parsing fails
+ * @throws {Error} If API key is not provided or API call fails
+ * @example
+ *   const response = await chatCompletion(
+ *     "You are a helpful assistant",
+ *     "What is 2 + 2?",
+ *     "sk-xxxxx"
+ *   );
  */
 export async function chatCompletion(
   systemPrompt: string,
@@ -92,7 +109,15 @@ export async function chatCompletion(
 }
 
 /**
- * Transcribe audio using OpenAI Whisper API
+ * @description Transcribes audio using OpenAI's Whisper API
+ * @param {Blob} audioBlob - Audio data as a Blob object
+ * @param {string} apiKey - OpenAI API key for authentication
+ * @returns {Promise<TranscriptionResult>} Transcribed text, language, segments, and duration
+ * @throws {Error} If API key is missing or transcription fails
+ * @example
+ *   const audioBlob = new Blob([data], { type: "audio/webm" });
+ *   const result = await whisperTranscribe(audioBlob, "sk-xxxxx");
+ *   console.log(result.text); // "Hello, how are you?"
  */
 export async function whisperTranscribe(
   audioBlob: Blob,
@@ -134,7 +159,15 @@ export async function whisperTranscribe(
 }
 
 /**
- * Transcribe audio using ElevenLabs Speech-to-Text API
+ * @description Transcribes audio using ElevenLabs Speech-to-Text API
+ * @param {Blob} audioBlob - Audio data as a Blob object
+ * @param {string} apiKey - ElevenLabs API key for authentication
+ * @returns {Promise<TranscriptionResult>} Transcribed text (language set to "unknown" for ElevenLabs)
+ * @throws {Error} If API key is missing or transcription fails
+ * @example
+ *   const audioBlob = new Blob([data], { type: "audio/webm" });
+ *   const result = await elevenlabsTranscribe(audioBlob, "xxxxx-api-key");
+ *   console.log(result.text);
  */
 export async function elevenlabsTranscribe(
   audioBlob: Blob,
@@ -159,7 +192,12 @@ export async function elevenlabsTranscribe(
 }
 
 /**
- * Validate OpenAI API Key with a zero-cost GET request.
+ * @description Validates if an OpenAI API key is valid and active
+ * @param {string} apiKey - The OpenAI API key to validate
+ * @returns {Promise<boolean>} True if valid, false otherwise (times out after 5 seconds)
+ * @example
+ *   const isValid = await validateOpenAIKey("sk-xxxxx");
+ *   if (isValid) console.log("API key is working!");
  */
 
 export async function validateOpenAIKey(apiKey: string): Promise<boolean> {
@@ -189,7 +227,12 @@ export async function validateOpenAIKey(apiKey: string): Promise<boolean> {
 }
 
 /**
- * Validate ElevenLabs API Key with a zero-cost GET request.
+ * @description Validates if an ElevenLabs API key is valid and accessible
+ * @param {string} apiKey - The ElevenLabs API key to validate
+ * @returns {Promise<boolean>} True if the key is valid and accessible, false otherwise (times out after 5 seconds)
+ * @example
+ *   const isValid = await validateElevenLabsKey("xxxxx-api-key");
+ *   if (isValid) console.log("ElevenLabs API key is working!");
  */
 
 export async function validateElevenLabsKey(apiKey: string): Promise<boolean> {

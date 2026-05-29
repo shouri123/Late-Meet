@@ -31,6 +31,19 @@ EXTRACTION RULES:
 
 CONTINUITY: You will receive previous analysis context. Build upon it — don't restart from scratch. Merge new information with existing summaries seamlessly.`;
 
+/**
+ * @description Generates a comprehensive meeting analysis prompt that builds upon previous context
+ * @param {string} transcript - The new meeting transcript chunk to analyze
+ * @param {string | null} previousSummary - The previous analysis summary for continuity (null if first time)
+ * @param {AiContextEntry[]} [aiContextWindow=[]] - Recent analysis context for maintaining conversation flow
+ * @returns {string} A formatted prompt string for AI to generate meeting analysis in JSON format
+ * @example
+ *   const prompt = SUMMARY_PROMPT(
+ *     "Team discussed Q4 roadmap",
+ *     "Previous meeting covered Q3 results",
+ *     [{topicCount: 2, decisionCount: 1, currentTopic: "Roadmap"}]
+ *   );
+ */
 export const SUMMARY_PROMPT = (
   transcript: string,
   previousSummary: string | null,
@@ -78,6 +91,25 @@ Respond in this exact JSON format:
   "questionsRaised": ["unresolved question 1", "question 2"]
 }`;
 
+/**
+ * @description Creates a warm, concise briefing for a participant joining a meeting late
+ * @param {string} summary - Overview of what's been discussed so far
+ * @param {Topic[]} topics - List of discussion topics covered in the meeting
+ * @param {Decision[]} decisions - Decisions that have been made
+ * @param {ActionItem[]} actionItems - Action items assigned during the meeting
+ * @param {string} currentTopic - What is currently being discussed
+ * @param {string} joinerName - Name of the person joining late
+ * @returns {string} A formatted prompt for AI to generate a friendly catch-up briefing
+ * @example
+ *   const briefing = LATE_JOINER_BRIEF_PROMPT(
+ *     "Discussed Q4 planning",
+ *     [{name: "Budget", status: "active"}],
+ *     [{text: "Approve new tools"}],
+ *     [{task: "Send proposal"}],
+ *     "Budget Review",
+ *     "John"
+ *   );
+ */
 export const LATE_JOINER_BRIEF_PROMPT = (
   summary: string,
   topics: Topic[],
@@ -107,6 +139,14 @@ Respond in this exact JSON format:
   "fullBrief": "A single natural paragraph combining everything above"
 }`;
 
+/**
+ * @description Generates a prompt to analyze speaker patterns and engagement in a meeting
+ * @param {string} transcript - The meeting transcript containing speaker names and content
+ * @returns {string} A formatted prompt for AI to analyze speaking time, sentiment, and word count per speaker
+ * @example
+ *   const prompt = SPEAKER_ANALYSIS_PROMPT("Alice: Let's start... Bob: I agree...");
+ *   // Returns prompt asking AI to calculate speaker statistics
+ */
 export const SPEAKER_ANALYSIS_PROMPT = (transcript: string): string => `
 Analyze speaker patterns in this transcript:
 """

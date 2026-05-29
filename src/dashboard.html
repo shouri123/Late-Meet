@@ -126,7 +126,7 @@
       <button class="dash-tab" data-tab="actions">Actions</button>
       <button class="dash-tab" data-tab="people">People</button>
       <button class="dash-tab" data-tab="timeline">Timeline</button>
-      <button class="dash-tab" data-tab="sessions">Sessions</button>
+      <button class="dash-tab" data-tab="history">History</button>
     </nav>
 
     <!-- Tab Content -->
@@ -582,7 +582,7 @@
           </div>
         </div>
       </section>
-      <section id="tab-sessions" class="tab-panel">
+      <section id="tab-history" class="tab-panel">
         <div class="dash-card">
           <div class="dash-card-head">
             <span class="dash-card-icon">
@@ -605,10 +605,10 @@
                 <path d="M7 3v4a1 1 0 0 0 1 1h7"></path>
               </svg>
             </span>
-            <span class="dash-card-title">Saved Sessions</span>
+            <span class="dash-card-title">Meeting History</span>
           </div>
-          <div id="dash-sessions-list" class="sessions-list">
-            <div class="empty-msg">No saved sessions yet</div>
+          <div id="dash-history-list" class="sessions-list">
+            <div class="empty-msg">No history exists yet.</div>
           </div>
         </div>
       </section>
@@ -708,6 +708,50 @@
 
       <div class="export-toast" id="export-toast" role="status" aria-live="polite"></div>
     </footer>
+
+    <!-- Delete Confirmation Modal -->
+    <div id="delete-confirm-modal" class="modal-overlay hidden">
+      <div class="dash-card modal-content glow-card">
+        <div class="dash-card-head">
+          <span class="dash-card-icon" style="color: #fca5a5">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              class="icon"
+            >
+              <path d="M3 6h18"></path>
+              <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
+              <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
+            </svg>
+          </span>
+          <span class="dash-card-title" style="color: #fca5a5">Delete Session</span>
+        </div>
+        <div class="modal-body">
+          <p>Are you sure you want to delete this session? This action cannot be undone.</p>
+        </div>
+        <div class="modal-actions">
+          <button id="cancel-delete-btn" class="dash-tab">Cancel</button>
+          <button
+            id="confirm-delete-btn"
+            class="session-delete-btn"
+            style="
+              background: rgba(239, 68, 68, 0.15);
+              color: #fca5a5;
+              border-color: rgba(239, 68, 68, 0.3);
+            "
+          >
+            Delete
+          </button>
+        </div>
+      </div>
+    </div>
 
     <script type="module" src="dashboard.ts"></script>
   </body>

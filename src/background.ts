@@ -2,6 +2,18 @@
 
 import { State } from "./types";
 import { audioFileExtensionForMimeType, isChunkViable } from "./audioProcessing";
+import {
+  deleteSavedMeetingSession,
+  discardPendingMeetingSession,
+  getSavedMeetingSessions,
+  isStorageQuotaError,
+  persistMeetingSession,
+  persistPendingMeetingSession,
+  savePendingMeetingSession,
+  StoredSession,
+} from "./sessionStorage";
+import { AudioChunkQueue, AudioChunkQueueItem } from "./audioChunkQueue";
+import { normalizeActiveSpeakerName, resolveTranscriptSpeaker } from "./speakerAttribution";
 
 const OPENAI_CHAT_URL = "https://api.openai.com/v1/chat/completions";
 const OPENAI_WHISPER_URL = "https://api.openai.com/v1/audio/transcriptions";
@@ -12,6 +24,7 @@ const TRANSCRIPT_WINDOW_SIZE = 25;
 const SUMMARIZATION_MAX_TOKENS = 1200;
 const JOINER_MESSAGE_MAX_TOKENS = 120;
 const ELEVENLABS_STT_MODEL = "scribe_v2";
+const MAX_PENDING_AUDIO_CHUNKS = 8;
 // Delay late-joiner auto messages until 10s to avoid lobby/join churn spam.
 const MIN_MEETING_DURATION_FOR_WELCOME = 10;
 
@@ -205,6 +218,7 @@ const state: State = {
   timeline: [],
   transcript: [],
   audioActive: false,
+  currentSpeaker: null,
   targetTabId: null,
   lastSummarizedAt: 0,
   pendingJoiners: new Set(),
@@ -238,9 +252,11 @@ function resetState() {
   state.timeline = [];
   state.transcript = [];
   state.audioActive = false;
+  state.currentSpeaker = null;
   state.targetTabId = null;
   state.lastSummarizedAt = 0;
   state.pendingJoiners.clear();
+  audioChunkQueue.clear();
   state.participantCount = 0;
   selfParticipantName = null;
 }
@@ -274,10 +290,12 @@ function snapshot() {
     keyInsights: state.keyInsights,
     questionsRaised: state.questionsRaised,
     participants: state.participants,
+    initialParticipants: state.initialParticipants,
     lateJoiners: state.lateJoiners,
     timeline: state.timeline,
     transcript: state.transcript,
     audioActive: state.audioActive,
+    currentSpeaker: state.currentSpeaker,
     participantCount: state.participantCount,
   };
 }
@@ -703,6 +721,56 @@ Return a JSON object with these exact keys:
   }
 }
 
+interface QueuedAudioChunk {
+  audioBase64: string;
+  mimeType: string;
+  approxBytes: number;
+  receivedAt: number;
+  speaker: string;
+}
+
+async function processQueuedAudioChunk({ id, item }: AudioChunkQueueItem<QueuedAudioChunk>) {
+  if (!state.isActive) {
+    console.warn(`[LateMeet] queued audio chunk ${id} ignored because session is inactive`);
+    return;
+  }
+
+  console.log(
+    `[LateMeet] processing queued chunk ${id} — ~${item.approxBytes} bytes  mimeType=${item.mimeType}`,
+  );
+
+  const prompt = getTranscriptionPrompt();
+  const rawText = await transcribeChunk(item.audioBase64, item.mimeType, prompt);
+
+  if (!rawText) {
+    console.warn(`[LateMeet] STT returned empty for queued chunk ${id}`);
+    return;
+  }
+
+  console.log(`[LateMeet] transcript received for chunk ${id} — ${rawText.length} chars`);
+  const refinedText = await refineTranscription(rawText);
+  console.log(`[LateMeet] transcript refined for chunk ${id} — ${refinedText.length} chars`);
+
+  state.transcript.push({
+    speaker: resolveTranscriptSpeaker(item.speaker || state.currentSpeaker),
+    text: refinedText,
+    timestamp: item.receivedAt,
+  });
+
+  await summarizeTranscriptIfNeeded();
+  await broadcastStateUpdate();
+}
+
+const audioChunkQueue = new AudioChunkQueue<QueuedAudioChunk>({
+  maxPending: MAX_PENDING_AUDIO_CHUNKS,
+  process: processQueuedAudioChunk,
+  onError: async (err, { id }) => {
+    console.error(`[LateMeet] queued chunk ${id} processing failed:`, err);
+    addTimeline(`Audio chunk ${id} processing failed`);
+    await broadcastStateUpdate();
+  },
+});
+
 function detectNewJoiners(currentList: string[]) {
   if (state.participants.length === 0 && state.initialParticipants.length === 0) {
     state.initialParticipants = [...currentList];
@@ -835,16 +903,29 @@ async function maybeWelcomeJoiners(tabId: number | undefined, joiners: string[])
 }
 
 async function savePendingSession() {
-  const session = {
+  const session: StoredSession = {
     id: crypto.randomUUID(),
     ...snapshot(),
     savedAt: Date.now(),
     isActive: false,
   };
-  await chrome.storage.local.set({ pendingSession: session });
+
+  inMemoryPendingSession = session;
+
+  try {
+    await savePendingMeetingSession(chrome.storage.local, session);
+  } catch (err) {
+    console.error("[LateMeet] Failed to save pending session:", err);
+    if (isStorageQuotaError(err)) {
+      console.error(
+        "[LateMeet] Storage quota reached while saving pending session. Keep this extension active and export the session before closing Chrome.",
+      );
+    }
+  }
 }
 
 let isProcessingSession = false;
+let inMemoryPendingSession: StoredSession | null = null;
 
 async function persistSession() {
   if (isProcessingSession) {
@@ -853,28 +934,15 @@ async function persistSession() {
   }
   isProcessingSession = true;
   try {
-    const { pendingSession, savedSessions } = await chrome.storage.local.get([
-      "pendingSession",
-      "savedSessions",
-    ]);
-    if (!pendingSession) {
-      console.log("[LateMeet] No pending session found to save.");
-      return;
+    let session: StoredSession;
+    try {
+      session = await persistPendingMeetingSession(chrome.storage.local);
+    } catch (err) {
+      if (!inMemoryPendingSession) throw err;
+      session = await persistMeetingSession(chrome.storage.local, inMemoryPendingSession);
     }
-
-    const sessions = Array.isArray(savedSessions) ? savedSessions : [];
-
-    // Check if the session ID already exists in savedSessions to prevent duplicate entries
-    const sessionExists = sessions.some((s: any) => s.id === pendingSession.id);
-    if (sessionExists) {
-      await chrome.storage.local.set({ pendingSession: null });
-      console.log("[LateMeet] Session already persisted, cleared pending session.");
-      return;
-    }
-
-    sessions.unshift(pendingSession);
-    await chrome.storage.local.set({ savedSessions: sessions, pendingSession: null });
-    console.log("[LateMeet] Session successfully saved:", pendingSession.id);
+    inMemoryPendingSession = null;
+    console.log("[LateMeet] Session successfully saved:", session.id);
   } catch (err) {
     console.error("[LateMeet] Error persisting session:", err);
     throw err;
@@ -890,7 +958,8 @@ async function discardPendingSession() {
   }
   isProcessingSession = true;
   try {
-    await chrome.storage.local.set({ pendingSession: null });
+    inMemoryPendingSession = null;
+    await discardPendingMeetingSession(chrome.storage.local);
     console.log("[LateMeet] Pending session discarded.");
   } catch (err) {
     console.error("[LateMeet] Error discarding session:", err);
@@ -1028,7 +1097,7 @@ async function stopAudioCapture(reason = "Stopped") {
     // Ignore if offscreen not running
   }
 
-  if (state.isActive) {
+  if (state.audioActive) {
     addTimeline(`Meeting ended (${reason})`);
     await savePendingSession();
   }
@@ -1167,30 +1236,42 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           return;
         }
 
+        if (typeof message.audioBase64 !== "string" || !message.audioBase64) {
+          sendResponse({ success: false, error: "Missing audio chunk payload" });
+          return;
+        }
+
         const base64Len = message.audioBase64?.length ?? 0;
         const approxBytes = Math.round((base64Len * 3) / 4);
         console.log(
           `[LateMeet] chunk received — ~${approxBytes} bytes  mimeType=${message.mimeType}`,
         );
 
-        try {
-          const prompt = getTranscriptionPrompt();
-          const rawText = await transcribeChunk(message.audioBase64, message.mimeType, prompt);
-          if (rawText) {
-            console.log(`[LateMeet] transcript received — ${rawText.length} chars`);
-            const refinedText = await refineTranscription(rawText);
-            console.log(`[LateMeet] transcript refined — ${refinedText.length} chars`);
-            state.transcript.push({ speaker: "Audio", text: refinedText, timestamp: Date.now() });
-            await summarizeTranscriptIfNeeded();
-            await broadcastStateUpdate();
-          } else {
-            console.warn("[LateMeet] STT returned empty — chunk may be silent or too short");
-          }
-          sendResponse({ success: true });
-        } catch (err) {
-          console.error("[LateMeet] chunk processing failed:", err);
-          sendResponse({ success: false, error: (err as Error).message });
+        const result = audioChunkQueue.enqueue({
+          audioBase64: message.audioBase64,
+          mimeType: typeof message.mimeType === "string" ? message.mimeType : "audio/webm",
+          approxBytes,
+          receivedAt: Date.now(),
+          speaker: resolveTranscriptSpeaker(state.currentSpeaker),
+        });
+
+        if (!result.accepted) {
+          console.warn("[LateMeet] audio chunk queue full — chunk rejected");
+          sendResponse({
+            success: false,
+            queued: false,
+            pending: result.pending,
+            error: result.error,
+          });
+          return;
         }
+
+        sendResponse({
+          success: true,
+          queued: true,
+          chunkId: result.id,
+          pending: result.pending,
+        });
         return;
       }
 
@@ -1211,6 +1292,20 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return;
       }
 
+      case "ACTIVE_SPEAKER_CHANGED": {
+        const speaker = normalizeActiveSpeakerName(message.name);
+
+        if (!speaker) {
+          sendResponse({ success: false, error: "Invalid active speaker name" });
+          return;
+        }
+
+        state.currentSpeaker = speaker;
+        await broadcastStateUpdate();
+        sendResponse({ success: true, speaker });
+        return;
+      }
+
       case "SAVE_SESSION": {
         await persistSession();
         await broadcastStateUpdate();
@@ -1226,16 +1321,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       }
 
       case "GET_SAVED_SESSIONS": {
-        const { savedSessions } = await chrome.storage.local.get("savedSessions");
-        sendResponse(Array.isArray(savedSessions) ? savedSessions : []);
+        const sessions = await getSavedMeetingSessions(chrome.storage.local);
+        sendResponse(sessions);
         return;
       }
 
       case "DELETE_SAVED_SESSION": {
-        const { savedSessions } = await chrome.storage.local.get("savedSessions");
-        const sessions = Array.isArray(savedSessions) ? savedSessions : [];
-        const next = sessions.filter((s) => s.id !== message.sessionId);
-        await chrome.storage.local.set({ savedSessions: next });
+        await deleteSavedMeetingSession(chrome.storage.local, message.sessionId);
         sendResponse({ success: true });
         return;
       }
@@ -1250,6 +1342,35 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   });
 
   return true;
+});
+
+// Keyboard Shortcut Commands
+chrome.commands.onCommand.addListener(async (command) => {
+  try {
+    if (command === "toggle-recording") {
+      if (state.audioActive) {
+        await stopAudioCapture("Keyboard shortcut stop");
+        return;
+      }
+
+      await scanForMeetTabs();
+      if (state.targetTabId) {
+        await startAudioCapture(state.targetTabId, state.meetingId, state.meetingUrl);
+      } else {
+        console.warn("[LateMeet] No active Meet tab found for keyboard shortcut.");
+      }
+      return;
+    }
+
+    if (command === "open-side-panel") {
+      const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (activeTab?.id) {
+        await chrome.sidePanel.open({ tabId: activeTab.id });
+      }
+    }
+  } catch (err) {
+    console.error("[LateMeet] Keyboard command failed:", command, err);
+  }
 });
 
 // Proactive scan on startup/load

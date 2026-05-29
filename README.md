@@ -5,11 +5,11 @@
 
 **Catch up instantly when you join a meeting late — without bots, servers, or transcript storage.**
 
-[![GSSoC 2026](https://img.shields.io/badge/GSSoC-2026-orange?style=for-the-badge&logo=git&logoColor=white)](https://gssoc.girlscript.tech/)
-[![Version](https://img.shields.io/badge/Version-1.1.0-black?style=for-the-badge&logo=googlechrome&logoColor=white)](https://github.com/shouri123/Late-Meet)
-[![License](https://img.shields.io/badge/License-MIT-black?style=for-the-badge)](LICENSE)
-[![Platform](https://img.shields.io/badge/Platform-Google_Meet-black?style=for-the-badge&logo=googlemeet)](https://meet.google.com)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-black?style=for-the-badge)](CONTRIBUTING.md)
+[![GSSoC 2026 Open Source Program Badge](https://img.shields.io/badge/GSSoC-2026-orange?style=for-the-badge&logo=git&logoColor=white)](https://gssoc.girlscript.tech/)
+[![Current Version: 1.1.0](https://img.shields.io/badge/Version-1.1.0-black?style=for-the-badge&logo=googlechrome&logoColor=white)](https://github.com/shouri123/Late-Meet)
+[![MIT License Badge](https://img.shields.io/badge/License-MIT-black?style=for-the-badge)](LICENSE)
+[![Supported Platform: Google Meet](https://img.shields.io/badge/Platform-Google_Meet-black?style=for-the-badge&logo=googlemeet)](https://meet.google.com)
+[![Pull Requests Welcome Badge](https://img.shields.io/badge/PRs-welcome-black?style=for-the-badge)](CONTRIBUTING.md)
 
 </div>
 
@@ -41,6 +41,7 @@
 - [🚀 Active & Open GSSoC 2026 Issues](#-active--open-gssoc-2026-issues)
 - [🗺️ Project Roadmap](#%EF%B8%8F-project-roadmap)
 - [🐛 Known Issues](#-known-issues)
+- [⌨️ Keyboard Shortcuts](#keyboard-shortcuts)
 - [🔒 Security & Privacy First](#-security--privacy-first)
 - [📜 License](#-license)
 
@@ -322,6 +323,19 @@ Here is the official bank of active and open issues currently available for GSSo
 | Audio capture intermittently fails after migration from OpenAI Whisper to ElevenLabs Scribe STT | 🟢 Resolved | [#1](https://github.com/shouri123/Late-Meet/issues/1) |
 
 > Found another bug? Choose one of our GSSoC templates and open a detailed bug report on our [Issues](https://github.com/shouri123/Late-Meet/issues) board.
+
+---
+
+## ⌨️ Keyboard Shortcuts
+
+Control Late Meet without touching your mouse — perfect for accessibility and power users.
+
+| Shortcut       | Mac           | Action                  |
+| :------------- | :------------ | :---------------------- |
+| `Ctrl+Shift+S` | `Cmd+Shift+S` | Toggle recording on/off |
+| `Ctrl+Shift+P` | `Cmd+Shift+P` | Open the side panel     |
+
+> Shortcuts can be customized at `chrome://extensions/shortcuts`.
 
 ---
 

@@ -772,6 +772,17 @@ body::-webkit-scrollbar-thumb {
   line-height: 1.5;
 }
 
+.session-modal-error {
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  border-radius: 8px;
+  color: #fecaca;
+  font-size: 12px;
+  line-height: 1.4;
+  margin: -8px 0 16px;
+  padding: 10px 12px;
+}
+
 .session-modal-actions {
   display: flex;
   gap: 10px;

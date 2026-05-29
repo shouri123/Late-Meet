@@ -1068,4 +1068,122 @@ body::-webkit-scrollbar-thumb,
 
 .btn-glass svg {
   opacity: 0.8;
+/* ——— History Modal & UI ——— */
+.session-item.expanded .session-item-summary {
+  display: block;
+  -webkit-line-clamp: unset;
+  line-clamp: unset;
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 1;
+  transition: opacity 0.2s ease;
+}
+
+.modal-overlay.hidden {
+  display: none;
+  opacity: 0;
+}
+
+.modal-content {
+  width: 90%;
+  max-width: 360px;
+  background: var(--bg-app);
+  margin-bottom: 0;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
+}
+
+.modal-body {
+  font-size: 13px;
+  color: var(--text-sub);
+  line-height: 1.5;
+  margin-bottom: 24px;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+/* ——— Skeleton Loader ——— */
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.skeleton-item {
+  background: linear-gradient(
+    90deg,
+    var(--bg-card) 25%,
+    var(--border-main) 50%,
+    var(--bg-card) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite linear;
+  border-radius: 8px;
+  height: 40px;
+  margin-bottom: 8px;
+}
+
+.skeleton-avatar {
+  background: linear-gradient(
+    90deg,
+    var(--bg-card) 25%,
+    var(--border-main) 50%,
+    var(--bg-card) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite linear;
+  border-radius: 8px;
+  height: 32px;
+  width: 32px;
+  flex-shrink: 0;
+}
+
+.skeleton-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border-main);
+}
+.skeleton-row:last-child {
+  border-bottom: none;
+}
+.skeleton-text-block {
+  flex: 1;
+}
+.skeleton-text {
+  background: linear-gradient(
+    90deg,
+    var(--bg-card) 25%,
+    var(--border-main) 50%,
+    var(--bg-card) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite linear;
+  border-radius: 4px;
+  height: 14px;
+  margin-bottom: 6px;
+  width: 80%;
+}
+.skeleton-text.short {
+  width: 40%;
+  height: 10px;
+  margin-bottom: 0;
 }

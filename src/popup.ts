@@ -3,6 +3,7 @@ import { initTheme } from "./theme.js";
 import { getApiCredentials, saveApiCredentials } from "./utils/credentials";
 import { validateOpenAIKey } from "./utils/api.js";
 import { resolveManualMeetTab } from "./meetingTabs";
+import { startPopupAudioCapture } from "./popupCapture";
 
 initTheme();
 
@@ -12,6 +13,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   const meetingSection = document.getElementById("meeting-section") as HTMLDivElement;
   const noMeetingSection = document.getElementById("no-meeting-section") as HTMLDivElement;
   const sessionModal = document.getElementById("session-modal") as HTMLDivElement;
+  const sessionModalError = document.getElementById(
+    "session-modal-error",
+  ) as HTMLParagraphElement | null;
 
   let lastState: State | null = null;
 
@@ -98,6 +102,30 @@ document.addEventListener("DOMContentLoaded", async () => {
   // ——— Start Copilot (Audio Capture with User Gesture) ———
   const copilotBtn = document.getElementById("start-copilot-btn") as HTMLButtonElement | null;
 
+  function getPopupMediaStreamId(tabId: number): Promise<string> {
+    return new Promise((resolve, reject) => {
+      chrome.tabCapture.getMediaStreamId({ targetTabId: tabId }, (streamId) => {
+        if (chrome.runtime.lastError) {
+          reject(new Error(chrome.runtime.lastError.message || "Unknown tab capture error"));
+          return;
+        }
+
+        resolve(streamId || "");
+      });
+    });
+  }
+
+  async function requestPopupMicrophonePermission(): Promise<boolean> {
+    try {
+      const micStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      micStream.getTracks().forEach((track) => track.stop());
+      return true;
+    } catch {
+      console.warn("[LateMeet] Microphone permission not granted — recording tab audio only");
+      return false;
+    }
+  }
+
   async function handleStopAudio(btn?: HTMLButtonElement | null) {
     if (!lastState?.audioActive) return;
 
@@ -126,75 +154,45 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (textEl) textEl.textContent = "Starting...";
       btn.classList.add("loading");
 
-      resolveManualMeetTab()
-        .then(({ tab: meetTab, meetingId, meetingUrl }) => {
-          // --- Get Media Stream ID in foreground (popup) to ensure user gesture propagation ---
-          chrome.tabCapture.getMediaStreamId({ targetTabId: meetTab.id }, async (streamId) => {
-            if (chrome.runtime.lastError) {
-              const err = chrome.runtime.lastError.message || "Unknown error";
-              console.error("[LateMeet] Popup getMediaStreamId error:", err);
-              // If already capturing, we can treat it as success or inform the background
-              if (err.includes("active stream")) {
-                setCopilotActive(true);
-                return;
-              } else {
-                handleStartAudioError(
-                  new Error(
-                    "Capture permission denied. Try clicking the extension icon again on the Meet tab.",
-                  ),
-                );
-                return;
-              }
-            }
+      const { meetingId, microphoneEnabled } = await startPopupAudioCapture({
+        resolveMeetTab: resolveManualMeetTab,
+        getMediaStreamId: getPopupMediaStreamId,
+        requestMicrophonePermission: requestPopupMicrophonePermission,
+        startAudioCapture: (payload) =>
+          chrome.runtime.sendMessage({
+            type: "MANUAL_START_AUDIO",
+            ...payload,
+          }),
+      });
 
-            if (!streamId) {
-              handleStartAudioError(
-                new Error(
-                  "Capture permission denied. Try clicking the extension icon again on the Meet tab.",
-                ),
-              );
-              return;
-            }
+      if (!microphoneEnabled) {
+        console.warn("[LateMeet] Started without microphone input — tab audio only");
+      }
 
-            try {
-              const response = await chrome.runtime.sendMessage({
-                type: "MANUAL_START_AUDIO",
-                tabId: meetTab.id,
-                meetingId: meetingId,
-                meetingUrl: meetingUrl || meetTab.url || null,
-                streamId: streamId,
-                includeMicrophone: true,
-              });
-
-              if (response && response.success) {
-                // Clear loading state before setting active state
-                btn.disabled = false;
-                btn.classList.remove("loading");
-                setCopilotActive(true);
-                // Immediately show meeting section and start timer
-                if (meetingSection) meetingSection.style.display = "block";
-                if (noMeetingSection) noMeetingSection.style.display = "none";
-                if (meetingId) {
-                  const meetingIdEl = document.getElementById("meeting-id");
-                  if (meetingIdEl) meetingIdEl.textContent = meetingId;
-                }
-                const badge = document.getElementById("status-badge");
-                if (badge) {
-                  badge.className = "status-badge active";
-                  const statusText = badge.querySelector(".status-text");
-                  if (statusText) statusText.textContent = "Recording...";
-                }
-                startDurationTimer(Date.now());
-              } else {
-                throw new Error(response?.error || "Failed to start audio capture");
-              }
-            } catch (err: any) {
-              handleStartAudioError(err);
-            }
-          });
-        })
-        .catch(handleStartAudioError);
+      // Clear loading state before setting active state
+      btn.disabled = false;
+      btn.classList.remove("loading");
+      setCopilotActive(true);
+      // Immediately show meeting section and start timer
+      if (meetingSection) meetingSection.style.display = "block";
+      if (noMeetingSection) noMeetingSection.style.display = "none";
+      if (meetingId) {
+        const meetingIdEl = document.getElementById("meeting-id");
+        if (meetingIdEl) meetingIdEl.textContent = meetingId;
+      }
+      const badge = document.getElementById("status-badge");
+      if (badge) {
+        badge.className = "status-badge active";
+        const statusText = badge.querySelector(".status-text");
+        if (statusText) statusText.textContent = "Recording...";
+      }
+      startDurationTimer(Date.now());
     } catch (err: any) {
+      if ((err.message || "").includes("active stream")) {
+        setCopilotActive(true);
+        return;
+      }
+
       handleStartAudioError(err);
     }
 
@@ -274,6 +272,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   function showSessionModal() {
     const saveBtn = document.getElementById("save-session-btn") as HTMLButtonElement | null;
     const discardBtn = document.getElementById("discard-session-btn") as HTMLButtonElement | null;
+    if (sessionModalError) {
+      sessionModalError.hidden = true;
+      sessionModalError.textContent = "";
+    }
     if (saveBtn) {
       saveBtn.disabled = false;
       saveBtn.textContent = "Save Session";
@@ -303,6 +305,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     btn.disabled = true;
     btn.textContent = "Saving...";
     btn.classList.add("loading");
+    if (sessionModalError) {
+      sessionModalError.hidden = true;
+      sessionModalError.textContent = "";
+    }
     if (discardBtn) {
       discardBtn.disabled = true;
     }
@@ -315,6 +321,13 @@ document.addEventListener("DOMContentLoaded", async () => {
       hideSessionModal();
     } catch (err) {
       console.error("[LateMeet] Failed to save session:", err);
+      if (sessionModalError) {
+        sessionModalError.hidden = false;
+        sessionModalError.textContent =
+          err instanceof Error
+            ? err.message
+            : "Unable to save this session. Export it from the dashboard before closing Chrome.";
+      }
       // Restore states on error
       btn.disabled = false;
       btn.textContent = originalText;

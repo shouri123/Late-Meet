@@ -7,7 +7,10 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "test": "tsx --test src/audioProcessing.test.ts src/participantDetection.test.ts src/meetingTabs.test.ts src/utils/credentials.test.ts",
+    "test": "tsx --test src/audioChunkQueue.test.ts src/audioProcessing.test.ts src/meetingTabs.test.ts src/participantDetection.test.ts src/sessionStorage.test.ts src/utils/credentials.test.ts",
+    "test": "tsx --test src/audioProcessing.test.ts src/participantDetection.test.ts src/dashboardCapture.test.ts src/meetingTabs.test.ts src/utils/credentials.test.ts",
+    "test": "tsx --test src/audioProcessing.test.ts src/audioChunkQueue.test.ts src/participantDetection.test.ts src/speakerAttribution.test.ts src/meetingTabs.test.ts src/utils/credentials.test.ts",
+    "test": "tsx --test src/audioProcessing.test.ts src/audioChunkQueue.test.ts src/participantDetection.test.ts src/meetingTabs.test.ts src/sessionStorage.test.ts src/utils/credentials.test.ts",
     "lint": "eslint . --ext .ts,.js",
     "type-check": "tsc --noEmit",
     "format": "prettier --write .",

@@ -4,6 +4,32 @@
 /* --- THEME TOKENS --- */
 @import "./theme.css";
 
+:root {
+  --lm-space-xs: 4px;
+  --lm-space-xs2: 6px;
+  --lm-space-sm: 8px;
+  --lm-space-sm2: 10px;
+  --lm-space-md: 12px;
+  --lm-space-md2: 14px;
+  --lm-space-lg: 20px;
+  --lm-space-xl: 24px;
+
+  --lm-radius-xs: 4px;
+  --lm-radius-sm: 8px;
+  --lm-radius-base: 10px;
+  --lm-radius-md: 12px;
+  --lm-radius-lg: 16px;
+  --lm-radius-xl: 18px;
+  --lm-radius-2xl: 20px;
+
+  --lm-font-size-xs: 11px;
+  --lm-font-size-sm: 12px;
+  --lm-font-size-base: 13px;
+  --lm-font-size-md: 14px;
+  --lm-font-size-lg: 20px;
+  --lm-font-size-xl: 24px;
+}
+
 /* ——— Floating Dashboard Button ——— */
 #mc-float-btn {
   position: fixed;
@@ -12,7 +38,7 @@
   z-index: 999999;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--lm-space-sm);
   cursor: pointer;
   opacity: 0;
   transform: translateY(20px) scale(0.9);
@@ -38,7 +64,7 @@
   position: relative;
   width: 52px;
   height: 52px;
-  border-radius: 16px;
+  border-radius: var(--lm-radius-lg);
   background: var(--bg-app);
   border: 1px solid var(--border-sub);
   display: flex;
@@ -57,7 +83,7 @@
 .mc-float-pulse {
   position: absolute;
   inset: -3px;
-  border-radius: 18px;
+  border-radius: var(--lm-radius-lg);
   border: 1px solid var(--border-element);
   opacity: 0.5;
   animation: mc-pulse 2s ease-in-out infinite;
@@ -77,7 +103,7 @@
 
 .mc-float-icon {
   position: relative;
-  font-size: 24px;
+  font-size: var(--lm-font-size-xl);
   z-index: 1;
   display: flex;
   color: var(--text-main);
@@ -88,11 +114,11 @@
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   color: var(--text-main);
-  font-size: 12px;
+  font-size: var(--lm-font-size-sm);
   font-weight: 600;
   font-family: "Inter", "Segoe UI", sans-serif;
-  padding: 6px 12px;
-  border-radius: 8px;
+  padding: var(--lm-space-xs2) var(--lm-space-md);
+  border-radius: var(--lm-radius-sm);
   white-space: nowrap;
   opacity: 0;
   transform: translateX(8px);
@@ -112,7 +138,7 @@
   display: flex;
   align-items: flex-start;
   justify-content: flex-end;
-  padding: 24px;
+  padding: var(--lm-space-xl);
   opacity: 0;
   transform: translateX(100%);
   transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
@@ -131,11 +157,11 @@
   background: var(--bg-app);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border-radius: 20px;
+  border-radius: var(--lm-radius-lg);
   border: 1px solid var(--border-sub);
   box-shadow: 0 25px 80px var(--shadow-main);
   color: var(--text-main);
-  padding: 24px;
+  padding: var(--lm-space-xl);
   font-family:
     "Inter",
     "Segoe UI",
@@ -149,26 +175,26 @@
 
 .mc-brief-card::-webkit-scrollbar-thumb {
   background: var(--border-element);
-  border-radius: 4px;
+  border-radius: var(--lm-radius-xs);
 }
 
 .mc-brief-header {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 20px;
-  padding-bottom: 16px;
+  gap: var(--lm-space-sm2);
+  margin-bottom: var(--lm-space-lg);
+  padding-bottom: var(--lm-space-md2); /* 14px - closest match, or add --lm-space-md3: 16px */
   border-bottom: 1px solid var(--border-main);
 }
 
 .mc-brief-icon {
-  font-size: 24px;
+  font-size: var(--lm-font-size-xl);
   color: var(--text-main);
 }
 
 .mc-brief-title {
   flex: 1;
-  font-size: 14px;
+  font-size: var(--lm-font-size-md);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 1px;
@@ -181,8 +207,8 @@
   color: var(--text-sub);
   width: 32px;
   height: 32px;
-  border-radius: 10px;
-  font-size: 14px;
+  border-radius: var(--lm-radius-base);
+  font-size: var(--lm-font-size-md);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -197,34 +223,34 @@
 }
 
 .mc-brief-greeting {
-  font-size: 20px;
+  font-size: var(--lm-font-size-lg);
   font-weight: 700;
-  margin-bottom: 6px;
+  margin-bottom: var(--lm-space-xs2);
   color: var(--text-main);
 }
 
 .mc-brief-text {
-  font-size: 14px;
+  font-size: var(--lm-font-size-md);
   color: var(--text-sub);
-  margin-bottom: 20px;
+  margin-bottom: var(--lm-space-lg);
   white-space: pre-wrap;
 }
 
 .mc-brief-section {
-  margin-bottom: 16px;
-  padding: 14px;
+  margin-bottom: var(--lm-space-md);
+  padding: var(--lm-space-md2);
   background: var(--bg-surface);
-  border-radius: 12px;
+  border-radius: var(--lm-radius-md);
   border: 1px solid var(--border-main);
 }
 
 .mc-brief-label {
-  font-size: 12px;
+  font-size: var(--lm-font-size-sm);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   color: var(--text-main);
-  margin-bottom: 8px;
+  margin-bottom: var(--lm-space-sm);
   display: flex;
   align-items: center;
 }
@@ -238,7 +264,7 @@
 .mc-brief-list li {
   position: relative;
   padding: 6px 0 6px 18px;
-  font-size: 13px;
+  font-size: var(--lm-font-size-base);
   color: var(--text-sub);
   line-height: 1.5;
 }
@@ -252,21 +278,21 @@
 }
 
 .mc-brief-current {
-  font-size: 14px;
+  font-size: var(--lm-font-size-md);
   color: var(--text-main);
   font-weight: 500;
-  padding: 8px 12px;
+  padding: var(--lm-space-sm) var(--lm-space-md);
   background: var(--bg-card);
-  border-radius: 8px;
+  border-radius: var(--lm-radius-sm);
   border-left: 3px solid hsl(var(--accent-color));
 }
 
 .mc-brief-footer {
   text-align: center;
-  font-size: 11px;
+  font-size: var(--lm-font-size-xs);
   color: var(--text-muted);
-  margin-top: 16px;
-  padding-top: 12px;
+  margin-top: var(--lm-space-md2); /* 14px - closest match, or add --lm-space-md3: 16px */
+  padding-top: var(--lm-space-md);
   border-top: 1px solid var(--border-main);
   font-style: italic;
 }
