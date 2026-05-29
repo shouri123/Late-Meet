@@ -1001,7 +1001,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   document.querySelector('[data-tab="sessions"]')?.addEventListener("click", loadSavedSessions);
 
   // ——— PHASE 1: NEW HEADER EXPORT BUTTON WIRING ———
-  const headerMdBtn = document.getElementById("export-md-btn");
+  const headerMdBtn = document.getElementById("header-export-md-btn");
   const headerPdfBtn = document.getElementById("export-pdf-btn");
 
   if (headerMdBtn) {
