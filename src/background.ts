@@ -241,8 +241,32 @@ async function hydrateState() {
     hydrationPromise = (async () => {
       try {
         const data = await chrome.storage.local.get("activeMeetingState");
-        if (data.activeMeetingState) {
-          Object.assign(state, data.activeMeetingState);
+        const stored = data.activeMeetingState as Partial<State> | undefined;
+        if (stored && typeof stored === "object") {
+          // Validate structure before merging to prevent crashes from corrupted storage
+          if (Array.isArray(stored.transcript)) state.transcript = stored.transcript;
+          if (Array.isArray(stored.timeline)) state.timeline = stored.timeline;
+          if (Array.isArray(stored.topics)) state.topics = stored.topics;
+          if (Array.isArray(stored.decisions)) state.decisions = stored.decisions;
+          if (Array.isArray(stored.actionItems)) state.actionItems = stored.actionItems;
+          if (Array.isArray(stored.keyInsights)) state.keyInsights = stored.keyInsights;
+          if (Array.isArray(stored.unresolvedDiscussions)) state.unresolvedDiscussions = stored.unresolvedDiscussions;
+          if (Array.isArray(stored.contradictions)) state.contradictions = stored.contradictions;
+          if (Array.isArray(stored.questionsRaised)) state.questionsRaised = stored.questionsRaised;
+          if (Array.isArray(stored.participants)) state.participants = stored.participants;
+          if (Array.isArray(stored.initialParticipants)) state.initialParticipants = stored.initialParticipants;
+          if (Array.isArray(stored.lateJoiners)) state.lateJoiners = stored.lateJoiners;
+          
+          if (typeof stored.isActive === "boolean") state.isActive = stored.isActive;
+          if (typeof stored.meetingId === "string") state.meetingId = stored.meetingId;
+          if (typeof stored.meetingUrl === "string") state.meetingUrl = stored.meetingUrl;
+          if (typeof stored.startTime === "number") state.startTime = stored.startTime;
+          if (typeof stored.summary === "string") state.summary = stored.summary;
+          if (typeof stored.currentTopic === "string") state.currentTopic = stored.currentTopic;
+          if (typeof stored.sentiment === "string") state.sentiment = stored.sentiment;
+          if (typeof stored.audioActive === "boolean") state.audioActive = stored.audioActive;
+          if (typeof stored.targetTabId === "number" || stored.targetTabId === null) state.targetTabId = stored.targetTabId;
+          if (typeof stored.participantCount === "number") state.participantCount = stored.participantCount;
         }
       } catch (err) {
         console.error("[LateMeet] Failed to hydrate state:", err);
@@ -338,6 +362,7 @@ function snapshot() {
     audioActive: state.audioActive,
     currentSpeaker: state.currentSpeaker,
     participantCount: state.participantCount,
+    targetTabId: state.targetTabId,
   };
 }
 
@@ -609,19 +634,19 @@ Return ONLY the corrected transcript text. If the input is unclear, inaudible, o
 // ---------------------------------------------------------------------------
 let summaryInFlight = false;
 
-function mergeUniqueObjects<T>(existing: T[], incoming: any, keyFn: (item: T) => string): T[] {
+function mergeUniqueObjects<T>(existing: T[], incoming: unknown, keyFn: (item: T) => string): T[] {
   if (!Array.isArray(incoming) || incoming.length === 0) return existing;
   const map = new Map<string, T>();
   existing.forEach((item) => map.set(keyFn(item), item));
-  incoming.forEach((item) => {
-    if (item) map.set(keyFn(item), item);
+  incoming.forEach((item: unknown) => {
+    if (item && typeof item === "object") map.set(keyFn(item as T), item as T);
   });
   return Array.from(map.values());
 }
 
-function mergeUniqueStrings(existing: string[], incoming: any): string[] {
+function mergeUniqueStrings(existing: string[], incoming: unknown): string[] {
   if (!Array.isArray(incoming) || incoming.length === 0) return existing;
-  return Array.from(new Set([...existing, ...incoming.filter(Boolean)]));
+  return Array.from(new Set([...existing, ...(incoming as unknown[]).filter(Boolean).map(String)]));
 }
 
 async function summarizeTranscriptIfNeeded() {
@@ -752,25 +777,25 @@ Return a JSON object with these exact keys:
     state.summary = parsed.summary || state.summary;
 
     if (topicDetectionEnabled) {
-      state.topics = mergeUniqueObjects(state.topics, parsed.topics, (t: any) => String(t.name).toLowerCase().trim());
+      state.topics = mergeUniqueObjects(state.topics, parsed.topics, (t: { name?: string }) => String(t.name || "").toLowerCase().trim());
       state.currentTopic = parsed.currentTopic || state.currentTopic;
     }
 
     if (decisionDetectionEnabled) {
-      state.decisions = mergeUniqueObjects(state.decisions, parsed.decisions, (d: any) => String(d.text).toLowerCase().trim());
+      state.decisions = mergeUniqueObjects(state.decisions, parsed.decisions, (d: { text?: string }) => String(d.text || "").toLowerCase().trim());
     }
 
     if (actionExtractionEnabled) {
-      state.actionItems = mergeUniqueObjects(state.actionItems, parsed.actionItems, (a: any) => String(a.task).toLowerCase().trim());
+      state.actionItems = mergeUniqueObjects(state.actionItems, parsed.actionItems, (a: { task?: string }) => String(a.task || "").toLowerCase().trim());
     }
 
     if (sentimentAnalysisEnabled) {
       state.sentiment = parsed.sentiment || state.sentiment;
     }
 
-    state.keyInsights = mergeUniqueObjects(state.keyInsights, parsed.keyInsights, (k: any) => String(k.text).toLowerCase().trim());
+    state.keyInsights = mergeUniqueObjects(state.keyInsights, parsed.keyInsights, (k: { text?: string }) => String(k.text || "").toLowerCase().trim());
     state.unresolvedDiscussions = mergeUniqueStrings(state.unresolvedDiscussions, parsed.unresolvedDiscussions);
-    state.contradictions = mergeUniqueObjects(state.contradictions, parsed.contradictions, (c: any) => String(c.issue).toLowerCase().trim());
+    state.contradictions = mergeUniqueObjects(state.contradictions, parsed.contradictions, (c: { issue?: string }) => String(c.issue || "").toLowerCase().trim());
     state.questionsRaised = mergeUniqueStrings(state.questionsRaised, parsed.questionsRaised);
 
     state.lastSummarizedAt = Date.now();
@@ -1483,4 +1508,6 @@ chrome.commands.onCommand.addListener(async (command) => {
 });
 
 // Proactive scan on startup/load
-scanForMeetTabs();
+hydrateState().then(() => {
+  scanForMeetTabs();
+}).catch(err => console.error("[LateMeet] Startup hydration failed:", err));
