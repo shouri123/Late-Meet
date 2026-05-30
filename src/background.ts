@@ -230,6 +230,31 @@ const state: State = {
 let selfParticipantName: string | null = null;
 
 // ---------------------------------------------------------------------------
+// State Hydration for MV3 Service Worker Suspend/Resume
+// ---------------------------------------------------------------------------
+let stateHydrated = false;
+let hydrationPromise: Promise<void> | null = null;
+
+async function hydrateState() {
+  if (stateHydrated) return;
+  if (!hydrationPromise) {
+    hydrationPromise = (async () => {
+      try {
+        const data = await chrome.storage.local.get("activeMeetingState");
+        if (data.activeMeetingState) {
+          Object.assign(state, data.activeMeetingState);
+        }
+      } catch (err) {
+        console.error("[LateMeet] Failed to hydrate state:", err);
+      } finally {
+        stateHydrated = true;
+      }
+    })();
+  }
+  return hydrationPromise;
+}
+
+// ---------------------------------------------------------------------------
 // Transient Late-Joiner Processing State
 // ---------------------------------------------------------------------------
 // Tracks which late joiners are currently being processed for welcome messages.
@@ -318,6 +343,12 @@ function snapshot() {
 
 async function broadcastStateUpdate() {
   const snapshotData = snapshot();
+  try {
+    await chrome.storage.local.set({ activeMeetingState: snapshotData });
+  } catch (err) {
+    console.error("[LateMeet] Failed to persist state to storage:", err);
+  }
+
   try {
     // To popup/dashboard
     await chrome.runtime.sendMessage({ type: "STATE_UPDATE", state: snapshotData });
@@ -1021,6 +1052,7 @@ async function startAudioCapture(
 
     if (createdSession) {
       resetState();
+      await chrome.storage.local.remove("activeMeetingState");
       state.isActive = true;
       state.startTime = Date.now();
       state.meetingId = meetingId || "unknown";
@@ -1138,6 +1170,7 @@ async function stopAudioCapture(reason = "Stopped") {
     state.audioActive = false;
     state.isActive = false;
 
+    await chrome.storage.local.remove("activeMeetingState");
     await broadcastStateUpdate();
 
     try {
@@ -1154,6 +1187,7 @@ async function stopAudioCapture(reason = "Stopped") {
 
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   if (changeInfo.status !== "complete" || !tab.url) return;
+  await hydrateState();
   try {
     const parsedUrl = new URL(tab.url);
     if (parsedUrl.hostname !== "meet.google.com") return;
@@ -1179,6 +1213,7 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
 });
 
 chrome.tabs.onActivated.addListener(async (activeInfo) => {
+  await hydrateState();
   try {
     const tab = await chrome.tabs.get(activeInfo.tabId);
     if (!tab.url) return;
@@ -1199,6 +1234,7 @@ chrome.tabs.onActivated.addListener(async (activeInfo) => {
 });
 
 chrome.tabs.onRemoved.addListener(async (tabId) => {
+  await hydrateState();
   if (state.targetTabId && tabId === state.targetTabId) {
     if (state.isActive) {
       await stopAudioCapture("Meeting tab closed");
@@ -1212,6 +1248,7 @@ chrome.tabs.onRemoved.addListener(async (tabId) => {
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   (async () => {
+    await hydrateState();
     switch (message?.type) {
       case "GET_STATE": {
         if (!state.isActive) {
@@ -1396,6 +1433,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 // Keyboard Shortcut Commands
 chrome.commands.onCommand.addListener(async (command) => {
+  await hydrateState();
   try {
     if (command === "toggle-recording") {
       if (state.audioActive) {
