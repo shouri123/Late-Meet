@@ -331,6 +331,37 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   // ——— Session Save/Discard Modal ———
+  let previouslyFocusedElement: HTMLElement | null = null;
+
+  function trapFocus(e: KeyboardEvent) {
+    if (e.key !== "Tab") return;
+    const focusableEls = sessionModal.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+    );
+    if (focusableEls.length === 0) return;
+    const firstEl = focusableEls[0];
+    const lastEl = focusableEls[focusableEls.length - 1];
+    if (e.shiftKey) {
+      if (document.activeElement === firstEl) {
+        e.preventDefault();
+        lastEl.focus();
+      }
+    } else {
+      if (document.activeElement === lastEl) {
+        e.preventDefault();
+        firstEl.focus();
+      }
+    }
+  }
+
+  function handleModalKeydown(e: KeyboardEvent) {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      hideSessionModal();
+    }
+    trapFocus(e);
+  }
+
   function showSessionModal() {
     const saveBtn = document.getElementById("save-session-btn") as HTMLButtonElement | null;
     const discardBtn = document.getElementById("discard-session-btn") as HTMLButtonElement | null;
@@ -348,16 +379,31 @@ document.addEventListener("DOMContentLoaded", async () => {
       discardBtn.textContent = "Discard";
       discardBtn.classList.remove("loading");
     }
+    previouslyFocusedElement = document.activeElement as HTMLElement | null;
     sessionModal.style.display = "flex";
-    requestAnimationFrame(() => sessionModal.classList.add("visible"));
+    requestAnimationFrame(() => {
+      sessionModal.classList.add("visible");
+      // Move focus into the modal
+      (saveBtn || discardBtn)?.focus();
+    });
+    sessionModal.addEventListener("keydown", handleModalKeydown);
   }
 
   function hideSessionModal() {
     sessionModal.classList.remove("visible");
+    sessionModal.removeEventListener("keydown", handleModalKeydown);
     setTimeout(() => {
       sessionModal.style.display = "none";
+      // Return focus to the previously focused element
+      previouslyFocusedElement?.focus();
+      previouslyFocusedElement = null;
     }, 300);
   }
+
+  // Backdrop click to dismiss
+  sessionModal.querySelector(".session-modal-backdrop")?.addEventListener("click", () => {
+    hideSessionModal();
+  });
 
   document.getElementById("save-session-btn")?.addEventListener("click", async (e) => {
     const btn = e.currentTarget as HTMLButtonElement;
