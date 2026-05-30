@@ -792,10 +792,12 @@ function detectNewJoiners(currentList: string[]) {
 
   const normalizedSelf = normalizeParticipantName(selfParticipantName);
   const next = Array.isArray(currentList) ? currentList : [];
+  const normalizedParticipants = state.participants.map(normalizeParticipantName);
+  const normalizedInitial = state.initialParticipants.map(normalizeParticipantName);
   const newJoiners = next.filter(
     (p) =>
-      !state.participants.includes(p) &&
-      !state.initialParticipants.includes(p) &&
+      !normalizedParticipants.includes(normalizeParticipantName(p)) &&
+      !normalizedInitial.includes(normalizeParticipantName(p)) &&
       (!normalizedSelf || normalizeParticipantName(p) !== normalizedSelf),
   );
 
