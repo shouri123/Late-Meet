@@ -823,17 +823,20 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // ——— Live Transcript ———
   function updateTranscript(transcript: TranscriptEntry[]) {
-    const container = document.getElementById("dash-transcript-list");
-    if (!container) return;
+    if (!transcriptContainer) return;
+
     if (!transcript || transcript.length === 0) {
-      container.innerHTML =
+      transcriptContainer.innerHTML =
         '<div class="empty-msg">No transcript yet. Start audio to begin capturing speech.</div>';
+
+      resetTranscriptSearchState();
+
       return;
     }
 
     const startTime = transcript[0]?.timestamp || Date.now();
 
-    container.innerHTML = transcript
+    transcriptContainer.innerHTML = transcript
       .map((entry) => {
         const timestamp = entry.timestamp || Date.now();
         const elapsed = Math.round((timestamp - startTime) / 1000);
@@ -841,6 +844,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         const speaker = escapeHtml(entry.speaker || "Unknown");
         const initials = speaker
           .split(" ")
+          .filter(Boolean)
           .map((w) => w[0])
           .join("")
           .toUpperCase()
@@ -861,15 +865,11 @@ document.addEventListener("DOMContentLoaded", async () => {
       })
       .join("");
 
-    // Auto-scroll to bottom if not currently searching
-    const searchInput = document.getElementById(
-      "transcript-search-input",
-    ) as HTMLInputElement | null;
-    if (searchInput && searchInput.value.trim() !== "") {
-      // Re-apply search highlight when new transcript lines arrive
+    if (searchInput?.value.trim()) {
       executeTranscriptSearch(true);
     } else {
-      container.scrollTop = container.scrollHeight;
+      transcriptContainer.scrollTop = transcriptContainer.scrollHeight;
+      updateTranscriptSearchControls();
     }
   }
 
@@ -1280,63 +1280,89 @@ document.addEventListener("DOMContentLoaded", async () => {
     showToast("Downloaded as .md file", "success");
   }
 
-  // ——— Transcript Search Phase 2 ———
+  // ——— Transcript Search ———
   let searchMatches: HTMLElement[] = [];
   let currentMatchIndex = -1;
-  let searchDebounceTimer: number | null = null;
+  let searchDebounceTimer: ReturnType<typeof globalThis.setTimeout> | null = null;
 
-  function clearTranscriptSearch() {
-    if (
-      !searchInput ||
-      !searchCounter ||
-      !searchClearBtn ||
-      !searchPrevBtn ||
-      !searchNextBtn ||
-      !transcriptContainer
-    )
-      return;
-
-    // Remove all mark tags cleanly without breaking inner HTML
-    const marks = transcriptContainer.querySelectorAll("mark.search-match");
-    marks.forEach((mark) => {
-      const parent = mark.parentNode;
-      if (parent) {
-        parent.replaceChild(document.createTextNode(mark.textContent || ""), mark);
-        parent.normalize();
-      }
-    });
-
+  function resetTranscriptSearchState(): void {
     searchMatches = [];
     currentMatchIndex = -1;
-    searchInput.value = "";
-    searchCounter.textContent = "";
-    searchClearBtn.style.display = "none";
-    searchPrevBtn.disabled = true;
-    searchNextBtn.disabled = true;
 
-    transcriptContainer.scrollTop = transcriptContainer.scrollHeight;
     if (searchCounter) {
-      searchCounter.style.display = "none";
+      searchCounter.textContent = "0/0";
+    }
+
+    if (searchPrevBtn) {
+      searchPrevBtn.disabled = true;
+    }
+
+    if (searchNextBtn) {
+      searchNextBtn.disabled = true;
+    }
+
+    if (searchClearBtn) {
+      searchClearBtn.disabled = !searchInput?.value.trim();
+      searchClearBtn.classList.toggle("visible", Boolean(searchInput?.value.trim()));
     }
   }
 
-  function updateActiveSearchMatch() {
-    if (searchMatches.length === 0) return;
+  function unwrapTranscriptSearchMarks(): void {
+    if (!transcriptContainer) return;
 
-    searchMatches.forEach((el) => el.classList.remove("active"));
+    transcriptContainer.querySelectorAll("mark.search-match").forEach((mark) => {
+      const parent = mark.parentNode;
 
-    if (currentMatchIndex >= 0 && currentMatchIndex < searchMatches.length) {
-      const activeMatch = searchMatches[currentMatchIndex];
-      activeMatch.classList.add("active");
-      activeMatch.scrollIntoView({ behavior: "smooth", block: "center" });
+      if (!parent) return;
 
-      if (searchCounter) {
-        searchCounter.textContent = `${currentMatchIndex + 1} of ${searchMatches.length}`;
-      }
+      parent.replaceChild(document.createTextNode(mark.textContent || ""), mark);
+      parent.normalize();
+    });
+  }
+
+  function updateTranscriptSearchControls(): void {
+    const hasQuery = Boolean(searchInput?.value.trim());
+    const hasMatches = searchMatches.length > 0;
+
+    if (searchCounter) {
+      searchCounter.textContent = hasMatches
+        ? `${currentMatchIndex + 1}/${searchMatches.length}`
+        : "0/0";
+    }
+
+    if (searchPrevBtn) {
+      searchPrevBtn.disabled = !hasMatches;
+    }
+
+    if (searchNextBtn) {
+      searchNextBtn.disabled = !hasMatches;
+    }
+
+    if (searchClearBtn) {
+      searchClearBtn.disabled = !hasQuery;
+      searchClearBtn.classList.toggle("visible", hasQuery);
     }
   }
 
-  function executeTranscriptSearch(preserveIndex: boolean = false) {
+  function updateActiveSearchMatch(scrollToMatch = true): void {
+    searchMatches.forEach((match, index) => {
+      match.classList.toggle("active", index === currentMatchIndex);
+    });
+
+    updateTranscriptSearchControls();
+
+    if (!scrollToMatch) return;
+
+    const activeMatch = searchMatches[currentMatchIndex];
+
+    activeMatch?.scrollIntoView({
+      behavior: "smooth",
+      block: "center",
+      inline: "nearest",
+    });
+  }
+
+  function executeTranscriptSearch(preserveIndex = false): void {
     if (
       !searchInput ||
       !searchCounter ||
@@ -1348,133 +1374,176 @@ document.addEventListener("DOMContentLoaded", async () => {
       return;
     }
 
-    const query = searchInput.value.toLowerCase().trim();
+    const query = searchInput.value.trim();
+    const normalizedQuery = query.toLowerCase();
+    const previousIndex = currentMatchIndex;
 
-    // Clean existing marks
-    const marks = transcriptContainer.querySelectorAll("mark.search-match");
-    marks.forEach((mark) => {
-      const parent = mark.parentNode;
-      if (parent) {
-        parent.replaceChild(document.createTextNode(mark.textContent || ""), mark);
-        parent.normalize();
-      }
-    });
+    unwrapTranscriptSearchMarks();
 
     searchMatches = [];
-    const previousIndex = currentMatchIndex;
     currentMatchIndex = -1;
 
-    if (!query) {
-      searchCounter.textContent = "";
-      searchClearBtn.style.display = "none";
-      searchPrevBtn.disabled = true;
-      searchNextBtn.disabled = true;
-      if (searchCounter) searchCounter.style.display = "none";
+    if (!normalizedQuery) {
+      updateTranscriptSearchControls();
       return;
     }
 
-    searchClearBtn.style.display = "flex";
+    const textNodes: Text[] = [];
+    const walker = document.createTreeWalker(transcriptContainer, NodeFilter.SHOW_TEXT, {
+      acceptNode(node) {
+        const parentElement = node.parentElement;
 
-    // Safely iterate text nodes to avoid mutating DOM structure
-    const textNodes: Node[] = [];
-    const walker = document.createTreeWalker(transcriptContainer, NodeFilter.SHOW_TEXT, null);
-
-    let node;
-    while ((node = walker.nextNode())) {
-      if (node.nodeValue && node.nodeValue.trim() !== "") {
-        // Skip text inside empty-msg
-        const parentEl = node.parentElement as HTMLElement | null;
-        if (parentEl && !parentEl.classList.contains("empty-msg")) {
-          textNodes.push(node);
+        if (!parentElement) {
+          return NodeFilter.FILTER_REJECT;
         }
-      }
+
+        if (parentElement.closest(".empty-msg")) {
+          return NodeFilter.FILTER_REJECT;
+        }
+
+        if (!parentElement.closest(".transcript-text")) {
+          return NodeFilter.FILTER_REJECT;
+        }
+
+        if (!node.nodeValue?.trim()) {
+          return NodeFilter.FILTER_REJECT;
+        }
+
+        return NodeFilter.FILTER_ACCEPT;
+      },
+    });
+
+    let node = walker.nextNode();
+
+    while (node) {
+      textNodes.push(node as Text);
+      node = walker.nextNode();
     }
 
     textNodes.forEach((textNode) => {
       const textContent = textNode.nodeValue || "";
-      const lowerText = textContent.toLowerCase();
-      const startIndex = 0;
-      let index = lowerText.indexOf(query, startIndex);
+      const lowerTextContent = textContent.toLowerCase();
 
-      if (index === -1) return;
-
-      const fragment = document.createDocumentFragment();
+      let matchIndex = lowerTextContent.indexOf(normalizedQuery);
       let lastIndex = 0;
 
-      while (index !== -1) {
-        if (index > lastIndex) {
-          fragment.appendChild(document.createTextNode(textContent.substring(lastIndex, index)));
+      if (matchIndex === -1) {
+        return;
+      }
+
+      const fragment = document.createDocumentFragment();
+
+      while (matchIndex !== -1) {
+        if (matchIndex > lastIndex) {
+          fragment.appendChild(document.createTextNode(textContent.slice(lastIndex, matchIndex)));
         }
 
         const mark = document.createElement("mark");
         mark.className = "search-match";
-        mark.textContent = textContent.substring(index, index + query.length);
+        mark.dataset.transcriptMatch = "true";
+        mark.textContent = textContent.slice(matchIndex, matchIndex + query.length);
+
         fragment.appendChild(mark);
         searchMatches.push(mark);
 
-        lastIndex = index + query.length;
-        index = lowerText.indexOf(query, lastIndex);
+        lastIndex = matchIndex + query.length;
+        matchIndex = lowerTextContent.indexOf(normalizedQuery, lastIndex);
       }
 
       if (lastIndex < textContent.length) {
-        fragment.appendChild(document.createTextNode(textContent.substring(lastIndex)));
+        fragment.appendChild(document.createTextNode(textContent.slice(lastIndex)));
       }
 
-      if (textNode.parentNode) {
-        textNode.parentNode.replaceChild(fragment, textNode);
-      }
+      textNode.parentNode?.replaceChild(fragment, textNode);
     });
 
-    if (searchMatches.length > 0) {
-      if (preserveIndex && previousIndex >= 0 && previousIndex < searchMatches.length) {
-        currentMatchIndex = previousIndex;
-      } else {
-        currentMatchIndex = 0;
-      }
-      searchPrevBtn.disabled = false;
-      searchNextBtn.disabled = false;
-      if (searchCounter) searchCounter.style.display = "inline-flex";
-      updateActiveSearchMatch();
-    } else {
-      if (searchCounter) {
-        searchCounter.textContent = "0 of 0";
-        searchCounter.style.display = "inline-flex";
-      }
-      searchPrevBtn.disabled = true;
-      searchNextBtn.disabled = true;
+    if (searchMatches.length === 0) {
+      updateTranscriptSearchControls();
+      return;
     }
+
+    if (preserveIndex && previousIndex >= 0 && previousIndex < searchMatches.length) {
+      currentMatchIndex = previousIndex;
+    } else {
+      currentMatchIndex = 0;
+    }
+
+    updateActiveSearchMatch(true);
+  }
+
+  function clearTranscriptSearch(): void {
+    if (!searchInput || !transcriptContainer) return;
+
+    searchInput.value = "";
+    unwrapTranscriptSearchMarks();
+
+    searchMatches = [];
+    currentMatchIndex = -1;
+
+    updateTranscriptSearchControls();
+
+    transcriptContainer.scrollTop = transcriptContainer.scrollHeight;
+    searchInput.focus();
+  }
+
+  function navigateTranscriptMatch(direction: 1 | -1): void {
+    if (searchMatches.length === 0) return;
+
+    currentMatchIndex =
+      (currentMatchIndex + direction + searchMatches.length) % searchMatches.length;
+
+    updateActiveSearchMatch(true);
   }
 
   searchInput?.addEventListener("input", () => {
-    if (searchDebounceTimer) window.clearTimeout(searchDebounceTimer);
-    searchDebounceTimer = window.setTimeout(() => executeTranscriptSearch(false), 300);
+    if (searchDebounceTimer) {
+      globalThis.clearTimeout(searchDebounceTimer);
+    }
+
+    searchDebounceTimer = globalThis.setTimeout(() => {
+      executeTranscriptSearch(false);
+    }, 150);
   });
 
-  searchInput?.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") {
+  searchInput?.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      navigateTranscriptMatch(event.shiftKey ? -1 : 1);
+    }
+
+    if (event.key === "Escape") {
+      event.preventDefault();
       clearTranscriptSearch();
-    } else if (e.key === "Enter") {
-      if (e.shiftKey) {
-        searchPrevBtn?.click();
-      } else {
-        searchNextBtn?.click();
-      }
     }
   });
 
   searchClearBtn?.addEventListener("click", clearTranscriptSearch);
 
   searchPrevBtn?.addEventListener("click", () => {
-    if (searchMatches.length === 0) return;
-    currentMatchIndex = (currentMatchIndex - 1 + searchMatches.length) % searchMatches.length;
-    updateActiveSearchMatch();
+    navigateTranscriptMatch(-1);
   });
 
   searchNextBtn?.addEventListener("click", () => {
-    if (searchMatches.length === 0) return;
-    currentMatchIndex = (currentMatchIndex + 1) % searchMatches.length;
-    updateActiveSearchMatch();
+    navigateTranscriptMatch(1);
   });
+
+  document.addEventListener("keydown", (event) => {
+    const isSearchShortcut = (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "f";
+
+    if (!isSearchShortcut) return;
+
+    const transcriptTab = document.querySelector('[data-tab="transcript"]') as HTMLElement | null;
+
+    event.preventDefault();
+    transcriptTab?.click();
+
+    globalThis.setTimeout(() => {
+      searchInput?.focus();
+      searchInput?.select();
+    }, 0);
+  });
+
+  updateTranscriptSearchControls();
 
   // Load sessions on tab switch
   document.querySelector('[data-tab="sessions"]')?.addEventListener("click", loadMeetingHistory);

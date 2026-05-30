@@ -689,8 +689,8 @@
             <span class="live-indicator"> <span class="live-dot"></span>LIVE </span>
           </div>
 
-          <!-- NEW: Transcript Search Header -->
-          <div class="transcript-search-header">
+          <!-- Transcript Search Header -->
+          <div class="transcript-search-header" id="transcript-search-bar">
             <div class="search-input-wrapper">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -703,18 +703,29 @@
                 stroke-linecap="round"
                 stroke-linejoin="round"
                 class="icon search-icon"
+                aria-hidden="true"
               >
                 <circle cx="11" cy="11" r="8"></circle>
                 <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
               </svg>
+
               <input
-                type="text"
+                type="search"
                 id="transcript-search-input"
                 class="search-input"
                 placeholder="Search transcript..."
                 autocomplete="off"
+                aria-label="Search transcript"
               />
-              <button id="search-clear" class="search-clear-btn" title="Clear search">
+
+              <button
+                id="search-clear"
+                class="search-clear-btn"
+                type="button"
+                title="Clear search"
+                aria-label="Clear transcript search"
+                disabled
+              >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   width="14"
@@ -726,6 +737,7 @@
                   stroke-linecap="round"
                   stroke-linejoin="round"
                   class="icon"
+                  aria-hidden="true"
                 >
                   <line x1="18" y1="6" x2="6" y2="18"></line>
                   <line x1="6" y1="6" x2="18" y2="18"></line>
@@ -734,9 +746,19 @@
             </div>
 
             <div class="search-controls">
-              <span id="transcript-search-counter" class="search-counter"></span>
+              <span id="transcript-search-counter" class="search-counter" aria-live="polite">
+                0/0
+              </span>
+
               <div class="search-nav-buttons">
-                <button id="search-prev" class="search-action-btn" title="Previous match" disabled>
+                <button
+                  id="search-prev"
+                  class="search-action-btn"
+                  type="button"
+                  title="Previous match"
+                  aria-label="Previous transcript match"
+                  disabled
+                >
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
                     width="14"
@@ -748,11 +770,20 @@
                     stroke-linecap="round"
                     stroke-linejoin="round"
                     class="icon"
+                    aria-hidden="true"
                   >
                     <polyline points="18 15 12 9 6 15"></polyline>
                   </svg>
                 </button>
-                <button id="search-next" class="search-action-btn" title="Next match" disabled>
+
+                <button
+                  id="search-next"
+                  class="search-action-btn"
+                  type="button"
+                  title="Next match"
+                  aria-label="Next transcript match"
+                  disabled
+                >
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
                     width="14"
@@ -764,6 +795,7 @@
                     stroke-linecap="round"
                     stroke-linejoin="round"
                     class="icon"
+                    aria-hidden="true"
                   >
                     <polyline points="6 9 12 15 18 9"></polyline>
                   </svg>
@@ -771,7 +803,6 @@
               </div>
             </div>
           </div>
-
           <div class="transcript-info">
             Each entry shows who spoke, what was said, and when. Audio entries are from the Whisper
             transcription.

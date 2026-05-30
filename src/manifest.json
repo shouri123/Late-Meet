@@ -1,57 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Late Meet",
-  "version": "1.1.0",
-  "description": "AI meeting copilot for Google Meet with local-first transcription and summaries",
-  "permissions": [
-    "storage",
-    "tabs",
-    "tabCapture",
-    "offscreen",
-    "sidePanel",
-    "notifications",
-    "alarms"
-  ],
-  "host_permissions": [
-    "https://meet.google.com/*",
-    "https://api.openai.com/*",
-    "https://api.elevenlabs.io/*"
-  ],
-  "background": {
-    "service_worker": "src/background.ts"
-  },
-  "content_scripts": [
-    {
-      "matches": ["https://meet.google.com/*"],
-      "js": ["src/content.ts"],
-      "run_at": "document_idle"
-    }
-  ],
-  "options_page": "src/options.html",
-  "side_panel": {
-    "default_path": "src/dashboard.html"
-  },
-  "action": {
-    "default_popup": "src/popup.html",
-    "default_title": "Late Meet"
-  },
-  "icons": {
-    "128": "src/icons/icon128.png"
-  },
-  "commands": {
-    "toggle-recording": {
-      "suggested_key": {
-        "default": "Ctrl+Shift+S",
-        "mac": "Command+Shift+S"
-      },
-      "description": "Start/Stop recording toggle"
-    },
-    "open-side-panel": {
-      "suggested_key": {
-        "default": "Ctrl+Shift+P",
-        "mac": "Command+Shift+P"
-      },
-      "description": "Open the Late Meet side panel"
-    }
+  "name": "Late-Meet",
+  "version": "1.0.0",
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self';"
   }
 }
