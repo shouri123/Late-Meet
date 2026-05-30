@@ -339,6 +339,13 @@ initTheme();
     }, 5000);
   }
 
+  function stopParticipantPolling() {
+    if (participantPollTimer) {
+      clearInterval(participantPollTimer);
+      participantPollTimer = null;
+    }
+  }
+
   function scheduleActiveSpeakerCheck() {
     if (activeSpeakerCheckTimer) return;
 
@@ -437,6 +444,18 @@ initTheme();
     detectActiveSpeaker();
   }
 
+  function stopActiveSpeakerDetection() {
+    if (activeSpeakerObserver) {
+      activeSpeakerObserver.disconnect();
+      activeSpeakerObserver = null;
+    }
+    if (activeSpeakerCheckTimer) {
+      clearTimeout(activeSpeakerCheckTimer);
+      activeSpeakerCheckTimer = null;
+    }
+    lastActiveSpeakerName = null;
+  }
+
   function injectFloatingButton() {
     const existing = document.getElementById("mc-float-btn");
     if (existing) return;
@@ -516,6 +535,17 @@ initTheme();
         const label = btn.querySelector(".mc-float-label");
         if (label) label.textContent = "Start Copilot";
       }
+
+      // Clean up polling and observers when the meeting session ends
+      if (!isActive) {
+        stopParticipantPolling();
+        stopActiveSpeakerDetection();
+      } else {
+        // Restart polling/detection if a new session begins
+        startParticipantPolling();
+        startActiveSpeakerDetection();
+      }
+
       sendResponse({ success: true });
       return false;
     }
