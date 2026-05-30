@@ -1,25 +1,13 @@
 version: 2
-
 updates:
   - package-ecosystem: "npm"
     directory: "/"
-    target-branch: "main"
     schedule:
       interval: "weekly"
-    open-pull-requests-limit: 5
-    groups:
-      npm-minor-patch:
-        update-types:
-          - "minor"
-          - "patch"
+    open-pull-requests-limit: 10
 
   - package-ecosystem: "github-actions"
     directory: "/"
-    target-branch: "main"
     schedule:
       interval: "weekly"
-    open-pull-requests-limit: 5
-    groups:
-      github-actions:
-        patterns:
-          - "*"
+    open-pull-requests-limit: 10
