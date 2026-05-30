@@ -91,6 +91,7 @@ export async function chatCompletion(
       max_tokens: 3000,
       response_format: { type: "json_object" },
     }),
+    signal: AbortSignal.timeout(30000),
   });
 
   if (!response.ok) {
@@ -137,6 +138,7 @@ export async function whisperTranscribe(
       Authorization: `Bearer ${apiKey}`,
     },
     body: formData,
+    signal: AbortSignal.timeout(60000),
   });
 
   if (!response.ok) {
