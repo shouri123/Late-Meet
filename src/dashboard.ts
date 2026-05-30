@@ -1,4 +1,12 @@
-import { State, Topic, TranscriptEntry, TimelineEvent, Decision, ActionItem } from "./types";
+import {
+  State,
+  Topic,
+  TranscriptEntry,
+  TimelineEvent,
+  Decision,
+  ActionItem,
+  KeyInsight,
+} from "./types";
 import { initTheme } from "./theme.js";
 import { resolveManualMeetTab } from "./meetingTabs";
 import { startDashboardAudioCapture } from "./dashboardCapture";
@@ -213,7 +221,11 @@ document.addEventListener("DOMContentLoaded", async () => {
           else if (tabId === "decisions") updateDecisions(lastState?.decisions || []);
           else if (tabId === "actions") updateActions(lastState?.actionItems || []);
           else if (tabId === "people")
-            updatePeople(lastState?.participants || [], lastState?.lateJoiners || []);
+            updatePeople(
+              lastState?.participants || [],
+              lastState?.lateJoiners || [],
+              lastState?.meetingUrl || null,
+            );
           else if (tabId === "timeline") updateTimeline(lastState?.timeline || []);
           else if (tabId === "transcript") updateTranscript(lastState?.transcript || []);
           else if (tabId === "history" || tabId === "sessions") loadMeetingHistory();
@@ -474,7 +486,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (loadedTabs.has("actions")) updateActions(state.actionItems);
 
     // People Tab
-    if (loadedTabs.has("people")) updatePeople(state.participants, state.lateJoiners);
+    if (loadedTabs.has("people"))
+      updatePeople(state.participants, state.lateJoiners, state.meetingUrl);
 
     // Timeline Tab
     if (loadedTabs.has("timeline")) updateTimeline(state.timeline);
@@ -694,7 +707,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   // ——— People ———
-  function updatePeople(participants: string[], lateJoiners: string[]) {
+  function updatePeople(participants: string[], lateJoiners: string[], meetingUrl: string | null) {
     const container = document.getElementById("dash-participants-list");
     if (!container) return;
     if (!participants || participants.length === 0) {
@@ -702,6 +715,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       return;
     }
 
+    const isMeetSession = Boolean(meetingUrl?.includes("meet.google.com/"));
     container.innerHTML = participants
       .map((name) => {
         const isLate = lateJoiners?.includes(name);
@@ -731,7 +745,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     // Late joiner section
     const lateCard = document.getElementById("late-joiners-card");
     const lateList = document.getElementById("dash-late-joiners");
-    if (lateJoiners && lateJoiners.length > 0) {
+    // Keep the non-Meet guard in the updatePeople path too.
+    // Only show late-joiners card if this is a Meet session AND there are late joiners.
+    const showLateJoiners = isMeetSession && lateJoiners && lateJoiners.length > 0;
+    if (showLateJoiners) {
       if (lateCard) lateCard.style.display = "block";
       if (lateList) {
         lateList.innerHTML = lateJoiners
@@ -919,7 +936,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     md += `## Key Insights\n`;
     if (state.keyInsights?.length) {
-      state.keyInsights.forEach((i: string) => (md += `- ${i}\n`));
+      state.keyInsights.forEach((insight: KeyInsight) => (md += `- ${insight.text}\n`));
       md += "\n";
     } else {
       md += `_No insights available_\n\n`;
