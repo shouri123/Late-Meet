@@ -200,3 +200,17 @@ export async function deleteSavedMeetingSession(
     [SAVED_SESSIONS_LEGACY_KEY]: legacySessions,
   });
 }
+
+
+// Safe local storage quota wrapper
+export function safeLocalStore(key: string, value: any) {
+  try {
+    chrome.storage.local.set({ [key]: value }, () => {
+      if (chrome.runtime.lastError) {
+        console.error("Quota limits check failure:", chrome.runtime.lastError.message);
+      }
+    });
+  } catch (e) {
+    console.error("Storage API exception:", e);
+  }
+}
