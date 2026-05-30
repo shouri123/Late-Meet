@@ -23,15 +23,17 @@ function buildActionStatusKey(meetingId: string, task: string): string {
 
 function normalizeActionItem(input: unknown): ActionItem | null {
   if (!input || typeof input !== "object") return null;
-  const raw = input as Partial<ActionItem>;
+  const raw = input as Partial<ActionItem> & { confidence?: unknown; isSpeculative?: unknown };
   const task = String(raw.task ?? "").trim();
+
   if (!task) return null;
+
   return {
     task,
     owner: String(raw.owner ?? "").trim() || undefined,
     deadline: String(raw.deadline ?? "").trim() || undefined,
-    confidence: raw.confidence,
-    isSpeculative: raw.isSpeculative,
+    confidence: typeof raw.confidence === "number" ? raw.confidence : undefined,
+    isSpeculative: typeof raw.isSpeculative === "boolean" ? raw.isSpeculative : undefined,
   } as ActionItem;
 }
 
