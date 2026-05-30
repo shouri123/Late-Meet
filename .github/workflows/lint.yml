@@ -1,37 +1,50 @@
 name: Code Quality and Linting
 
 on:
-  push:
-    branches: [ "main", "master" ]
   pull_request:
-    branches: [ "main", "master" ]
+    branches: [main, develop]
+  push:
+    branches: [main, develop]
+
+permissions:
+  contents: read
 
 jobs:
-  lint-and-typecheck:
-    name: Code Quality Checks
+  format-check:
+    name: Format Check
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: '20.x'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
+          node-version: 22
+          cache: "npm"
+      - run: npm ci
       - name: Check Code Formatting
-        run: npm run format:check || npx prettier --check .
-        continue-on-error: true
+        run: npm run format:check
 
-      - name: Run Linter
-        run: npm run lint || npx eslint .
-        continue-on-error: true
+  lint-check:
+    name: Lint Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "npm"
+      - run: npm ci
+      - name: Run ESLint
+        run: npm run lint
 
-      - name: Type Check
-        run: npm run type-check || npx tsc --noEmit
-        continue-on-error: true
+  type-check:
+    name: Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "npm"
+      - run: npm ci
+      - name: TypeScript Type Check
+        run: npm run type-check
