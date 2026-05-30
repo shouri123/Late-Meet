@@ -37,10 +37,33 @@
         </p>
 
         <div class="setup-form">
+          <label class="setup-label" for="passphrase-input">Encryption Passphrase</label>
+          <div class="input-group">
+            <input
+              type="password"
+              id="passphrase-input"
+              class="setup-input"
+              placeholder="Passphrase to unlock encryption..."
+            />
+          </div>
+          <div
+            id="passphrase-status"
+            style="font-size: 11px; margin: 4px 0 12px; text-align: left; color: #ef4444"
+          >
+            Locked — enter passphrase first
+          </div>
+
           <label class="setup-label">OpenAI API Key</label>
           <div class="input-group">
             <input type="password" id="api-key-input" class="setup-input" placeholder="sk-..." />
-            <button id="toggle-key" class="toggle-btn">👁</button>
+            <button
+              id="toggle-key"
+              class="toggle-btn"
+              aria-label="Toggle API key visibility"
+              title="Show/Hide Key"
+            >
+              👁
+            </button>
           </div>
 
           <button id="save-keys" class="setup-btn">
@@ -218,11 +241,18 @@
     </div>
 
     <!-- SESSION MODAL (Save/Discard) -->
-    <div id="session-modal" class="session-modal" style="display: none">
+    <div
+      id="session-modal"
+      class="session-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="session-modal-title"
+      style="display: none"
+    >
       <div class="session-modal-backdrop"></div>
       <div class="session-modal-content">
         <div class="session-modal-icon">💾</div>
-        <h2 class="session-modal-title">Meeting Ended</h2>
+        <h2 id="session-modal-title" class="session-modal-title">Meeting Ended</h2>
         <p class="session-modal-text">
           Would you like to save the intelligence and transcript for this session?
         </p>

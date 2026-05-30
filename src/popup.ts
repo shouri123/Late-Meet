@@ -1,6 +1,11 @@
 import { State } from "./types";
 import { initTheme } from "./theme.js";
-import { getApiCredentials, saveApiCredentials } from "./utils/credentials";
+import {
+  getApiCredentials,
+  saveApiCredentials,
+  unlockCredentials,
+  isUnlocked,
+} from "./utils/credentials";
 import { validateOpenAIKey } from "./utils/api.js";
 import { resolveManualMeetTab } from "./meetingTabs";
 import { startPopupAudioCapture } from "./popupCapture";
@@ -19,6 +24,53 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   let lastState: State | null = null;
 
+  // ——— Passphrase management ———
+  const passphraseInput = document.getElementById("passphrase-input") as HTMLInputElement | null;
+  const passphraseStatus = document.getElementById("passphrase-status");
+  let pendingUnlock: Promise<boolean> | null = null;
+
+  function updatePassphraseStatus() {
+    if (!passphraseStatus) return;
+    if (isUnlocked()) {
+      passphraseStatus.style.color = "#22C55E";
+      passphraseStatus.textContent = "Unlocked — encryption key is active";
+    } else {
+      passphraseStatus.style.color = "#EF4444";
+      passphraseStatus.textContent = "Locked — enter passphrase to unlock encryption";
+    }
+  }
+
+  async function handlePassphraseUnlock(): Promise<boolean> {
+    if (isUnlocked()) return true;
+    const passphrase = passphraseInput?.value ?? "";
+    if (!passphrase) {
+      if (passphraseStatus) passphraseStatus.textContent = "Please enter a passphrase";
+      return false;
+    }
+    const success = await unlockCredentials(passphrase);
+    if (success) {
+      updatePassphraseStatus();
+      const creds = await getApiCredentials();
+      if (creds.openai_api_key || creds.elevenlabs_api_key) {
+        setupView.style.display = "none";
+        mainView.style.display = "block";
+      }
+      return true;
+    }
+    if (passphraseStatus) {
+      passphraseStatus.style.color = "#EF4444";
+      passphraseStatus.textContent = "Wrong passphrase — could not decrypt stored credentials";
+    }
+    return false;
+  }
+
+  passphraseInput?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") pendingUnlock = handlePassphraseUnlock();
+  });
+  passphraseInput?.addEventListener("blur", () => {
+    pendingUnlock = handlePassphraseUnlock();
+  });
+
   // ——— Check if API key is configured ———
   const config = await getApiCredentials();
 
@@ -30,11 +82,21 @@ document.addEventListener("DOMContentLoaded", async () => {
     mainView.style.display = "block";
   }
 
+  updatePassphraseStatus();
+
   // ——— Setup: Save Key ———
   document.getElementById("save-keys")?.addEventListener("click", async () => {
     const apiKeyInput = document.getElementById("api-key-input") as HTMLInputElement;
     const apiKey = apiKeyInput.value.trim();
     const saveBtn = document.getElementById("save-keys") as HTMLButtonElement;
+
+    if (!isUnlocked()) {
+      if (pendingUnlock) await pendingUnlock;
+      if (!isUnlocked()) {
+        const unlocked = await handlePassphraseUnlock();
+        if (!unlocked) return;
+      }
+    }
 
     if (!apiKey) {
       shakeElement(apiKeyInput);
@@ -269,6 +331,37 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   // ——— Session Save/Discard Modal ———
+  let previouslyFocusedElement: HTMLElement | null = null;
+
+  function trapFocus(e: KeyboardEvent) {
+    if (e.key !== "Tab") return;
+    const focusableEls = sessionModal.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+    );
+    if (focusableEls.length === 0) return;
+    const firstEl = focusableEls[0];
+    const lastEl = focusableEls[focusableEls.length - 1];
+    if (e.shiftKey) {
+      if (document.activeElement === firstEl) {
+        e.preventDefault();
+        lastEl.focus();
+      }
+    } else {
+      if (document.activeElement === lastEl) {
+        e.preventDefault();
+        firstEl.focus();
+      }
+    }
+  }
+
+  function handleModalKeydown(e: KeyboardEvent) {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      hideSessionModal();
+    }
+    trapFocus(e);
+  }
+
   function showSessionModal() {
     const saveBtn = document.getElementById("save-session-btn") as HTMLButtonElement | null;
     const discardBtn = document.getElementById("discard-session-btn") as HTMLButtonElement | null;
@@ -286,16 +379,31 @@ document.addEventListener("DOMContentLoaded", async () => {
       discardBtn.textContent = "Discard";
       discardBtn.classList.remove("loading");
     }
+    previouslyFocusedElement = document.activeElement as HTMLElement | null;
     sessionModal.style.display = "flex";
-    requestAnimationFrame(() => sessionModal.classList.add("visible"));
+    requestAnimationFrame(() => {
+      sessionModal.classList.add("visible");
+      // Move focus into the modal
+      (saveBtn || discardBtn)?.focus();
+    });
+    sessionModal.addEventListener("keydown", handleModalKeydown);
   }
 
   function hideSessionModal() {
     sessionModal.classList.remove("visible");
+    sessionModal.removeEventListener("keydown", handleModalKeydown);
     setTimeout(() => {
       sessionModal.style.display = "none";
+      // Return focus to the previously focused element
+      previouslyFocusedElement?.focus();
+      previouslyFocusedElement = null;
     }, 300);
   }
+
+  // Backdrop click to dismiss
+  sessionModal.querySelector(".session-modal-backdrop")?.addEventListener("click", () => {
+    hideSessionModal();
+  });
 
   document.getElementById("save-session-btn")?.addEventListener("click", async (e) => {
     const btn = e.currentTarget as HTMLButtonElement;

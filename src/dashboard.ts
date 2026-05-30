@@ -70,6 +70,19 @@ async function persistActionStatuses() {
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
+  // ——— Transcript Search DOM Elements (Queried early to prevent TDZ) ———
+  const searchInput = document.getElementById("transcript-search-input") as HTMLInputElement | null;
+  const searchCounter = document.getElementById(
+    "transcript-search-counter",
+  ) as HTMLSpanElement | null;
+  const searchPrevBtn = document.getElementById("search-prev") as HTMLButtonElement | null;
+  const searchNextBtn = document.getElementById("search-next") as HTMLButtonElement | null;
+  const searchClearBtn = document.getElementById("search-clear") as HTMLButtonElement | null;
+  const transcriptContainer = document.getElementById(
+    "dash-transcript-list",
+  ) as HTMLDivElement | null;
+
+  await loadActionStatuses();
   // ——— Waveform Visualizer ———
   const WAVEFORM_N = 32;
   const WAVEFORM_H = 48;
@@ -833,17 +846,20 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // ——— Live Transcript ———
   function updateTranscript(transcript: TranscriptEntry[]) {
-    const container = document.getElementById("dash-transcript-list");
-    if (!container) return;
+    if (!transcriptContainer) return;
+
     if (!transcript || transcript.length === 0) {
-      container.innerHTML =
+      transcriptContainer.innerHTML =
         '<div class="empty-msg">No transcript yet. Start audio to begin capturing speech.</div>';
+
+      resetTranscriptSearchState();
+
       return;
     }
 
     const startTime = transcript[0]?.timestamp || Date.now();
 
-    container.innerHTML = transcript
+    transcriptContainer.innerHTML = transcript
       .map((entry) => {
         const timestamp = entry.timestamp || Date.now();
         const elapsed = Math.round((timestamp - startTime) / 1000);
@@ -851,6 +867,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         const speaker = escapeHtml(entry.speaker || "Unknown");
         const initials = speaker
           .split(" ")
+          .filter(Boolean)
           .map((w) => w[0])
           .join("")
           .toUpperCase()
@@ -871,8 +888,12 @@ document.addEventListener("DOMContentLoaded", async () => {
       })
       .join("");
 
-    // Auto-scroll to bottom
-    container.scrollTop = container.scrollHeight;
+    if (searchInput?.value.trim()) {
+      executeTranscriptSearch(true);
+    } else {
+      transcriptContainer.scrollTop = transcriptContainer.scrollHeight;
+      updateTranscriptSearchControls();
+    }
   }
 
   // ——— Export Helpers ———
@@ -936,7 +957,15 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     md += `## Key Insights\n`;
     if (state.keyInsights?.length) {
-      state.keyInsights.forEach((insight: KeyInsight) => (md += `- ${insight.text}\n`));
+      state.keyInsights
+        .filter((i) => i != null)
+        .forEach((insight: KeyInsight | string | null | undefined) => {
+          const text = typeof insight === "string" ? insight : insight?.text || "";
+
+          if (text) {
+            md += `- ${text}\n`;
+          }
+        });
       md += "\n";
     } else {
       md += `_No insights available_\n\n`;
@@ -1274,6 +1303,273 @@ document.addEventListener("DOMContentLoaded", async () => {
     showToast("Downloaded as .md file", "success");
   }
 
+  // ——— Transcript Search ———
+  let searchMatches: HTMLElement[] = [];
+  let currentMatchIndex = -1;
+  let searchDebounceTimer: ReturnType<typeof globalThis.setTimeout> | null = null;
+
+  function resetTranscriptSearchState(): void {
+    searchMatches = [];
+    currentMatchIndex = -1;
+
+    if (searchCounter) {
+      searchCounter.textContent = "0/0";
+    }
+
+    if (searchPrevBtn) {
+      searchPrevBtn.disabled = true;
+    }
+
+    if (searchNextBtn) {
+      searchNextBtn.disabled = true;
+    }
+
+    if (searchClearBtn) {
+      searchClearBtn.disabled = !searchInput?.value.trim();
+      searchClearBtn.classList.toggle("visible", Boolean(searchInput?.value.trim()));
+    }
+  }
+
+  function unwrapTranscriptSearchMarks(): void {
+    if (!transcriptContainer) return;
+
+    transcriptContainer.querySelectorAll("mark.search-match").forEach((mark) => {
+      const parent = mark.parentNode;
+
+      if (!parent) return;
+
+      parent.replaceChild(document.createTextNode(mark.textContent || ""), mark);
+      parent.normalize();
+    });
+  }
+
+  function updateTranscriptSearchControls(): void {
+    const hasQuery = Boolean(searchInput?.value.trim());
+    const hasMatches = searchMatches.length > 0;
+
+    if (searchCounter) {
+      searchCounter.textContent = hasMatches
+        ? `${currentMatchIndex + 1}/${searchMatches.length}`
+        : "0/0";
+    }
+
+    if (searchPrevBtn) {
+      searchPrevBtn.disabled = !hasMatches;
+    }
+
+    if (searchNextBtn) {
+      searchNextBtn.disabled = !hasMatches;
+    }
+
+    if (searchClearBtn) {
+      searchClearBtn.disabled = !hasQuery;
+      searchClearBtn.classList.toggle("visible", hasQuery);
+    }
+  }
+
+  function updateActiveSearchMatch(scrollToMatch = true): void {
+    searchMatches.forEach((match, index) => {
+      match.classList.toggle("active", index === currentMatchIndex);
+    });
+
+    updateTranscriptSearchControls();
+
+    if (!scrollToMatch) return;
+
+    const activeMatch = searchMatches[currentMatchIndex];
+
+    activeMatch?.scrollIntoView({
+      behavior: "smooth",
+      block: "center",
+      inline: "nearest",
+    });
+  }
+
+  function executeTranscriptSearch(preserveIndex = false): void {
+    if (
+      !searchInput ||
+      !searchCounter ||
+      !searchClearBtn ||
+      !searchPrevBtn ||
+      !searchNextBtn ||
+      !transcriptContainer
+    ) {
+      return;
+    }
+
+    const query = searchInput.value.trim();
+    const normalizedQuery = query.toLowerCase();
+    const previousIndex = currentMatchIndex;
+
+    unwrapTranscriptSearchMarks();
+
+    searchMatches = [];
+    currentMatchIndex = -1;
+
+    if (!normalizedQuery) {
+      updateTranscriptSearchControls();
+      return;
+    }
+
+    const textNodes: Text[] = [];
+    const walker = document.createTreeWalker(transcriptContainer, NodeFilter.SHOW_TEXT, {
+      acceptNode(node) {
+        const parentElement = node.parentElement;
+
+        if (!parentElement) {
+          return NodeFilter.FILTER_REJECT;
+        }
+
+        if (parentElement.closest(".empty-msg")) {
+          return NodeFilter.FILTER_REJECT;
+        }
+
+        if (!parentElement.closest(".transcript-text")) {
+          return NodeFilter.FILTER_REJECT;
+        }
+
+        if (!node.nodeValue?.trim()) {
+          return NodeFilter.FILTER_REJECT;
+        }
+
+        return NodeFilter.FILTER_ACCEPT;
+      },
+    });
+
+    let node = walker.nextNode();
+
+    while (node) {
+      textNodes.push(node as Text);
+      node = walker.nextNode();
+    }
+
+    textNodes.forEach((textNode) => {
+      const textContent = textNode.nodeValue || "";
+      const lowerTextContent = textContent.toLowerCase();
+
+      let matchIndex = lowerTextContent.indexOf(normalizedQuery);
+      let lastIndex = 0;
+
+      if (matchIndex === -1) {
+        return;
+      }
+
+      const fragment = document.createDocumentFragment();
+
+      while (matchIndex !== -1) {
+        if (matchIndex > lastIndex) {
+          fragment.appendChild(document.createTextNode(textContent.slice(lastIndex, matchIndex)));
+        }
+
+        const mark = document.createElement("mark");
+        mark.className = "search-match";
+        mark.dataset.transcriptMatch = "true";
+        mark.textContent = textContent.slice(matchIndex, matchIndex + query.length);
+
+        fragment.appendChild(mark);
+        searchMatches.push(mark);
+
+        lastIndex = matchIndex + query.length;
+        matchIndex = lowerTextContent.indexOf(normalizedQuery, lastIndex);
+      }
+
+      if (lastIndex < textContent.length) {
+        fragment.appendChild(document.createTextNode(textContent.slice(lastIndex)));
+      }
+
+      textNode.parentNode?.replaceChild(fragment, textNode);
+    });
+
+    if (searchMatches.length === 0) {
+      updateTranscriptSearchControls();
+      return;
+    }
+
+    if (preserveIndex && previousIndex >= 0 && previousIndex < searchMatches.length) {
+      currentMatchIndex = previousIndex;
+    } else {
+      currentMatchIndex = 0;
+    }
+
+    updateActiveSearchMatch(true);
+  }
+
+  function clearTranscriptSearch(): void {
+    if (!searchInput || !transcriptContainer) return;
+
+    searchInput.value = "";
+    unwrapTranscriptSearchMarks();
+
+    searchMatches = [];
+    currentMatchIndex = -1;
+
+    updateTranscriptSearchControls();
+
+    transcriptContainer.scrollTop = transcriptContainer.scrollHeight;
+    searchInput.focus();
+  }
+
+  function navigateTranscriptMatch(direction: 1 | -1): void {
+    if (searchMatches.length === 0) return;
+
+    currentMatchIndex =
+      (currentMatchIndex + direction + searchMatches.length) % searchMatches.length;
+
+    updateActiveSearchMatch(true);
+  }
+
+  searchInput?.addEventListener("input", () => {
+    if (searchDebounceTimer) {
+      globalThis.clearTimeout(searchDebounceTimer);
+    }
+
+    searchDebounceTimer = globalThis.setTimeout(() => {
+      executeTranscriptSearch(false);
+    }, 150);
+  });
+
+  searchInput?.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      navigateTranscriptMatch(event.shiftKey ? -1 : 1);
+    }
+
+    if (event.key === "Escape") {
+      event.preventDefault();
+      clearTranscriptSearch();
+    }
+  });
+
+  searchClearBtn?.addEventListener("click", clearTranscriptSearch);
+
+  searchPrevBtn?.addEventListener("click", () => {
+    navigateTranscriptMatch(-1);
+  });
+
+  searchNextBtn?.addEventListener("click", () => {
+    navigateTranscriptMatch(1);
+  });
+
+  document.addEventListener("keydown", (event) => {
+    const isSearchShortcut = (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "f";
+
+    if (!isSearchShortcut) return;
+
+    const transcriptTab = document.querySelector('[data-tab="transcript"]') as HTMLElement | null;
+
+    event.preventDefault();
+    transcriptTab?.click();
+
+    globalThis.setTimeout(() => {
+      searchInput?.focus();
+      searchInput?.select();
+    }, 0);
+  });
+
+  updateTranscriptSearchControls();
+
+  // Load sessions on tab switch
+  document.querySelector('[data-tab="sessions"]')?.addEventListener("click", loadMeetingHistory);
   // Load history on tab switch
   document.querySelector('[data-tab="history"]')?.addEventListener("click", loadMeetingHistory);
   // Session loading is handled in the tab click listener now

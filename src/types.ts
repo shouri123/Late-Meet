@@ -73,3 +73,26 @@ export interface State {
   id?: string;
   savedAt?: number;
 }
+
+export interface MeetingStorageInfo {
+  id: string;
+  title: string;
+  date: string;
+  totalBytes: number;
+  transcriptBytes: number;
+  summaryBytes: number;
+  actionItemBytes: number;
+}
+
+export interface StorageStats {
+  totalBytes: number;
+  quotaBytes: number;
+  percentUsed: number;
+  transcriptBytes: number;
+  summaryBytes: number;
+  actionItemBytes: number;
+  settingsBytes: number;
+  meetingCount: number;
+  largestMeetings: MeetingStorageInfo[];
+  warningThreshold: number;
+}

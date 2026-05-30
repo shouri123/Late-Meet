@@ -14,6 +14,7 @@ import {
 } from "./sessionStorage";
 import { AudioChunkQueue, AudioChunkQueueItem } from "./audioChunkQueue";
 import { normalizeActiveSpeakerName, resolveTranscriptSpeaker } from "./speakerAttribution";
+import { getOpenAiApiKey, getElevenLabsApiKey } from "./utils/credentials";
 
 const OPENAI_CHAT_URL = "https://api.openai.com/v1/chat/completions";
 const OPENAI_WHISPER_URL = "https://api.openai.com/v1/audio/transcriptions";
@@ -315,40 +316,77 @@ function snapshot() {
   };
 }
 
-async function broadcastStateUpdate() {
+// ---------------------------------------------------------------------------
+// Throttled State Broadcast
+// ---------------------------------------------------------------------------
+
+const BROADCAST_THROTTLE_MS = 500;
+let lastBroadcastTime = 0;
+let pendingBroadcast = false;
+let broadcastTimerHandle: ReturnType<typeof setTimeout> | null = null;
+
+async function broadcastStateUpdate(immediate = false) {
+  if (immediate) {
+    if (broadcastTimerHandle !== null) {
+      clearTimeout(broadcastTimerHandle);
+      broadcastTimerHandle = null;
+    }
+    pendingBroadcast = false;
+    await executeBroadcast();
+    return;
+  }
+
+  if (pendingBroadcast) return;
+  pendingBroadcast = true;
+
+  const now = Date.now();
+  const elapsed = now - lastBroadcastTime;
+
+  if (elapsed >= BROADCAST_THROTTLE_MS) {
+    pendingBroadcast = false;
+    await executeBroadcast();
+  } else {
+    broadcastTimerHandle = setTimeout(async () => {
+      broadcastTimerHandle = null;
+      if (!pendingBroadcast) return;
+      pendingBroadcast = false;
+      await executeBroadcast();
+    }, BROADCAST_THROTTLE_MS - elapsed);
+  }
+}
+
+async function executeBroadcast() {
   const snapshotData = snapshot();
   try {
-    // To popup/dashboard
+    // To popup/dashboard — full state
     await chrome.runtime.sendMessage({ type: "STATE_UPDATE", state: snapshotData });
   } catch {
     /* ignore */
   }
 
   try {
-    // To content scripts (floating button)
+    // To content scripts — minimal state (they only need isActive/audioActive for the floating button)
+    const contentState = {
+      isActive: snapshotData.isActive,
+      audioActive: snapshotData.audioActive,
+    };
     const tabs = await chrome.tabs.query({ url: "https://meet.google.com/*" });
     for (const tab of tabs) {
       if (tab.id !== undefined) {
         chrome.tabs
-          .sendMessage(tab.id, { type: "STATE_UPDATE", state: snapshotData })
+          .sendMessage(tab.id, { type: "STATE_UPDATE", state: contentState })
           .catch(() => {});
       }
     }
   } catch {
     /* ignore */
   }
+
+  lastBroadcastTime = Date.now();
 }
 
 async function getApiKey() {
-  const result = await chrome.storage.session.get("openai_api_key");
-  if (result.openai_api_key) return result.openai_api_key;
-
-  const localResult = await chrome.storage.local.get("openai_api_key");
-  if (localResult.openai_api_key) {
-    await chrome.storage.session.set({ openai_api_key: localResult.openai_api_key });
-    return localResult.openai_api_key;
-  }
-  return null;
+  return getOpenAiApiKey();
 }
 
 interface Settings {
@@ -421,18 +459,7 @@ function getTranscriptionPrompt() {
 }
 
 async function transcribeChunk(base64Audio: string, mimeType = "audio/webm", prompt = "") {
-  // Single declaration — retrieved from session storage with local storage fallback.
-  let elevenlabsKey = await chrome.storage.session
-    .get("elevenlabs_api_key")
-    .then((r) => r.elevenlabs_api_key);
-
-  if (!elevenlabsKey) {
-    const localResult = await chrome.storage.local.get("elevenlabs_api_key");
-    if (localResult.elevenlabs_api_key) {
-      elevenlabsKey = localResult.elevenlabs_api_key;
-      await chrome.storage.session.set({ elevenlabs_api_key: elevenlabsKey });
-    }
-  }
+  const elevenlabsKey = await getElevenLabsApiKey();
 
   const bytes = Uint8Array.from(atob(base64Audio), (c) => c.charCodeAt(0));
   const blob = new Blob([bytes], { type: mimeType });
@@ -526,7 +553,7 @@ async function refineTranscription(rawText: string) {
   if (!apiKey) return rawText;
 
   const systemPrompt = `You are an expert AI transcription editor. 
-Your task is to correct errors, remove filler words (um, uh, like), and improve the clarity of the provided meeting transcript segment while strictly preserving the speaker's original meaning and intent. 
+Your task is to correct errors, remove filler words (um, uh, like), and improve the clarity of the provided meeting transcript segment while strictly preserving the speaker's original meaning and intent.
 Return ONLY the corrected transcript text. If the input is unclear, inaudible, or empty, return the exact input unchanged. Never add commentary, apologies, or meta-responses.`;
 
   try {
@@ -860,7 +887,7 @@ async function generateLateJoinerMessage(joinerName: string) {
     const apiKey = await getApiKey();
     if (!apiKey) return fallback;
 
-    const prompt = `A participant named ${safeJoinerName} joined late. Meeting duration: ${Math.round(context.duration / 60)} minutes. Current topic: ${sanitizePromptText(context.currentTopic || "General discussion")}. Recent topics: ${sanitizePromptText(JSON.stringify(context.topics || []))}. Decisions: ${sanitizePromptText(JSON.stringify(context.decisions || []))}. Write a short welcome message under 3 sentences. Output plain text only.`;
+    const prompt = `A participant named ${safeJoinerName} joined late. Meeting duration: ${Math.round(context.duration / 60)} minutes. Current topic: ${sanitizePromptText(context.currentTopic || "project updates")}. Share a warm, concise catch-up message with key context and any confirmed decisions/action items.`;
 
     return await apiQueue.enqueue("late-joiner-message", async () => {
       const response = await fetch(OPENAI_CHAT_URL, {
@@ -1092,12 +1119,12 @@ async function startAudioCapture(
     if (response.microphoneActive === false) {
       addTimeline("Microphone capture unavailable; recording tab audio only");
     }
-    await broadcastStateUpdate();
+    await broadcastStateUpdate(true);
   } catch (err) {
     state.audioActive = false;
     if (createdSession) {
       resetState();
-      await broadcastStateUpdate();
+      await broadcastStateUpdate(true);
     }
     throw err;
   } finally {
@@ -1122,7 +1149,7 @@ async function scanForMeetTabs() {
             state.startTime = Date.now();
             state.participants = ["You"];
             console.log("[LateMeet] Proactively detected meeting:", meetingId);
-            await broadcastStateUpdate();
+            await broadcastStateUpdate(true);
           }
           return;
         }
@@ -1156,7 +1183,7 @@ async function stopAudioCapture(reason = "Stopped") {
     state.audioActive = false;
     state.isActive = false;
 
-    await broadcastStateUpdate();
+    await broadcastStateUpdate(true);
 
     try {
       await chrome.runtime.sendMessage({ type: "SESSION_ENDED" });
@@ -1171,9 +1198,13 @@ async function stopAudioCapture(reason = "Stopped") {
 }
 
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
-  if (changeInfo.status === "complete" && tab.url?.includes("meet.google.com/")) {
-    const urlMatch = tab.url.match(/meet\.google\.com\/([a-z\-]+)/);
-    const meetingId = urlMatch ? urlMatch[1] : null;
+  if (changeInfo.status !== "complete" || !tab.url) return;
+  try {
+    const parsedUrl = new URL(tab.url);
+    if (parsedUrl.hostname !== "meet.google.com") return;
+
+    const pathMatch = /^\/([a-z-]+)/.exec(parsedUrl.pathname);
+    const meetingId = pathMatch ? pathMatch[1] : null;
 
     if (meetingId && meetingId !== "new") {
       if (!state.isActive) {
@@ -1184,24 +1215,28 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
         state.targetTabId = tabId || null;
         state.startTime = Date.now();
         state.participants = ["You"];
-        await broadcastStateUpdate();
+        await broadcastStateUpdate(true);
       }
     }
+  } catch {
+    // invalid URL — ignore silently
   }
 });
 
 chrome.tabs.onActivated.addListener(async (activeInfo) => {
   try {
     const tab = await chrome.tabs.get(activeInfo.tabId);
-    if (tab.url?.includes("meet.google.com/")) {
-      const urlMatch = tab.url.match(/meet\.google\.com\/([a-z\-]+)/);
-      const meetingId = urlMatch ? urlMatch[1] : null;
-      if (meetingId && meetingId !== "new" && !state.isActive) {
-        state.meetingId = meetingId;
-        state.meetingUrl = tab.url;
-        state.targetTabId = activeInfo.tabId;
-        await broadcastStateUpdate();
-      }
+    if (!tab.url) return;
+    const parsedUrl = new URL(tab.url);
+    if (parsedUrl.hostname !== "meet.google.com") return;
+
+    const pathMatch = /^\/([a-z-]+)/.exec(parsedUrl.pathname);
+    const meetingId = pathMatch ? pathMatch[1] : null;
+    if (meetingId && meetingId !== "new" && !state.isActive) {
+      state.meetingId = meetingId;
+      state.meetingUrl = tab.url;
+      state.targetTabId = activeInfo.tabId;
+      await broadcastStateUpdate();
     }
   } catch (err) {
     console.debug("[LateMeet] tab activation handler failed:", err);
@@ -1215,7 +1250,7 @@ chrome.tabs.onRemoved.addListener(async (tabId) => {
     } else {
       state.meetingId = null;
       state.targetTabId = null;
-      await broadcastStateUpdate();
+      await broadcastStateUpdate(true);
     }
   }
 });
@@ -1284,7 +1319,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
       case "OFFSCREEN_CAPTURE_STOPPED": {
         state.audioActive = false;
-        await broadcastStateUpdate();
+        await broadcastStateUpdate(true);
         sendResponse({ success: true });
         return;
       }
@@ -1368,14 +1403,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
       case "SAVE_SESSION": {
         await persistSession();
-        await broadcastStateUpdate();
+        await broadcastStateUpdate(true);
         sendResponse({ success: true });
         return;
       }
 
       case "DISCARD_SESSION": {
         await discardPendingSession();
-        await broadcastStateUpdate();
+        await broadcastStateUpdate(true);
         sendResponse({ success: true });
         return;
       }

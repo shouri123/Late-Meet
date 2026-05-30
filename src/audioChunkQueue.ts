@@ -80,7 +80,11 @@ export class AudioChunkQueue<T> {
         try {
           await this.process(entry);
         } catch (err) {
-          await this.onError?.(err, entry);
+          try {
+            await this.onError?.(err, entry);
+          } catch (handlerErr) {
+            console.error("AudioChunkQueue: onError handler threw an error:", handlerErr);
+          }
         }
       }
     } finally {
