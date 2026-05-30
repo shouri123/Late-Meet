@@ -492,12 +492,12 @@ async function transcribeChunk(base64Audio: string, mimeType = "audio/webm", pro
 
       return transcript;
     } catch (err) {
-      console.warn("[LateMeet] ElevenLabs transcription failed, falling back to Whisper:", err);
-      // Fall through to Whisper below.
+      console.warn("[LateMeet] ElevenLabs transcription failed. Aborting fallback to Whisper for privacy reasons:", err);
+      return null;
     }
   }
 
-  // Fallback to Whisper.
+  // Use Whisper only if ElevenLabs key is not present.
   const apiKey = await getApiKey();
   if (!apiKey) return null;
 
