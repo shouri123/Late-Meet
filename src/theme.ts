@@ -24,7 +24,7 @@ function resolveTheme(theme: ThemeMode): "light" | "dark" {
   return theme;
 }
 
-function isValidAccent(value: string): boolean {
+export function isValidAccent(value: string): boolean {
   const accent = value.trim();
   return (
     /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(accent) ||

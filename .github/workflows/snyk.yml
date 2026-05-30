@@ -1,0 +1,22 @@
+name: Snyk Security Scan
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  security:
+    runs-on: ubuntu-latest
+    env:
+      SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Run Snyk to check for vulnerabilities
+        if: env.SNYK_TOKEN != ''
+        uses: snyk/actions/node@master
+        with:
+          args: --severity-threshold=high

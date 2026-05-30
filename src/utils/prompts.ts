@@ -22,12 +22,14 @@ CORE DIRECTIVES:
 5. Track conversation flow — identify when topics shift, when decisions are made, and when action items are assigned.
 
 EXTRACTION RULES:
-- **Decisions**: Only mark something as a "decision" if there is clear agreement or an authoritative statement (e.g., "Let's go with X", "We've decided to...", "Agreed").
-- **Action Items**: Must have a clear task. Owner and deadline are optional but extract them if mentioned ("John will handle..." → owner: John).
-- **Topics**: Track distinct discussion threads. Mark as "completed" when the conversation moves on, "active" for the current discussion.
-- **Sentiment**: Assess overall tone — positive (enthusiasm, agreement), negative (conflict, frustration), neutral (informational), mixed (varying tones).
-- **Key Insights**: Non-obvious observations, important data points, or strategic implications mentioned in the conversation.
-- **Questions**: Track unresolved questions that were raised but not yet answered.
+- **Decisions**: Classify as "finalized" only if there is clear agreement. Classify as "tentative" if there are hedging phrases ("maybe", "probably", "not finalized"). Downgrade confidence of ambiguous decisions.
+- **Action Items**: Extract tasks. Rate confidence ("high", "medium", "low"). Prevent speculative statements from appearing as confirmed action items by setting isSpeculative to true.
+- **Topics**: Track distinct discussion threads. Mark as "completed" when the conversation moves on, "active" for current, or note unresolved discussions.
+- **Sentiment**: Assess overall tone.
+- **Key Insights**: Non-obvious observations. Assign a confidenceScore (0-100) based on linguistic certainty.
+- **Questions**: Track unresolved questions.
+- **Contradictions**: Track contradiction persistence if someone disagrees or contradicts a previous point.
+- **Unresolved Discussions**: Identify discussions that ended without a clear resolution.
 
 CONTINUITY: You will receive previous analysis context. Build upon it — don't restart from scratch. Merge new information with existing summaries seamlessly.`;
 
@@ -77,17 +79,24 @@ Respond in this exact JSON format:
 {
   "summary": "Comprehensive 2-4 sentence rolling summary of everything discussed so far, building on previous context",
   "topics": [
-    { "name": "descriptive topic name", "startTime": "timestamp or null", "status": "active|completed", "duration": "estimated duration or null" }
+    // Each topic represents a subject discussed, with timing and status information
+    { "name": "descriptive topic name", "startTime": "timestamp or null", "status": "active|completed|unresolved", "duration": "estimated duration or null" }
   ],
   "decisions": [
-    { "text": "clear statement of what was decided", "timestamp": "when mentioned", "by": "who made/announced the decision or null" }
+    { "text": "clear statement of what was decided", "timestamp": "when mentioned", "by": "who made/announced the decision or null", "classification": "finalized|tentative" }
   ],
   "actionItems": [
-    { "task": "specific, actionable task description", "owner": "assigned person or null", "deadline": "deadline if mentioned or null" }
+    { "task": "specific, actionable task description", "owner": "assigned person or null", "deadline": "deadline if mentioned or null", "confidence": "high|medium|low", "isSpeculative": false }
   ],
   "currentTopic": "precise description of what is currently being discussed",
   "sentiment": "positive|neutral|negative|mixed",
-  "keyInsights": ["non-obvious insight or important data point 1", "insight 2"],
+  "keyInsights": [
+    { "text": "non-obvious insight or important data point", "confidenceScore": 85 }
+  ],
+  "unresolvedDiscussions": ["unresolved discussion topic 1"],
+  "contradictions": [
+    { "issue": "description of contradiction", "persists": true }
+  ],
   "questionsRaised": ["unresolved question 1", "question 2"]
 }`;
 
@@ -127,16 +136,17 @@ Meeting context so far:
 - Decisions made: ${JSON.stringify(decisions)}
 - Action items: ${JSON.stringify(actionItems)}
 - Currently discussing: ${currentTopic}
+NOTE: Ensure you clearly differentiate between tentative and finalized decisions. Do not present speculative items as confirmed.
 
 Respond in this exact JSON format:
 {
   "greeting": "Hey ${joinerName} 👋",
   "briefing": "Here's what you missed:",
   "topicsSummary": ["concise bullet point 1", "bullet point 2"],
-  "keyDecisions": ["decision 1 (if any)"],
+  "keyDecisions": ["decision 1 (indicate if tentative)"],
   "currentDiscussion": "clear, helpful description of what's being talked about right now",
   "actionItemsForThem": ["any action items relevant to them, or empty array"],
-  "fullBrief": "A single natural paragraph combining everything above"
+  "fullBrief": "A single natural paragraph combining everything above, reflecting uncertainties appropriately"
 }`;
 
 /**

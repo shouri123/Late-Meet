@@ -75,21 +75,106 @@
     </header>
 
     <!-- Tabs -->
-    <nav class="dash-tabs">
-      <button class="dash-tab active" data-tab="overview">Overview</button>
-      <button class="dash-tab" data-tab="transcript">Transcript</button>
-      <button class="dash-tab" data-tab="topics">Topics</button>
-      <button class="dash-tab" data-tab="decisions">Decisions</button>
-      <button class="dash-tab" data-tab="actions">Actions</button>
-      <button class="dash-tab" data-tab="people">People</button>
-      <button class="dash-tab" data-tab="timeline">Timeline</button>
-      <button class="dash-tab" data-tab="history">History</button>
+    <nav class="dash-tabs" role="tablist" aria-label="Dashboard Navigation">
+      <button
+        class="dash-tab active"
+        data-tab="overview"
+        role="tab"
+        id="tab-btn-overview"
+        aria-controls="tab-overview"
+        aria-selected="true"
+        tabindex="0"
+      >
+        Overview
+      </button>
+      <button
+        class="dash-tab"
+        data-tab="transcript"
+        role="tab"
+        id="tab-btn-transcript"
+        aria-controls="tab-transcript"
+        aria-selected="false"
+        tabindex="-1"
+      >
+        Transcript
+      </button>
+      <button
+        class="dash-tab"
+        data-tab="topics"
+        role="tab"
+        id="tab-btn-topics"
+        aria-controls="tab-topics"
+        aria-selected="false"
+        tabindex="-1"
+      >
+        Topics
+      </button>
+      <button
+        class="dash-tab"
+        data-tab="decisions"
+        role="tab"
+        id="tab-btn-decisions"
+        aria-controls="tab-decisions"
+        aria-selected="false"
+        tabindex="-1"
+      >
+        Decisions
+      </button>
+      <button
+        class="dash-tab"
+        data-tab="actions"
+        role="tab"
+        id="tab-btn-actions"
+        aria-controls="tab-actions"
+        aria-selected="false"
+        tabindex="-1"
+      >
+        Actions
+      </button>
+      <button
+        class="dash-tab"
+        data-tab="people"
+        role="tab"
+        id="tab-btn-people"
+        aria-controls="tab-people"
+        aria-selected="false"
+        tabindex="-1"
+      >
+        People
+      </button>
+      <button
+        class="dash-tab"
+        data-tab="timeline"
+        role="tab"
+        id="tab-btn-timeline"
+        aria-controls="tab-timeline"
+        aria-selected="false"
+        tabindex="-1"
+      >
+        Timeline
+      </button>
+      <button
+        class="dash-tab"
+        data-tab="history"
+        role="tab"
+        id="tab-btn-history"
+        aria-controls="tab-history"
+        aria-selected="false"
+        tabindex="-1"
+      >
+        History
+      </button>
     </nav>
 
     <!-- Tab Content -->
     <main class="dash-content">
       <!-- OVERVIEW TAB -->
-      <section id="tab-overview" class="tab-panel active">
+      <section
+        id="tab-overview"
+        class="tab-panel active"
+        role="tabpanel"
+        aria-labelledby="tab-btn-overview"
+      >
         <!-- Audio Waveform Visualizer -->
         <div class="dash-card waveform-card" id="waveform-card">
           <div class="dash-card-head">
@@ -327,10 +412,68 @@
             <li class="empty-msg">Insights will appear as the conversation progresses</li>
           </ul>
         </div>
+
+        <!-- Unresolved Discussions -->
+        <div class="dash-card">
+          <div class="dash-card-head">
+            <span class="dash-card-icon">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="icon"
+              >
+                <circle cx="12" cy="12" r="10"></circle>
+                <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                <line x1="12" x2="12.01" y1="17" y2="17"></line>
+              </svg>
+            </span>
+            <span class="dash-card-title">Unresolved Discussions</span>
+          </div>
+          <ul id="dash-unresolved-list" class="insight-list">
+            <li class="empty-msg">No unresolved discussions yet</li>
+          </ul>
+        </div>
+
+        <!-- Contradictions -->
+        <div class="dash-card">
+          <div class="dash-card-head">
+            <span class="dash-card-icon">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="icon"
+              >
+                <path
+                  d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"
+                ></path>
+                <line x1="12" x2="12" y1="9" y2="13"></line>
+                <line x1="12" x2="12.01" y1="17" y2="17"></line>
+              </svg>
+            </span>
+            <span class="dash-card-title">Contradictions</span>
+          </div>
+          <ul id="dash-contradictions-list" class="insight-list">
+            <li class="empty-msg">No contradictions detected</li>
+          </ul>
+        </div>
       </section>
 
       <!-- TOPICS TAB -->
-      <section id="tab-topics" class="tab-panel">
+      <section id="tab-topics" class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-topics">
         <div class="dash-card">
           <div class="dash-card-head">
             <span class="dash-card-icon">
@@ -358,7 +501,12 @@
       </section>
 
       <!-- DECISIONS TAB -->
-      <section id="tab-decisions" class="tab-panel">
+      <section
+        id="tab-decisions"
+        class="tab-panel"
+        role="tabpanel"
+        aria-labelledby="tab-btn-decisions"
+      >
         <div class="dash-card">
           <div class="dash-card-head">
             <span class="dash-card-icon">
@@ -387,7 +535,7 @@
       </section>
 
       <!-- ACTIONS TAB -->
-      <section id="tab-actions" class="tab-panel">
+      <section id="tab-actions" class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-actions">
         <div class="dash-card">
           <div class="dash-card-head">
             <span class="dash-card-icon">
@@ -422,7 +570,7 @@
       </section>
 
       <!-- PEOPLE TAB -->
-      <section id="tab-people" class="tab-panel">
+      <section id="tab-people" class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-people">
         <div class="dash-card">
           <div class="dash-card-head">
             <span class="dash-card-icon">
@@ -477,7 +625,12 @@
       </section>
 
       <!-- TIMELINE TAB -->
-      <section id="tab-timeline" class="tab-panel">
+      <section
+        id="tab-timeline"
+        class="tab-panel"
+        role="tabpanel"
+        aria-labelledby="tab-btn-timeline"
+      >
         <div class="dash-card">
           <div class="dash-card-head">
             <span class="dash-card-icon">
@@ -506,7 +659,12 @@
       </section>
 
       <!-- TRANSCRIPT TAB -->
-      <section id="tab-transcript" class="tab-panel">
+      <section
+        id="tab-transcript"
+        class="tab-panel"
+        role="tabpanel"
+        aria-labelledby="tab-btn-transcript"
+      >
         <div class="dash-card glow-card">
           <div class="dash-card-head">
             <span class="dash-card-icon">
@@ -530,6 +688,121 @@
             <span class="dash-card-title">Live Transcript</span>
             <span class="live-indicator"> <span class="live-dot"></span>LIVE </span>
           </div>
+
+          <!-- Transcript Search Header -->
+          <div class="transcript-search-header" id="transcript-search-bar">
+            <div class="search-input-wrapper">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="icon search-icon"
+                aria-hidden="true"
+              >
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+
+              <input
+                type="search"
+                id="transcript-search-input"
+                class="search-input"
+                placeholder="Search transcript..."
+                autocomplete="off"
+                aria-label="Search transcript"
+              />
+
+              <button
+                id="search-clear"
+                class="search-clear-btn"
+                type="button"
+                title="Clear search"
+                aria-label="Clear transcript search"
+                disabled
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  class="icon"
+                  aria-hidden="true"
+                >
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </button>
+            </div>
+
+            <div class="search-controls">
+              <span id="transcript-search-counter" class="search-counter" aria-live="polite">
+                0/0
+              </span>
+
+              <div class="search-nav-buttons">
+                <button
+                  id="search-prev"
+                  class="search-action-btn"
+                  type="button"
+                  title="Previous match"
+                  aria-label="Previous transcript match"
+                  disabled
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    class="icon"
+                    aria-hidden="true"
+                  >
+                    <polyline points="18 15 12 9 6 15"></polyline>
+                  </svg>
+                </button>
+
+                <button
+                  id="search-next"
+                  class="search-action-btn"
+                  type="button"
+                  title="Next match"
+                  aria-label="Next transcript match"
+                  disabled
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    class="icon"
+                    aria-hidden="true"
+                  >
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
           <div class="transcript-info">
             Each entry shows who spoke, what was said, and when. Audio entries are from the Whisper
             transcription.
@@ -539,7 +812,7 @@
           </div>
         </div>
       </section>
-      <section id="tab-history" class="tab-panel">
+      <section id="tab-history" class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-history">
         <div class="dash-card">
           <div class="dash-card-head">
             <span class="dash-card-icon">

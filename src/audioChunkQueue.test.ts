@@ -104,3 +104,24 @@ test("audio chunk queue rejects new chunks when pending backlog is full", async 
   gate.resolve();
   await waitForDrain();
 });
+
+test("audio chunk queue continues after onError hook failure", async () => {
+  const processed: string[] = [];
+  const queue = new AudioChunkQueue<string>({
+    maxPending: 4,
+    process: async ({ item }) => {
+      if (item === "bad") throw new Error("stt failed");
+      processed.push(item);
+    },
+    onError: () => {
+      throw new Error("onError threw an error");
+    },
+  });
+
+  queue.enqueue("bad");
+  queue.enqueue("next");
+
+  await waitForDrain();
+
+  assert.deepEqual(processed, ["next"]);
+});

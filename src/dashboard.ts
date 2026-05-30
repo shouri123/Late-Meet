@@ -30,6 +30,8 @@ function normalizeActionItem(input: unknown): ActionItem | null {
     task,
     owner: String(raw.owner ?? "").trim() || undefined,
     deadline: String(raw.deadline ?? "").trim() || undefined,
+    confidence: (raw as any).confidence,
+    isSpeculative: (raw as any).isSpeculative,
   } as ActionItem;
 }
 
@@ -60,6 +62,18 @@ async function persistActionStatuses() {
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
+  // ——— Transcript Search DOM Elements (Queried early to prevent TDZ) ———
+  const searchInput = document.getElementById("transcript-search-input") as HTMLInputElement | null;
+  const searchCounter = document.getElementById(
+    "transcript-search-counter",
+  ) as HTMLSpanElement | null;
+  const searchPrevBtn = document.getElementById("search-prev") as HTMLButtonElement | null;
+  const searchNextBtn = document.getElementById("search-next") as HTMLButtonElement | null;
+  const searchClearBtn = document.getElementById("search-clear") as HTMLButtonElement | null;
+  const transcriptContainer = document.getElementById(
+    "dash-transcript-list",
+  ) as HTMLDivElement | null;
+
   await loadActionStatuses();
   // ——— Waveform Visualizer ———
   const WAVEFORM_N = 32;
@@ -121,7 +135,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   initWaveformCanvas();
 
   // ——— Tab Switching ———
-  const tabs = document.querySelectorAll(".dash-tab");
+  const tabs = document.querySelectorAll(".dash-tabs .dash-tab");
   const panels = document.querySelectorAll(".tab-panel");
   const loadedTabs = new Set<string>(["overview"]);
 
@@ -172,9 +186,15 @@ document.addEventListener("DOMContentLoaded", async () => {
       const tabId = (tab as HTMLElement).dataset.tab;
       if (!tabId) return;
 
-      tabs.forEach((t) => t.classList.remove("active"));
+      tabs.forEach((t) => {
+        t.classList.remove("active");
+        t.setAttribute("aria-selected", "false");
+        t.setAttribute("tabindex", "-1");
+      });
       panels.forEach((p) => p.classList.remove("active"));
       (tab as HTMLElement).classList.add("active");
+      (tab as HTMLElement).setAttribute("aria-selected", "true");
+      (tab as HTMLElement).setAttribute("tabindex", "0");
 
       const panel = document.getElementById(`tab-${tabId}`);
       if (panel) {
@@ -192,8 +212,32 @@ document.addEventListener("DOMContentLoaded", async () => {
             updatePeople(lastState?.participants || [], lastState?.lateJoiners || []);
           else if (tabId === "timeline") updateTimeline(lastState?.timeline || []);
           else if (tabId === "transcript") updateTranscript(lastState?.transcript || []);
-          else if (tabId === "sessions") loadMeetingHistory();
+          else if (tabId === "history" || tabId === "sessions") loadMeetingHistory();
         }, 150);
+      }
+    });
+
+    tab.addEventListener("keydown", (e: Event) => {
+      const kbEvent = e as KeyboardEvent;
+      let newIndex = -1;
+      const tabsArray = Array.from(tabs);
+      const index = tabsArray.indexOf(tab);
+
+      if (kbEvent.key === "ArrowRight") {
+        newIndex = (index + 1) % tabsArray.length;
+      } else if (kbEvent.key === "ArrowLeft") {
+        newIndex = (index - 1 + tabsArray.length) % tabsArray.length;
+      } else if (kbEvent.key === "Home") {
+        newIndex = 0;
+      } else if (kbEvent.key === "End") {
+        newIndex = tabsArray.length - 1;
+      }
+
+      if (newIndex !== -1) {
+        kbEvent.preventDefault();
+        const newTab = tabsArray[newIndex] as HTMLElement;
+        newTab.focus();
+        newTab.click();
       }
     });
   });
@@ -407,6 +451,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     // Key Insights
     updateInsights(state.keyInsights);
 
+    updateUnresolvedDiscussions(state.unresolvedDiscussions);
+    updateContradictions(state.contradictions);
+
     // Topics Tab
     if (loadedTabs.has("topics")) updateTopics(state.topics);
 
@@ -445,7 +492,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   // ——— Key Insights ———
-  function updateInsights(insights: string[]) {
+  function updateInsights(insights: any[]) {
     const list = document.getElementById("dash-insights-list");
     if (!list) return;
     if (!insights || insights.length === 0) {
@@ -453,7 +500,55 @@ document.addEventListener("DOMContentLoaded", async () => {
         '<li class="empty-msg">Insights will appear as the conversation progresses</li>';
       return;
     }
-    list.innerHTML = insights.map((i) => `<li>${escapeHtml(i || "")}</li>`).join("");
+    list.innerHTML = insights
+      .filter((i) => i != null)
+      .map((i) => {
+        const text = typeof i === "string" ? i : i.text || "";
+        const rawScore =
+          typeof i === "object" && i !== null
+            ? (i as { confidenceScore?: unknown }).confidenceScore
+            : undefined;
+        const parsedScore = typeof rawScore === "number" ? rawScore : Number(rawScore);
+        const safeScore = Number.isFinite(parsedScore)
+          ? Math.max(0, Math.min(100, parsedScore))
+          : null;
+        const score =
+          safeScore !== null
+            ? ` <span style="font-size: 11px; color: #9ca3af;">(Conf: ${safeScore}%)</span>`
+            : "";
+        return `<li>${escapeHtml(text)}${score}</li>`;
+      })
+      .join("");
+  }
+
+  function updateUnresolvedDiscussions(discussions: string[]) {
+    const list = document.getElementById("dash-unresolved-list");
+    if (!list) return;
+    if (!discussions || discussions.length === 0) {
+      list.innerHTML = '<li class="empty-msg">No unresolved discussions yet</li>';
+      return;
+    }
+    list.innerHTML = discussions.map((d) => `<li>${escapeHtml(d || "")}</li>`).join("");
+  }
+
+  function updateContradictions(contradictions: any[]) {
+    const list = document.getElementById("dash-contradictions-list");
+    if (!list) return;
+    if (!contradictions || contradictions.length === 0) {
+      list.innerHTML = '<li class="empty-msg">No contradictions detected</li>';
+      return;
+    }
+    list.innerHTML = contradictions
+      .filter((c) => c != null)
+      .map((c) => {
+        const issue = typeof c === "string" ? c : c.issue || "";
+        const persists =
+          typeof c === "object" && c.persists
+            ? ` <span style="font-size: 11px; background: #FEE2E2; color: #DC2626; padding: 2px 6px; border-radius: 4px; margin-left: 6px;">Persists</span>`
+            : "";
+        return `<li>${escapeHtml(issue)}${persists}</li>`;
+      })
+      .join("");
   }
 
   // ——— Topics ———
@@ -492,7 +587,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       .map(
         (d) => `
       <div class="decision-item">
-        <div class="decision-text">${escapeHtml(d.text || "")}</div>
+        <div class="decision-text">${escapeHtml(d.text || "")} ${d.classification === "tentative" ? '<span style="font-size: 11px; background: #FEF3C7; color: #D97706; padding: 2px 6px; border-radius: 4px; margin-left: 6px;">Tentative</span>' : ""}</div>
         <div class="decision-meta">${d.by ? `By ${escapeHtml(d.by)}` : ""} ${d.timestamp ? `• ${escapeHtml(d.timestamp)}` : ""}</div>
       </div>
     `,
@@ -539,6 +634,20 @@ document.addEventListener("DOMContentLoaded", async () => {
       const taskDiv = document.createElement("div");
       taskDiv.className = "action-task" + (done ? " action-task--done" : "");
       taskDiv.textContent = task;
+      if (a.isSpeculative) {
+        const specSpan = document.createElement("span");
+        specSpan.style.cssText =
+          "font-size: 11px; background: #FEE2E2; color: #DC2626; padding: 2px 6px; border-radius: 4px; margin-left: 6px;";
+        specSpan.textContent = "Speculative";
+        taskDiv.appendChild(specSpan);
+      }
+      if (a.confidence && a.confidence !== "high") {
+        const confSpan = document.createElement("span");
+        confSpan.style.cssText =
+          "font-size: 11px; background: #F3F4F6; color: #6B7280; padding: 2px 6px; border-radius: 4px; margin-left: 6px;";
+        confSpan.textContent = `Conf: ${a.confidence}`;
+        taskDiv.appendChild(confSpan);
+      }
       label.appendChild(taskDiv);
 
       if (owner) {
@@ -697,17 +806,20 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // ——— Live Transcript ———
   function updateTranscript(transcript: TranscriptEntry[]) {
-    const container = document.getElementById("dash-transcript-list");
-    if (!container) return;
+    if (!transcriptContainer) return;
+
     if (!transcript || transcript.length === 0) {
-      container.innerHTML =
+      transcriptContainer.innerHTML =
         '<div class="empty-msg">No transcript yet. Start audio to begin capturing speech.</div>';
+
+      resetTranscriptSearchState();
+
       return;
     }
 
     const startTime = transcript[0]?.timestamp || Date.now();
 
-    container.innerHTML = transcript
+    transcriptContainer.innerHTML = transcript
       .map((entry) => {
         const timestamp = entry.timestamp || Date.now();
         const elapsed = Math.round((timestamp - startTime) / 1000);
@@ -715,6 +827,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         const speaker = escapeHtml(entry.speaker || "Unknown");
         const initials = speaker
           .split(" ")
+          .filter(Boolean)
           .map((w) => w[0])
           .join("")
           .toUpperCase()
@@ -735,8 +848,12 @@ document.addEventListener("DOMContentLoaded", async () => {
       })
       .join("");
 
-    // Auto-scroll to bottom
-    container.scrollTop = container.scrollHeight;
+    if (searchInput?.value.trim()) {
+      executeTranscriptSearch(true);
+    } else {
+      transcriptContainer.scrollTop = transcriptContainer.scrollHeight;
+      updateTranscriptSearchControls();
+    }
   }
 
   // ——— Export Helpers ———
@@ -800,7 +917,15 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     md += `## Key Insights\n`;
     if (state.keyInsights?.length) {
-      state.keyInsights.forEach((i: string) => (md += `- ${i}\n`));
+      state.keyInsights
+        ?.filter((i) => i != null)
+        .forEach((i: any) => {
+          const text = typeof i === "string" ? i : i.text;
+
+          if (text) {
+            md += `- ${text}\n`;
+          }
+        });
       md += "\n";
     } else {
       md += `_No insights available_\n\n`;
@@ -943,7 +1068,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   function sanitizeTopicStatus(status: string) {
-    return status === "completed" ? "completed" : "active";
+    if (status === "completed") return "completed";
+    if (status === "unresolved") return "unresolved";
+    return "active";
   }
 
   function formatDuration(seconds: number) {
@@ -1136,6 +1263,273 @@ document.addEventListener("DOMContentLoaded", async () => {
     showToast("Downloaded as .md file", "success");
   }
 
+  // ——— Transcript Search ———
+  let searchMatches: HTMLElement[] = [];
+  let currentMatchIndex = -1;
+  let searchDebounceTimer: ReturnType<typeof globalThis.setTimeout> | null = null;
+
+  function resetTranscriptSearchState(): void {
+    searchMatches = [];
+    currentMatchIndex = -1;
+
+    if (searchCounter) {
+      searchCounter.textContent = "0/0";
+    }
+
+    if (searchPrevBtn) {
+      searchPrevBtn.disabled = true;
+    }
+
+    if (searchNextBtn) {
+      searchNextBtn.disabled = true;
+    }
+
+    if (searchClearBtn) {
+      searchClearBtn.disabled = !searchInput?.value.trim();
+      searchClearBtn.classList.toggle("visible", Boolean(searchInput?.value.trim()));
+    }
+  }
+
+  function unwrapTranscriptSearchMarks(): void {
+    if (!transcriptContainer) return;
+
+    transcriptContainer.querySelectorAll("mark.search-match").forEach((mark) => {
+      const parent = mark.parentNode;
+
+      if (!parent) return;
+
+      parent.replaceChild(document.createTextNode(mark.textContent || ""), mark);
+      parent.normalize();
+    });
+  }
+
+  function updateTranscriptSearchControls(): void {
+    const hasQuery = Boolean(searchInput?.value.trim());
+    const hasMatches = searchMatches.length > 0;
+
+    if (searchCounter) {
+      searchCounter.textContent = hasMatches
+        ? `${currentMatchIndex + 1}/${searchMatches.length}`
+        : "0/0";
+    }
+
+    if (searchPrevBtn) {
+      searchPrevBtn.disabled = !hasMatches;
+    }
+
+    if (searchNextBtn) {
+      searchNextBtn.disabled = !hasMatches;
+    }
+
+    if (searchClearBtn) {
+      searchClearBtn.disabled = !hasQuery;
+      searchClearBtn.classList.toggle("visible", hasQuery);
+    }
+  }
+
+  function updateActiveSearchMatch(scrollToMatch = true): void {
+    searchMatches.forEach((match, index) => {
+      match.classList.toggle("active", index === currentMatchIndex);
+    });
+
+    updateTranscriptSearchControls();
+
+    if (!scrollToMatch) return;
+
+    const activeMatch = searchMatches[currentMatchIndex];
+
+    activeMatch?.scrollIntoView({
+      behavior: "smooth",
+      block: "center",
+      inline: "nearest",
+    });
+  }
+
+  function executeTranscriptSearch(preserveIndex = false): void {
+    if (
+      !searchInput ||
+      !searchCounter ||
+      !searchClearBtn ||
+      !searchPrevBtn ||
+      !searchNextBtn ||
+      !transcriptContainer
+    ) {
+      return;
+    }
+
+    const query = searchInput.value.trim();
+    const normalizedQuery = query.toLowerCase();
+    const previousIndex = currentMatchIndex;
+
+    unwrapTranscriptSearchMarks();
+
+    searchMatches = [];
+    currentMatchIndex = -1;
+
+    if (!normalizedQuery) {
+      updateTranscriptSearchControls();
+      return;
+    }
+
+    const textNodes: Text[] = [];
+    const walker = document.createTreeWalker(transcriptContainer, NodeFilter.SHOW_TEXT, {
+      acceptNode(node) {
+        const parentElement = node.parentElement;
+
+        if (!parentElement) {
+          return NodeFilter.FILTER_REJECT;
+        }
+
+        if (parentElement.closest(".empty-msg")) {
+          return NodeFilter.FILTER_REJECT;
+        }
+
+        if (!parentElement.closest(".transcript-text")) {
+          return NodeFilter.FILTER_REJECT;
+        }
+
+        if (!node.nodeValue?.trim()) {
+          return NodeFilter.FILTER_REJECT;
+        }
+
+        return NodeFilter.FILTER_ACCEPT;
+      },
+    });
+
+    let node = walker.nextNode();
+
+    while (node) {
+      textNodes.push(node as Text);
+      node = walker.nextNode();
+    }
+
+    textNodes.forEach((textNode) => {
+      const textContent = textNode.nodeValue || "";
+      const lowerTextContent = textContent.toLowerCase();
+
+      let matchIndex = lowerTextContent.indexOf(normalizedQuery);
+      let lastIndex = 0;
+
+      if (matchIndex === -1) {
+        return;
+      }
+
+      const fragment = document.createDocumentFragment();
+
+      while (matchIndex !== -1) {
+        if (matchIndex > lastIndex) {
+          fragment.appendChild(document.createTextNode(textContent.slice(lastIndex, matchIndex)));
+        }
+
+        const mark = document.createElement("mark");
+        mark.className = "search-match";
+        mark.dataset.transcriptMatch = "true";
+        mark.textContent = textContent.slice(matchIndex, matchIndex + query.length);
+
+        fragment.appendChild(mark);
+        searchMatches.push(mark);
+
+        lastIndex = matchIndex + query.length;
+        matchIndex = lowerTextContent.indexOf(normalizedQuery, lastIndex);
+      }
+
+      if (lastIndex < textContent.length) {
+        fragment.appendChild(document.createTextNode(textContent.slice(lastIndex)));
+      }
+
+      textNode.parentNode?.replaceChild(fragment, textNode);
+    });
+
+    if (searchMatches.length === 0) {
+      updateTranscriptSearchControls();
+      return;
+    }
+
+    if (preserveIndex && previousIndex >= 0 && previousIndex < searchMatches.length) {
+      currentMatchIndex = previousIndex;
+    } else {
+      currentMatchIndex = 0;
+    }
+
+    updateActiveSearchMatch(true);
+  }
+
+  function clearTranscriptSearch(): void {
+    if (!searchInput || !transcriptContainer) return;
+
+    searchInput.value = "";
+    unwrapTranscriptSearchMarks();
+
+    searchMatches = [];
+    currentMatchIndex = -1;
+
+    updateTranscriptSearchControls();
+
+    transcriptContainer.scrollTop = transcriptContainer.scrollHeight;
+    searchInput.focus();
+  }
+
+  function navigateTranscriptMatch(direction: 1 | -1): void {
+    if (searchMatches.length === 0) return;
+
+    currentMatchIndex =
+      (currentMatchIndex + direction + searchMatches.length) % searchMatches.length;
+
+    updateActiveSearchMatch(true);
+  }
+
+  searchInput?.addEventListener("input", () => {
+    if (searchDebounceTimer) {
+      globalThis.clearTimeout(searchDebounceTimer);
+    }
+
+    searchDebounceTimer = globalThis.setTimeout(() => {
+      executeTranscriptSearch(false);
+    }, 150);
+  });
+
+  searchInput?.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      navigateTranscriptMatch(event.shiftKey ? -1 : 1);
+    }
+
+    if (event.key === "Escape") {
+      event.preventDefault();
+      clearTranscriptSearch();
+    }
+  });
+
+  searchClearBtn?.addEventListener("click", clearTranscriptSearch);
+
+  searchPrevBtn?.addEventListener("click", () => {
+    navigateTranscriptMatch(-1);
+  });
+
+  searchNextBtn?.addEventListener("click", () => {
+    navigateTranscriptMatch(1);
+  });
+
+  document.addEventListener("keydown", (event) => {
+    const isSearchShortcut = (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "f";
+
+    if (!isSearchShortcut) return;
+
+    const transcriptTab = document.querySelector('[data-tab="transcript"]') as HTMLElement | null;
+
+    event.preventDefault();
+    transcriptTab?.click();
+
+    globalThis.setTimeout(() => {
+      searchInput?.focus();
+      searchInput?.select();
+    }, 0);
+  });
+
+  updateTranscriptSearchControls();
+
+  // Load sessions on tab switch
+  document.querySelector('[data-tab="sessions"]')?.addEventListener("click", loadMeetingHistory);
   // Load history on tab switch
   document.querySelector('[data-tab="history"]')?.addEventListener("click", loadMeetingHistory);
   // Session loading is handled in the tab click listener now

@@ -153,8 +153,8 @@ The extension is built natively on Manifest V3 using **TypeScript and Vite 5** f
 │   ├── options.ts & html        # Options page to configure API keys
 │   ├── popup.ts & html          # Quick-action extension popover
 │   └── types.ts                 # Type definitions used across components
-├── .eslintrc.json               # Logic checker settings (ESLint)
-├── .eslintignore                # ESLint path exclusions
+├── eslint.config.mjs            # Flat ESLint configuration
+├── .editorconfig                # Cross-editor coding style defaults
 ├── .prettierrc                  # Formatter code style preferences
 ├── .prettierignore              # Formatter file exclusions
 ├── lint-staged.config.js        # Config to format only staged files on commit
