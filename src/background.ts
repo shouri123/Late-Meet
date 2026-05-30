@@ -1492,7 +1492,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 
   const isMeetTab = Boolean(tab.url?.includes("meet.google.com/"));
   const meetingId = isMeetTab
-    ? (tab.url?.match(/meet\.google\.com\/([a-z\-]+)/)?.[1] ?? null)
+    ? (tab.url?.match(/meet\.google\.com\/([a-z-]+)/)?.[1] ?? null)
     : null;
   const meetingUrl = tab.url || null;
 

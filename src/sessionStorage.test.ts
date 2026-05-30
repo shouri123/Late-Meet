@@ -31,8 +31,6 @@ function makeSession(id: string, savedAt: number): StoredSession {
     participants: [],
     initialParticipants: [],
     lateJoiners: [],
-    unresolvedDiscussions: [],
-    contradictions: [],
     timeline: [{ event: "Meeting ended", timestamp: savedAt, elapsed: 10 }],
     transcript: [{ speaker: "Audio", text: "A long transcript entry", timestamp: savedAt }],
     audioActive: false,
