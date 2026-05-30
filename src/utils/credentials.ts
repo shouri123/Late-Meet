@@ -56,11 +56,14 @@ export async function saveApiCredentials(credentials: ApiCredentials): Promise<v
   const removeKeys: CredentialKey[] = [];
 
   for (const key of CREDENTIAL_KEYS) {
-    const value = normalizedCredential(credentials[key]);
-    if (value) {
-      saveData[key] = value;
-    } else {
-      removeKeys.push(key);
+    // Only process keys that are explicitly present in the input credentials object
+    if (key in credentials) {
+      const value = normalizedCredential(credentials[key]);
+      if (value) {
+        saveData[key] = value;
+      } else {
+        removeKeys.push(key);
+      }
     }
   }
 

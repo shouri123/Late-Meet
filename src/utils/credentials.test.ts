@@ -91,3 +91,19 @@ test("clearing credentials deletes them from both local and session storage", as
   assert.deepEqual(session, {});
   assert.deepEqual(local, {});
 });
+
+test("saving partial credentials does not wipe out omitted keys", async () => {
+  const { session, local } = setupChromeStorage(
+    { openai_api_key: "existing-openai", elevenlabs_api_key: "existing-eleven" },
+    { openai_api_key: "existing-openai", elevenlabs_api_key: "existing-eleven" },
+  );
+
+  // Omit elevenlabs_api_key entirely from the object
+  await saveApiCredentials({ openai_api_key: "new-openai" });
+
+  assert.deepEqual(session, {
+    openai_api_key: "new-openai",
+    elevenlabs_api_key: "existing-eleven",
+  });
+  assert.deepEqual(local, { openai_api_key: "new-openai", elevenlabs_api_key: "existing-eleven" });
+});
