@@ -609,6 +609,21 @@ Return ONLY the corrected transcript text. If the input is unclear, inaudible, o
 // ---------------------------------------------------------------------------
 let summaryInFlight = false;
 
+function mergeUniqueObjects<T>(existing: T[], incoming: any, keyFn: (item: T) => string): T[] {
+  if (!Array.isArray(incoming) || incoming.length === 0) return existing;
+  const map = new Map<string, T>();
+  existing.forEach((item) => map.set(keyFn(item), item));
+  incoming.forEach((item) => {
+    if (item) map.set(keyFn(item), item);
+  });
+  return Array.from(map.values());
+}
+
+function mergeUniqueStrings(existing: string[], incoming: any): string[] {
+  if (!Array.isArray(incoming) || incoming.length === 0) return existing;
+  return Array.from(new Set([...existing, ...incoming.filter(Boolean)]));
+}
+
 async function summarizeTranscriptIfNeeded() {
   if (!state.isActive || state.transcript.length === 0) return;
 
@@ -684,6 +699,7 @@ You must return ONLY a JSON object.`;
 
     const userPrompt = `Analyze the following meeting transcript segment.
 Integrate this new data with the previous context.
+Focus on extracting NEW topics, decisions, actions, insights, and questions that emerged in this recent transcript.
 
 <previous_context>
 ${state.summary || "Initial session"}
@@ -736,43 +752,26 @@ Return a JSON object with these exact keys:
     state.summary = parsed.summary || state.summary;
 
     if (topicDetectionEnabled) {
-      state.topics = Array.isArray(parsed.topics) ? parsed.topics : state.topics;
+      state.topics = mergeUniqueObjects(state.topics, parsed.topics, (t: any) => String(t.name).toLowerCase().trim());
       state.currentTopic = parsed.currentTopic || state.currentTopic;
-    } else {
-      state.topics = [];
-      state.currentTopic = "";
     }
 
     if (decisionDetectionEnabled) {
-      state.decisions = Array.isArray(parsed.decisions) ? parsed.decisions : state.decisions;
-    } else {
-      state.decisions = [];
+      state.decisions = mergeUniqueObjects(state.decisions, parsed.decisions, (d: any) => String(d.text).toLowerCase().trim());
     }
 
     if (actionExtractionEnabled) {
-      state.actionItems = Array.isArray(parsed.actionItems)
-        ? parsed.actionItems
-        : state.actionItems;
-    } else {
-      state.actionItems = [];
+      state.actionItems = mergeUniqueObjects(state.actionItems, parsed.actionItems, (a: any) => String(a.task).toLowerCase().trim());
     }
 
     if (sentimentAnalysisEnabled) {
       state.sentiment = parsed.sentiment || state.sentiment;
-    } else {
-      state.sentiment = "neutral";
     }
 
-    state.keyInsights = Array.isArray(parsed.keyInsights) ? parsed.keyInsights : state.keyInsights;
-    state.unresolvedDiscussions = Array.isArray(parsed.unresolvedDiscussions)
-      ? parsed.unresolvedDiscussions
-      : state.unresolvedDiscussions;
-    state.contradictions = Array.isArray(parsed.contradictions)
-      ? parsed.contradictions
-      : state.contradictions;
-    state.questionsRaised = Array.isArray(parsed.questionsRaised)
-      ? parsed.questionsRaised
-      : state.questionsRaised;
+    state.keyInsights = mergeUniqueObjects(state.keyInsights, parsed.keyInsights, (k: any) => String(k.text).toLowerCase().trim());
+    state.unresolvedDiscussions = mergeUniqueStrings(state.unresolvedDiscussions, parsed.unresolvedDiscussions);
+    state.contradictions = mergeUniqueObjects(state.contradictions, parsed.contradictions, (c: any) => String(c.issue).toLowerCase().trim());
+    state.questionsRaised = mergeUniqueStrings(state.questionsRaised, parsed.questionsRaised);
 
     state.lastSummarizedAt = Date.now();
   } catch (err) {
