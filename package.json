@@ -54,10 +54,12 @@
     "prettier": "^3.2.5",
     "tsx": "^4.20.3",
     "typescript": "^5.3.3",
-    "vite": "^5.4.21"
+    "vite": "^6.4.2",
+    "@types/express": "^4.17.21"
   },
   "dependencies": {
     "@elevenlabs/elevenlabs-js": "^2.45.0",
-    "@openrouter/sdk": "^0.12.20"
+    "@openrouter/sdk": "^0.12.20",
+    "express": "^4.19.2"
   }
 }

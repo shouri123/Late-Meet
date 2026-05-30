@@ -40,7 +40,14 @@
           <label class="setup-label">OpenAI API Key</label>
           <div class="input-group">
             <input type="password" id="api-key-input" class="setup-input" placeholder="sk-..." />
-            <button id="toggle-key" class="toggle-btn">👁</button>
+            <button
+              id="toggle-key"
+              class="toggle-btn"
+              aria-label="Toggle API key visibility"
+              title="Show/Hide Key"
+            >
+              👁
+            </button>
           </div>
 
           <button id="save-keys" class="setup-btn">
