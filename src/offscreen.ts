@@ -1,7 +1,4 @@
 import { VoiceActivityTracker, isChunkViable } from "./audioProcessing";
-import { initTheme } from "./theme.js";
-
-initTheme();
 
 let mediaStream: MediaStream | null = null;
 let microphoneStream: MediaStream | null = null;
@@ -186,11 +183,15 @@ async function postChunk(blob: Blob) {
   relay(`sending chunk — ${blob.size} bytes  mimeType=${mimeType}`);
 
   try {
-    await chrome.runtime.sendMessage({
+    const response = await chrome.runtime.sendMessage({
       type: "OFFSCREEN_AUDIO_CHUNK",
       audioBase64,
       mimeType,
     });
+
+    if (!response?.success) {
+      relay(`chunk rejected by background — ${response?.error || "unknown error"}`);
+    }
   } catch (err) {
     console.error("[LateMeet][offscreen] Failed to send chunk:", err);
   }
@@ -332,6 +333,13 @@ async function startCapture(
         await stopCapture();
       } catch (err) {
         console.error("[LateMeet][offscreen] Cleanup after track end failed:", err);
+      } finally {
+        await chrome.runtime
+          .sendMessage({
+            type: "UNEXPECTED_TRACK_END",
+            reason: "Track ended unexpectedly (tab closed or mic disconnected)",
+          })
+          .catch(() => {});
       }
     };
   });

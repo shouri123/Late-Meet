@@ -303,6 +303,11 @@ body::-webkit-scrollbar-thumb {
   border-color: var(--border-main);
 }
 
+.icon-btn:focus-visible {
+  outline: 2px solid hsl(var(--accent-color));
+  outline-offset: 2px;
+}
+
 /* ——— Duration Bar ——— */
 .duration-bar {
   display: flex;
@@ -770,6 +775,17 @@ body::-webkit-scrollbar-thumb {
   color: var(--text-sub);
   margin-bottom: 24px;
   line-height: 1.5;
+}
+
+.session-modal-error {
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  border-radius: 8px;
+  color: #fecaca;
+  font-size: 12px;
+  line-height: 1.4;
+  margin: -8px 0 16px;
+  padding: 10px 12px;
 }
 
 .session-modal-actions {

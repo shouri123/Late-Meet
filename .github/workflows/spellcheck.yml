@@ -1,0 +1,25 @@
+name: Spell Check
+
+on:
+  pull_request:
+    branches: [main, develop]
+
+permissions:
+  contents: read
+
+jobs:
+  spellcheck:
+    name: Spell Check (cspell)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Run cspell
+        uses: streetsidesoftware/cspell-action@v6
+        with:
+          config: cspell.json
+          files: "**/*.{ts,md,json,yml,yaml}"
+          incremental_files_only: true
+          strict: false

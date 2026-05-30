@@ -1,0 +1,14 @@
+# Default owners for everything
+* @shouri123
+
+# Workflow files need maintainer review
+/.github/ @shouri123
+
+# Security-sensitive files
+/src/manifest.json @shouri123
+/src/background.ts @shouri123
+
+# Build configuration
+/vite.config.ts @shouri123
+/tsconfig.json @shouri123
+/eslint.config.mjs @shouri123

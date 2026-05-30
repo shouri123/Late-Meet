@@ -48,10 +48,16 @@ export function participantNameFromCandidate(candidate: ParticipantNameCandidate
   const participantAriaName = ariaLabel.startsWith("Participant:")
     ? ariaLabel.replace(/^Participant:\s*/, "")
     : "";
+
   const rawName = selfName || participantAriaName || text;
   const name = cleanText(rawName);
 
-  if (!name || name.length > MAX_PARTICIPANT_NAME_LEN || name.includes("…")) {
+  const maxParticipantNameLength =
+    typeof MAX_PARTICIPANT_NAME_LEN === "number" && Number.isFinite(MAX_PARTICIPANT_NAME_LEN)
+      ? MAX_PARTICIPANT_NAME_LEN
+      : 120;
+
+  if (!name || name.length > maxParticipantNameLength || name.includes("…")) {
     return null;
   }
 
