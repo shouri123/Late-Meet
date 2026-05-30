@@ -142,23 +142,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   initWaveformCanvas();
 
-  try {
-    await startDashboardAudioCapture({
-      resolveMeetTab: resolveManualMeetTab,
-      getMediaStreamId: getDashboardMediaStreamId,
-      requestMicrophonePermission: requestDashboardMicrophonePermission,
-      startAudioCapture: (payload) =>
-        chrome.runtime.sendMessage({
-          type: "MANUAL_START_AUDIO",
-          ...payload,
-        }),
-    });
-
-    await loadActionStatuses();
-  } catch (error) {
-    console.error("Failed to initialize dashboard audio capture:", error);
-  }
-
   // ——— Tab Switching ———
   const tabs = document.querySelectorAll(".dash-tabs .dash-tab");
   const panels = document.querySelectorAll(".tab-panel");

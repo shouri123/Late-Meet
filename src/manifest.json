@@ -53,6 +53,7 @@
         "mac": "Command+Shift+P"
       },
       "description": "Open the Late-Meet side panel"
+      "description": "Open the Late Meet side panel"
     }
   },
   "content_security_policy": {

@@ -1,6 +1,6 @@
 {
   "name": "late-meet",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Privacy-first AI meeting copilot for Google Meet with real-time transcription and late-joiner summaries.",
   "main": "background.js",
   "type": "module",
