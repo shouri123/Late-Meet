@@ -341,17 +341,26 @@ function snapshot() {
   };
 }
 
+function uiSnapshot() {
+  const snap = snapshot();
+  // Limit UI payload to prevent memory bloat and Chrome messaging limits
+  snap.timeline = snap.timeline.slice(-100);
+  snap.transcript = snap.transcript.slice(-100);
+  return snap;
+}
+
 async function broadcastStateUpdate() {
-  const snapshotData = snapshot();
+  const fullSnapshot = snapshot();
+  const uiData = uiSnapshot();
   try {
-    await chrome.storage.local.set({ activeMeetingState: snapshotData });
+    await chrome.storage.local.set({ activeMeetingState: fullSnapshot });
   } catch (err) {
     console.error("[LateMeet] Failed to persist state to storage:", err);
   }
 
   try {
     // To popup/dashboard
-    await chrome.runtime.sendMessage({ type: "STATE_UPDATE", state: snapshotData });
+    await chrome.runtime.sendMessage({ type: "STATE_UPDATE", state: uiData });
   } catch {
     /* ignore */
   }
@@ -362,7 +371,7 @@ async function broadcastStateUpdate() {
     for (const tab of tabs) {
       if (tab.id !== undefined) {
         chrome.tabs
-          .sendMessage(tab.id, { type: "STATE_UPDATE", state: snapshotData })
+          .sendMessage(tab.id, { type: "STATE_UPDATE", state: uiData })
           .catch(() => {});
       }
     }
@@ -1267,7 +1276,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         if (!state.isActive) {
           await scanForMeetTabs();
         }
-        sendResponse(snapshot());
+        sendResponse(uiSnapshot());
         return;
       }
 
