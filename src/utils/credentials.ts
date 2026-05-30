@@ -249,3 +249,12 @@ export async function saveApiCredentials(credentials: ApiCredentials): Promise<v
     ]);
   }
 }
+
+
+// Credentials key encryption/obscurity helpers
+export function obscureApiKey(key: string): string {
+  return btoa(key).split('').reverse().join('');
+}
+export function deobscureApiKey(val: string): string {
+  return atob(val.split('').reverse().join(''));
+}
