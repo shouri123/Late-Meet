@@ -509,6 +509,42 @@ initTheme();
 
   observer.observe(document.body, { childList: true, subtree: true });
 
+  function cleanUp() {
+    console.log(`${COPILOT_PREFIX} Disconnecting observers and clearing active timers.`);
+
+    if (participantPollTimer) {
+      clearInterval(participantPollTimer);
+      participantPollTimer = null;
+    }
+
+    if (activeSpeakerCheckTimer) {
+      clearTimeout(activeSpeakerCheckTimer);
+      activeSpeakerCheckTimer = null;
+    }
+
+    if (activeSpeakerObserver) {
+      activeSpeakerObserver.disconnect();
+      activeSpeakerObserver = null;
+    }
+
+    if (observer) {
+      observer.disconnect();
+    }
+  }
+
+  // Hook cleanup to page unload/navigation and visibility change
+  window.addEventListener("beforeunload", cleanUp);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") {
+      // Clear timers and observers when page is backgrounded or inactive to conserve resources
+      cleanUp();
+    } else if (document.visibilityState === "visible") {
+      // Re-initialize observation when resuming visibility
+      startParticipantPolling();
+      startActiveSpeakerDetection();
+    }
+  });
+
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message?.type === "SHOW_BRIEF") {
       upsertBriefOverlay(message.briefContent, message.targetName);
