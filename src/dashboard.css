@@ -1497,6 +1497,7 @@ body::before {
 
 .btn-glass svg {
   opacity: 0.8;
+}
 /* ——— History Modal & UI ——— */
 .session-item.expanded .session-item-summary {
   display: block;

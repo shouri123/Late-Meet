@@ -1281,7 +1281,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   // Load sessions on tab switch
-  document.querySelector('[data-tab="sessions"]')?.addEventListener("click", loadSavedSessions);
+  // ——— PHASE 1: NEW HEADER EXPORT BUTTON WIRING ———
 
   // ——— PHASE 1: NEW HEADER EXPORT BUTTON WIRING ———
   const headerMdBtn = document.getElementById("header-export-md-btn");
