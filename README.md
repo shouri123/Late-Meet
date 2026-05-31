@@ -636,38 +636,15 @@ git push origin feature/your-feature-name
 
 #### 🟢 Beginner — `level-1`
 
-|                             #                             | Title                                          | Skills         |
-| :-------------------------------------------------------: | :--------------------------------------------- | :------------- |
-| [#111](https://github.com/shouri123/Late-Meet/issues/111) | Enable strict null checks for `options.ts`     | TypeScript     |
-| [#110](https://github.com/shouri123/Late-Meet/issues/110) | Migrate `content.css` to CSS custom properties | CSS            |
-| [#106](https://github.com/shouri123/Late-Meet/issues/106) | Add unit tests for `audioProcessing.ts`        | Testing        |
-| [#105](https://github.com/shouri123/Late-Meet/issues/105) | Add keyboard shortcuts for Start/Stop          | Chrome APIs    |
-| [#104](https://github.com/shouri123/Late-Meet/issues/104) | Show live recording duration timer             | TypeScript, UI |
-| [#103](https://github.com/shouri123/Late-Meet/issues/103) | Create `DEVELOPMENT.md` guide                  | Documentation  |
-| [#102](https://github.com/shouri123/Late-Meet/issues/102) | Add descriptive alt text to README images      | Markdown       |
-| [#101](https://github.com/shouri123/Late-Meet/issues/101) | Add JSDoc to utility functions                 | TypeScript     |
-|  [#98](https://github.com/shouri123/Late-Meet/issues/98)  | Add `.editorconfig` coding styles              | Config         |
-|  [#73](https://github.com/shouri123/Late-Meet/issues/73)  | Fix: time input allows invalid past dates      | TypeScript, UI |
+*No open issues for this level right now! Stay tuned.*
 
 #### 🟡 Intermediate — `level-2`
 
-|                             #                             | Title                                   | Skills             |
-| :-------------------------------------------------------: | :-------------------------------------- | :----------------- |
-| [#112](https://github.com/shouri123/Late-Meet/issues/112) | Implement API key rotation reminders    | Chrome Storage, UI |
-| [#108](https://github.com/shouri123/Late-Meet/issues/108) | Add meeting history viewer in dashboard | TypeScript, DOM    |
-| [#107](https://github.com/shouri123/Late-Meet/issues/107) | Add real-time transcript search         | TypeScript, DOM    |
-|  [#92](https://github.com/shouri123/Late-Meet/issues/92)  | Interactive "Catch Me Up" query         | OpenAI API         |
-|  [#90](https://github.com/shouri123/Late-Meet/issues/90)  | Enhance Dashboard UI with animations    | CSS, TypeScript    |
-|  [#45](https://github.com/shouri123/Late-Meet/issues/45)  | Local API cost & token usage tracker    | Chrome Storage     |
-|  [#40](https://github.com/shouri123/Late-Meet/issues/40)  | Context menu capturer for tab audio     | Chrome APIs        |
-|  [#11](https://github.com/shouri123/Late-Meet/issues/11)  | Meeting Copilot enhancements            | TypeScript         |
+*No open issues for this level right now! Stay tuned.*
 
 #### 🔴 Advanced — `level-3`
 
-|                             #                             | Title                                 | Skills          |
-| :-------------------------------------------------------: | :------------------------------------ | :-------------- |
-| [#109](https://github.com/shouri123/Late-Meet/issues/109) | Lazy-load dashboard tab contents      | Performance, TS |
-|  [#99](https://github.com/shouri123/Late-Meet/issues/99)  | Speaker confidence collapse detection | NLP, TypeScript |
+*No open issues for this level right now! Stay tuned.*
 
 </div>
 <!-- END_ISSUE_TABLES -->
