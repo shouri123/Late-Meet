@@ -81,6 +81,33 @@ async function persistActionStatuses() {
   }
 }
 
+chrome.storage.onChanged.addListener((changes, areaName) => {
+  if (areaName === "local" && changes.actionItemStatuses) {
+    const newVal = changes.actionItemStatuses.newValue;
+    if (newVal && typeof newVal === "object") {
+      for (const [k, v] of Object.entries(newVal)) {
+        actionStatuses.set(k, Boolean(v));
+      }
+
+      const checkboxes = document.querySelectorAll<HTMLInputElement>(".action-checkbox");
+      checkboxes.forEach((cb) => {
+        const meetId = cb.dataset.meetingId || currentMeetingId;
+        const taskText = cb.dataset.task || "";
+        const key = buildActionStatusKey(meetId, taskText);
+        const isDone = actionStatuses.get(key) === true;
+
+        if (cb.checked !== isDone) {
+          cb.checked = isDone;
+          const wrapper = cb.closest(".action-item");
+          const taskDiv = wrapper?.querySelector(".action-task");
+          wrapper?.classList.toggle("action-item--done", isDone);
+          taskDiv?.classList.toggle("action-task--done", isDone);
+        }
+      });
+    }
+  }
+});
+
 document.addEventListener("DOMContentLoaded", async () => {
   // ——— Transcript Search DOM Elements (Queried early to prevent TDZ) ———
   const searchInput = document.getElementById("transcript-search-input") as HTMLInputElement | null;
