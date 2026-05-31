@@ -9,6 +9,7 @@ export const STORAGE_SOFT_LIMIT_BYTES = 8_500_000;
 export type StoredSession = State & {
   id: string;
   savedAt: number;
+  duration?: number;
 };
 
 type StorageArea = Pick<chrome.storage.StorageArea, "get" | "set" | "remove"> & {
@@ -199,4 +200,17 @@ export async function deleteSavedMeetingSession(
     [SAVED_SESSION_INDEX_KEY]: indexedSessions.filter((session) => session.id !== sessionId),
     [SAVED_SESSIONS_LEGACY_KEY]: legacySessions,
   });
+}
+
+// Safe local storage quota wrapper
+export function safeLocalStore(key: string, value: any) {
+  try {
+    chrome.storage.local.set({ [key]: value }, () => {
+      if (chrome.runtime.lastError) {
+        console.error("Quota limits check failure:", chrome.runtime.lastError.message);
+      }
+    });
+  } catch (e) {
+    console.error("Storage API exception:", e);
+  }
 }

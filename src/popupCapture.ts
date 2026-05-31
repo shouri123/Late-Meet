@@ -46,7 +46,7 @@ export async function startPopupAudioCapture({
     );
   }
 
-  let microphoneEnabled = false;
+  let microphoneEnabled: boolean;
   try {
     microphoneEnabled = await requestMicrophonePermission();
   } catch {

@@ -1,0 +1,71 @@
+name: Manifest Validation
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main, develop]
+
+permissions:
+  contents: read
+
+jobs:
+  manifest-check:
+    name: Manifest Validation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v4
+
+      - name: Validate Chrome Extension Manifest
+        run: |
+          set -euo pipefail
+          MANIFEST="src/manifest.json"
+
+          if [ ! -f "$MANIFEST" ]; then
+            echo "❌ manifest.json not found at $MANIFEST"
+            exit 1
+          fi
+
+          echo "📋 Validating Chrome Extension Manifest..."
+
+          # Check manifest_version is 3
+          MV=$(jq -r '.manifest_version' "$MANIFEST")
+          if [ "$MV" != "3" ]; then
+            echo "❌ manifest_version must be 3, got: $MV"
+            exit 1
+          fi
+          echo "✅ manifest_version: 3"
+
+          # Check required fields
+          for field in name description version background; do
+            val=$(jq -r ".$field" "$MANIFEST")
+            if [ "$val" = "null" ] || [ -z "$val" ]; then
+              echo "❌ Required field '$field' is missing"
+              exit 1
+            fi
+            echo "✅ $field: present"
+          done
+
+          # Check version matches package.json
+          PKG_VERSION=$(jq -r '.version' package.json)
+          MANIFEST_VERSION=$(jq -r '.version' "$MANIFEST")
+          if [ "$PKG_VERSION" != "$MANIFEST_VERSION" ]; then
+            echo "⚠️  Version mismatch: package.json=$PKG_VERSION, manifest.json=$MANIFEST_VERSION"
+          else
+            echo "✅ Versions match: $PKG_VERSION"
+          fi
+
+          # Warn on broad host permissions
+          HOST_PERMS=$(jq -r '.host_permissions // [] | .[]' "$MANIFEST" 2>/dev/null || true)
+          if echo "$HOST_PERMS" | grep -q '<all_urls>'; then
+            echo "⚠️  Warning: <all_urls> host permission detected — consider restricting"
+          fi
+
+          # Validate permissions field exists
+          PERMS=$(jq -r '.permissions // [] | length' "$MANIFEST")
+          echo "✅ Permissions count: $PERMS"
+
+          echo ""
+          echo "🎉 Manifest validation passed!"

@@ -1,5 +1,11 @@
-import { getApiCredentials, saveApiCredentials } from "./utils/credentials";
+import {
+  getApiCredentials,
+  saveApiCredentials,
+  unlockCredentials,
+  isUnlocked,
+} from "./utils/credentials";
 import { validateOpenAIKey, validateElevenLabsKey } from "./utils/api.js";
+import { renderStorageDashboard } from "./storageDashboard";
 
 interface Settings {
   summarizationInterval?: number;
@@ -143,25 +149,99 @@ document.addEventListener("DOMContentLoaded", async () => {
     btn.addEventListener("click", () => {
       const targetId = btn.dataset.target;
       if (targetId) {
-        const target = document.getElementById(targetId) as HTMLInputElement | null;
-        if (target) {
-          target.type = target.type === "password" ? "text" : "password";
+        if (targetId) {
+          const target = document.getElementById(targetId) as HTMLInputElement | null;
+          if (target) {
+            target.type = target.type === "password" ? "text" : "password";
+          }
         }
       }
     });
   });
+
+  // ——— Passphrase management ———
+  const passphraseInput = document.getElementById("passphrase-input") as HTMLInputElement | null;
+  const passphraseStatus = document.getElementById("passphrase-status");
+  let pendingUnlock: Promise<void> | null = null;
+
+  function updatePassphraseUI() {
+    if (isUnlocked()) {
+      if (passphraseInput) passphraseInput.disabled = true;
+      if (passphraseStatus) {
+        passphraseStatus.style.color = "var(--accent-color, #22C55E)";
+        passphraseStatus.textContent = "Unlocked — encryption key is active in memory";
+      }
+    } else {
+      if (passphraseInput) passphraseInput.disabled = false;
+      if (passphraseStatus) {
+        passphraseStatus.style.color = "#EF4444";
+        passphraseStatus.textContent = "Locked — enter passphrase to unlock credential encryption";
+      }
+    }
+  }
+
+  async function handleUnlock() {
+    if (isUnlocked()) return;
+    const passphrase = passphraseInput?.value ?? "";
+    if (!passphrase) {
+      if (passphraseStatus) {
+        passphraseStatus.style.color = "#EF4444";
+        passphraseStatus.textContent = "Please enter a passphrase";
+      }
+      return;
+    }
+    const success = await unlockCredentials(passphrase);
+    if (success) {
+      updatePassphraseUI();
+      // Reload API keys now that we can decrypt
+      const creds = await getApiCredentials();
+      if (openaiKeyInput && creds.openai_api_key) {
+        openaiKeyInput.value = creds.openai_api_key;
+      }
+      if (elevenlabsKeyInput && creds.elevenlabs_api_key) {
+        elevenlabsKeyInput.value = creds.elevenlabs_api_key;
+      }
+    } else if (passphraseStatus) {
+      passphraseStatus.style.color = "#EF4444";
+      passphraseStatus.textContent = "Wrong passphrase — could not decrypt stored credentials";
+    }
+  }
+
+  passphraseInput?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      pendingUnlock = handleUnlock();
+    }
+  });
+  passphraseInput?.addEventListener("blur", () => {
+    pendingUnlock = handleUnlock();
+  });
+
+  updatePassphraseUI();
 
   // ——— Save ———
   document.getElementById("save-btn")?.addEventListener("click", async () => {
     const saveBtn = document.getElementById("save-btn") as HTMLButtonElement;
     const status = document.getElementById("save-status");
 
-    const openaiKey = (document.getElementById("openai-key") as HTMLInputElement)?.value.trim();
-    const elevenlabsKey = (
-      document.getElementById("elevenlabs-key") as HTMLInputElement
-    )?.value.trim();
+    const openaiKey =
+      (document.getElementById("openai-key") as HTMLInputElement | null)?.value.trim() ?? "";
+    const elevenlabsKey =
+      (document.getElementById("elevenlabs-key") as HTMLInputElement | null)?.value.trim() ?? "";
 
     const originalText = saveBtn.textContent || "Save Settings";
+    if (pendingUnlock) await pendingUnlock;
+    if (!isUnlocked()) {
+      if (status) {
+        status.style.color = "red";
+        status.textContent =
+          "Enter your passphrase above to unlock encryption before saving API keys.";
+        status.classList.add("visible");
+        setTimeout(() => status.classList.remove("visible"), 4000);
+      }
+      return;
+    }
+
     saveBtn.disabled = true;
     saveBtn.textContent = "Validating Keys...";
     try {
@@ -239,4 +319,9 @@ document.addEventListener("DOMContentLoaded", async () => {
       saveBtn.textContent = originalText;
     }
   });
+  // ——— Storage Dashboard ———
+  const storageContainer = document.getElementById("storage-dashboard-container");
+  if (storageContainer) {
+    await renderStorageDashboard(storageContainer);
+  }
 });
