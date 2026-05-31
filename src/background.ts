@@ -13,6 +13,7 @@ import {
   StoredSession,
 } from "./sessionStorage";
 import { AudioChunkQueue, AudioChunkQueueItem } from "./audioChunkQueue";
+import { createAudioCaptureStopPlan } from "./audioCaptureLifecycle";
 import { normalizeActiveSpeakerName, resolveTranscriptSpeaker } from "./speakerAttribution";
 import { getMeetingIdFromUrl } from "./meetingTabs";
 import { getOpenAiApiKey, getElevenLabsApiKey } from "./utils/credentials";
@@ -1318,6 +1319,7 @@ async function stopAudioCapture(reason = "Stopped") {
     return;
   }
   isStoppingAudio = true;
+  const stopPlan = createAudioCaptureStopPlan(state.audioActive);
   try {
     try {
       await chrome.runtime.sendMessage({ type: "OFFSCREEN_STOP_CAPTURE" });
@@ -1325,7 +1327,7 @@ async function stopAudioCapture(reason = "Stopped") {
       // Ignore if offscreen not running
     }
 
-    if (state.audioActive) {
+    if (stopPlan.shouldSavePendingSession) {
       addTimeline(`Meeting ended (${reason})`);
       await savePendingSession();
     }
@@ -1336,10 +1338,12 @@ async function stopAudioCapture(reason = "Stopped") {
     await chrome.storage.local.remove("activeMeetingState");
     await broadcastStateUpdate(true);
 
-    try {
-      await chrome.runtime.sendMessage({ type: "SESSION_ENDED" });
-    } catch {
-      // no listeners
+    if (stopPlan.shouldNotifySessionEnded) {
+      try {
+        await chrome.runtime.sendMessage({ type: "SESSION_ENDED" });
+      } catch {
+        // no listeners
+      }
     }
 
     await closeOffscreenDocumentIfPresent();
