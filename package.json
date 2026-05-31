@@ -61,8 +61,7 @@
   },
   "dependencies": {
     "@elevenlabs/elevenlabs-js": "^2.49.1",
-    "@openrouter/sdk": "^0.12.20",
-    "ioredis": "^5.4.1"
+    "@openrouter/sdk": "^0.12.20"
   },
   "overrides": {
     "rollup": "^2.80.0 || ^4.59.0"

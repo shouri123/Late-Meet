@@ -356,65 +356,56 @@ Late-Meet/
   <img src="https://readme-typing-svg.demolab.com?font=JetBrains+Mono&size=13&duration=2500&pause=999999&color=FFD700&center=true&vCenter=true&width=400&height=30&lines=Up+and+running+in+60+seconds." alt="Install tagline"/>
 </div>
 
-### Prerequisites
+### Quick Install (For Regular Users)
 
-<div align="center">
+No coding or terminal required! Get the extension running in under a minute.
 
-|                                                   Requirement                                                    | Version | Notes                          |
-| :--------------------------------------------------------------------------------------------------------------: | :-----: | :----------------------------- |
-| ![Chrome](https://img.shields.io/badge/Chrome-116%2B-4285F4?style=flat-square&logo=googlechrome&logoColor=white) |  116+   | Native Side Panel API required |
-|  ![Node.js](https://img.shields.io/badge/Node.js-18%2B-339933?style=flat-square&logo=nodedotjs&logoColor=white)  |  v18+   | LTS recommended                |
-|         ![npm](https://img.shields.io/badge/npm-9%2B-CB3837?style=flat-square&logo=npm&logoColor=white)          |   v9+   | Bundled with Node.js           |
-|    ![ElevenLabs](https://img.shields.io/badge/ElevenLabs-API%20Key-000000?style=flat-square&logoColor=white)     |   Any   | Free tier available            |
-|  ![OpenAI](https://img.shields.io/badge/OpenAI-API%20Key-412991?style=flat-square&logo=openai&logoColor=white)   |   Any   | GPT-4o-mini is very cheap      |
+1. Go to the [Releases page](https://github.com/shouri123/Late-Meet/releases) and download the latest `Late-Meet.zip` (or `dist.zip`) file.
+2. Extract/Unzip the downloaded file on your computer.
+3. Open Chrome and navigate to `chrome://extensions/`.
+4. Toggle **Developer mode** ON (top right corner).
+5. Click **Load unpacked** and select the unzipped folder.
+6. That's it! Proceed to the **API Key Setup** below.
 
-</div>
+---
 
-### Step-by-Step
+### 💻 Developer Setup (For Contributors)
 
-> 💡 **For a detailed first-setup guide with screenshots at each stage, check out the [`docs/GETTING_STARTED.md`](docs/GETTING_STARTED.md) guide.**
+Want to build from source or contribute to the codebase?
 
-**① Clone**
+**Prerequisites:**
+
+- Chrome 116+ (Native Side Panel API required)
+- Node.js v18+ (LTS recommended)
+- npm v9+
+
+**① Clone the repository**
 
 ```bash
 git clone https://github.com/shouri123/Late-Meet.git
 cd Late-Meet
+
 ```
 
-**② Install**
+**② Install & Build**
 
 ```bash
 npm install
-```
-
-**③ Build**
-
-```bash
 npm run build
 # Compiles TypeScript → bundles into dist/
-```
-
-**④ Load into Chrome**
 
 ```
+
+**③ Load into Chrome**
+
+```text
 chrome://extensions  →  Developer Mode ✓  →  Load Unpacked  →  select dist/
-```
-
-> ⚠️ Always load `dist/` — never `src/` or the project root.
-
-**⑤ Add API Keys (BYOK)**
 
 ```
-Extension icon → Options → Enter ElevenLabs key + OpenAI key → Save
-```
 
-**⑥ Start your first session 🚀**
+> ⚠️ Always load the `dist/` folder — never `src/` or the project root.
 
-```
-Join any Google Meet → click floating "Start Copilot" → open Side Panel
-```
-
-### Dev Scripts
+**Dev Scripts**
 
 ```bash
 npm run build        # Production build → dist/
@@ -422,11 +413,14 @@ npm run dev          # Watch mode (dev build)
 npm run lint         # ESLint checks
 npm run format       # Prettier auto-format
 npm run type-check   # TypeScript validation
+
 ```
 
-> **💡 For detailed development & debugging instructions**, see [**DEVELOPMENT.md**](DEVELOPMENT.md) — includes Chrome extension debugging guides, hot reload workflow, and common errors.
+> 💡 **For a detailed developer setup guide with screenshots, check out the [`docs/GETTING_STARTED.md`](docs/GETTING_STARTED.md) guide.**
 
----
+```
+
+```
 
 ## 🔑 API Key Setup
 

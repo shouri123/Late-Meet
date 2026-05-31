@@ -254,10 +254,8 @@ export async function validateElevenLabsKey(apiKey: string): Promise<boolean> {
     if (response.ok) {
       return true;
     }
-    if (response.status === 401) {
-      const data = await response.json();
-      return data?.detail?.status === "missing_permissions";
-    }
+    // Any non-OK response (including 401 Unauthorized) means the key is not usable
+    // for this extension's STT functionality — reject it during validation.
     return false;
   } catch (error: any) {
     if (error.name === "AbortError") {

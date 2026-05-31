@@ -14,6 +14,7 @@ import {
 } from "./sessionStorage";
 import { AudioChunkQueue, AudioChunkQueueItem } from "./audioChunkQueue";
 import { normalizeActiveSpeakerName, resolveTranscriptSpeaker } from "./speakerAttribution";
+import { getMeetingIdFromUrl } from "./meetingTabs";
 import { getOpenAiApiKey, getElevenLabsApiKey } from "./utils/credentials";
 
 const OPENAI_CHAT_URL = "https://api.openai.com/v1/chat/completions";
@@ -1287,9 +1288,8 @@ async function scanForMeetTabs() {
     const tabs = await chrome.tabs.query({ url: "https://meet.google.com/*" });
     if (tabs.length > 0) {
       for (const tab of tabs) {
-        const urlMatch = tab.url?.match(/meet\.google\.com\/([a-z\-]+)/);
-        const meetingId = urlMatch ? urlMatch[1] : null;
-        if (meetingId && meetingId !== "new") {
+        const meetingId = getMeetingIdFromUrl(tab.url);
+        if (meetingId) {
           if (!state.isActive) {
             resetState();
             state.isActive = true;
@@ -1352,13 +1352,8 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   if (changeInfo.status !== "complete" || !tab.url) return;
   await hydrateState();
   try {
-    const parsedUrl = new URL(tab.url);
-    if (parsedUrl.hostname !== "meet.google.com") return;
-
-    const pathMatch = /^\/([a-z-]+)/.exec(parsedUrl.pathname);
-    const meetingId = pathMatch ? pathMatch[1] : null;
-
-    if (meetingId && meetingId !== "new") {
+    const meetingId = getMeetingIdFromUrl(tab.url);
+    if (meetingId) {
       if (!state.isActive) {
         resetState();
         state.isActive = true;
@@ -1380,12 +1375,8 @@ chrome.tabs.onActivated.addListener(async (activeInfo) => {
   try {
     const tab = await chrome.tabs.get(activeInfo.tabId);
     if (!tab.url) return;
-    const parsedUrl = new URL(tab.url);
-    if (parsedUrl.hostname !== "meet.google.com") return;
-
-    const pathMatch = /^\/([a-z-]+)/.exec(parsedUrl.pathname);
-    const meetingId = pathMatch ? pathMatch[1] : null;
-    if (meetingId && meetingId !== "new" && !state.isActive) {
+    const meetingId = getMeetingIdFromUrl(tab.url);
+    if (meetingId && !state.isActive) {
       state.meetingId = meetingId;
       state.meetingUrl = tab.url;
       state.targetTabId = activeInfo.tabId;

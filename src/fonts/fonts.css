@@ -1,0 +1,96 @@
+/* Local font declarations — replaces external Google Fonts CDN requests.
+ * Bundling fonts locally ensures:
+ *   1. No network requests to third-party CDNs (privacy-first)
+ *   2. Extension works fully offline
+ *   3. No FOUT (Flash of Unstyled Text) on slow connections
+ *
+ * Font: Inter (SIL Open Font License 1.1)
+ * Source: https://github.com/rsms/inter
+ */
+
+/* Inter — Regular (400) */
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("./inter-latin-400.woff2") format("woff2");
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* Inter — Medium (500) */
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("./inter-latin-500.woff2") format("woff2");
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* Inter — Semi-Bold (600) */
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("./inter-latin-600.woff2") format("woff2");
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* Inter — Bold (700) */
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("./inter-latin-700.woff2") format("woff2");
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* Inter — Extra-Bold (800) */
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url("./inter-latin-800.woff2") format("woff2");
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* Inter — Black (900) */
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 900;
+  font-display: swap;
+  src: url("./inter-latin-900.woff2") format("woff2");
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* JetBrains Mono — Medium (500)
+ * Font: JetBrains Mono (SIL Open Font License 1.1)
+ * Source: https://github.com/JetBrains/JetBrainsMono
+ */
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("./jetbrains-mono-latin-500.woff2") format("woff2");
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
