@@ -24,14 +24,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v4.4.4
 
-      - name: Run Semgrep
-        uses: semgrep/semgrep-action@713efdd345f3035192eaa63f56867b88e63e4e5d # v1
-        with:
-          config: >-
-            p/security-audit
-            p/secrets
-            p/javascript
-          generateSarif: "1"
+      - name: Run Semgrep Scan
+        run: |
+          docker run --rm -v ${{ github.workspace }}:/src returntocorp/semgrep semgrep scan --sarif --output=semgrep.sarif --config=p/security-audit --config=p/secrets --config=p/javascript
 
       - name: Upload SARIF result to the GitHub Security Dashboard
         uses: github/codeql-action/upload-sarif@dc73d59c2d7bd4f8194098a91219eeee6d8a1719 # v4
