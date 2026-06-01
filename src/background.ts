@@ -17,6 +17,7 @@ import { createAudioCaptureStopPlan } from "./audioCaptureLifecycle";
 import { normalizeActiveSpeakerName, resolveTranscriptSpeaker } from "./speakerAttribution";
 import { getMeetingIdFromUrl } from "./meetingTabs";
 import { getOpenAiApiKey, getElevenLabsApiKey } from "./utils/credentials";
+import { namesMatch, findParticipant, normalizeName } from "./utils/nameUtils";
 
 const OPENAI_CHAT_URL = "https://api.openai.com/v1/chat/completions";
 const OPENAI_WHISPER_URL = "https://api.openai.com/v1/audio/transcriptions";
@@ -306,12 +307,6 @@ function isMeetHostname(url: string | null | undefined): boolean {
   }
 }
 
-function normalizeParticipantName(value: string | null | undefined): string {
-  return String(value || "")
-    .trim()
-    .toLowerCase();
-}
-
 function resetState() {
   state.isActive = false;
   state.meetingId = null;
@@ -378,6 +373,7 @@ function snapshot() {
     lateJoiners: state.lateJoiners,
     timeline: state.timeline,
     transcript: state.transcript,
+    summaryItems: state.summaryItems,
     audioActive: state.audioActive,
     currentSpeaker: state.currentSpeaker,
     participantCount: state.participantCount,
@@ -1046,15 +1042,12 @@ function detectNewJoiners(currentList: string[]) {
     }
   }
 
-  const normalizedSelf = normalizeParticipantName(selfParticipantName);
   const next = Array.isArray(currentList) ? currentList : [];
-  const normalizedParticipants = state.participants.map(normalizeParticipantName);
-  const normalizedInitial = state.initialParticipants.map(normalizeParticipantName);
   const newJoiners = next.filter(
     (p) =>
-      !normalizedParticipants.includes(normalizeParticipantName(p)) &&
-      !normalizedInitial.includes(normalizeParticipantName(p)) &&
-      (!normalizedSelf || normalizeParticipantName(p) !== normalizedSelf),
+      !findParticipant(p, state.participants) &&
+      !findParticipant(p, state.initialParticipants) &&
+      (!selfParticipantName || !namesMatch(p, selfParticipantName)),
   );
 
   if (newJoiners.length > 0) {
@@ -1138,28 +1131,26 @@ async function maybeWelcomeJoiners(tabId: number | undefined, joiners: string[])
     return;
   }
 
-  const normalizedSelf = normalizeParticipantName(selfParticipantName);
-
   for (const joiner of joiners) {
     const name = String(joiner || "").trim();
-    const normalizedName = normalizeParticipantName(name);
 
     // Ignore invalid/self placeholder participants
     if (
       !name ||
-      normalizedName === normalizeParticipantName("You") ||
-      (normalizedSelf && normalizedName === normalizedSelf)
+      namesMatch(name, "You") ||
+      (selfParticipantName && namesMatch(name, selfParticipantName))
     ) {
       continue;
     }
 
     // Prevent duplicate welcome messages for case-only variants
     // (e.g. "Alice" vs "alice")
-    if (pendingJoinersInFlight.has(normalizedName)) {
+    const normalName = normalizeName(name);
+    if (pendingJoinersInFlight.has(normalName)) {
       continue;
     }
 
-    pendingJoinersInFlight.add(normalizedName);
+    pendingJoinersInFlight.add(normalName);
 
     try {
       const text = await generateLateJoinerMessage(name);
@@ -1167,7 +1158,7 @@ async function maybeWelcomeJoiners(tabId: number | undefined, joiners: string[])
     } catch (err) {
       console.error("[LateMeet] Failed to welcome joiner:", err);
     } finally {
-      pendingJoinersInFlight.delete(normalizedName);
+      pendingJoinersInFlight.delete(normalName);
     }
   }
 }

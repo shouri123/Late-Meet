@@ -5,7 +5,6 @@ import {
   TimelineEvent,
   Decision,
   ActionItem,
-  SummaryItem,
   KeyInsight,
 } from "./types";
 import { initTheme } from "./theme.js";
@@ -920,8 +919,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       return;
     }
-
-    const startTime = transcript[0]?.timestamp || Date.now();
 
     transcriptContainer.innerHTML = transcript
       .map((entry) => {

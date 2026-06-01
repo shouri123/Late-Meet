@@ -14,13 +14,9 @@ import assert from "node:assert/strict";
 // Chrome API mock
 // ---------------------------------------------------------------------------
 
-type TabUpdatedCallback = (
-  tabId: number,
-  changeInfo: chrome.tabs.OnUpdatedInfo,
-  tab: chrome.tabs.Tab,
-) => Promise<void>;
+type TabUpdatedCallback = (tabId: number, changeInfo: any, tab: chrome.tabs.Tab) => Promise<void>;
 
-type TabActivatedCallback = (activeInfo: chrome.tabs.OnActivatedInfo) => Promise<void>;
+type TabActivatedCallback = (activeInfo: any) => Promise<void>;
 
 interface CapturedListeners {
   onUpdated?: TabUpdatedCallback;

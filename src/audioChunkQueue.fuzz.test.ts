@@ -21,7 +21,7 @@ test("AudioChunkQueue: property-based fuzz testing of enqueue backlog and FIFO o
     fc.asyncProperty(
       fc.integer({ min: 1, max: 100 }), // maxPending backlog limit
       fc.array(fc.string()), // arbitrary items to enqueue
-      async (maxPending, items) => {
+      async (maxPending: number, items: string[]) => {
         const processed: string[] = [];
         const queue = new AudioChunkQueue<string>({
           maxPending,
