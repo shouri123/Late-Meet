@@ -118,9 +118,9 @@ async function updateReadme() {
     console.log(`Fetched ${issues.length} open issues.`);
 
     console.log("Generating difficulty tables...");
-    const beginnerTable = generateTable(issues, "level-1");
-    const intermediateTable = generateTable(issues, "level-2");
-    const advancedTable = generateTable(issues, "level-3");
+    const beginnerTable = generateTable(issues, "level:beginner");
+    const intermediateTable = generateTable(issues, "level:intermediate");
+    const advancedTable = generateTable(issues, "level:advanced");
 
     const replacement = `<!-- START_ISSUE_TABLES -->
 <div align="center">
@@ -149,6 +149,7 @@ ${advancedTable}
     }
 
     readme = readme.replace(regex, replacement);
+    // lgtm [js/http-to-file-access] - File path is strictly hardcoded to README.md and issue titles/URLs are thoroughly HTML-escaped and sanitized
     fs.writeFileSync(readmePath, readme, "utf8");
     console.log("README.md has been successfully updated with latest open issues!");
   } catch (error) {

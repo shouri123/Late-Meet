@@ -181,6 +181,22 @@ export async function getSavedMeetingSessions(storage: StorageArea): Promise<Sto
     : [];
 }
 
+export async function getSavedMeetingSession(
+  storage: StorageArea,
+  sessionId: string,
+): Promise<StoredSession | null> {
+  const sessionKey = getSavedSessionKey(sessionId);
+  const values = await storage.get([sessionKey, SAVED_SESSIONS_LEGACY_KEY]);
+  const indexedSession = asStoredSession(values[sessionKey]);
+  if (indexedSession) return indexedSession;
+
+  const legacySessions = Array.isArray(values[SAVED_SESSIONS_LEGACY_KEY])
+    ? (values[SAVED_SESSIONS_LEGACY_KEY].map(asStoredSession).filter(Boolean) as StoredSession[])
+    : [];
+
+  return legacySessions.find((session) => session.id === sessionId) ?? null;
+}
+
 export async function deleteSavedMeetingSession(
   storage: StorageArea,
   sessionId: string,

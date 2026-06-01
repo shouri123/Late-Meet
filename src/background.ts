@@ -6,6 +6,7 @@ import {
   deleteSavedMeetingSession,
   discardPendingMeetingSession,
   getSavedMeetingSessions,
+  getSavedMeetingSession,
   isStorageQuotaError,
   persistMeetingSession,
   persistPendingMeetingSession,
@@ -359,6 +360,7 @@ function snapshot() {
     startTime: state.startTime,
     duration: getDuration(),
     summary: state.summary,
+    summaryItems: state.summaryItems,
     topics: state.topics,
     decisions: state.decisions,
     actionItems: state.actionItems,
@@ -1608,6 +1610,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       case "GET_SAVED_SESSIONS": {
         const sessions = await getSavedMeetingSessions(chrome.storage.local);
         sendResponse(sessions);
+        return;
+      }
+
+      case "GET_SAVED_SESSION": {
+        const session =
+          typeof message.sessionId === "string"
+            ? await getSavedMeetingSession(chrome.storage.local, message.sessionId)
+            : null;
+        sendResponse(session);
         return;
       }
 
