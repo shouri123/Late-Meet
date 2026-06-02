@@ -1086,6 +1086,87 @@ document.addEventListener("DOMContentLoaded", async () => {
     return md;
   }
 
+  function generatePlainText(state: State): string {
+    const dateVal = state.savedAt || state.startTime || Date.now();
+    const date = new Date(dateVal).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+
+    const duration = (state as State & { duration?: number }).duration || 0;
+    let txt = `Meeting Summary — ${date}\n\n`;
+    txt += `Meeting ID: ${state.meetingId || "N/A"}\n`;
+    txt += `Duration: ${formatDuration(duration)}\n`;
+    txt += `Sentiment: ${state.sentiment || "neutral"}\n\n`;
+
+    txt += `Attendees\n`;
+    if (state.participants?.length) {
+      txt += state.participants.map((p) => `  • ${p}`).join("\n") + "\n\n";
+    } else {
+      txt += `  (No participants detected)\n\n`;
+    }
+
+    txt += `Summary\n`;
+    txt += `  ${state.summary || "(No summary available)"}\n\n`;
+
+    txt += `Action Items\n`;
+    if (state.actionItems?.length) {
+      const sessionMeetingId = state.meetingId || "unknown";
+      state.actionItems.forEach((a: ActionItem) => {
+        const task = resolveActionKey(a);
+        if (!task) return;
+        const statusKey = buildActionStatusKey(sessionMeetingId, task);
+        const done = actionStatuses.get(statusKey) === true;
+        txt += done ? `  [done] ${task}` : `  [ ] ${task}`;
+        if (a.owner) txt += ` — ${a.owner}`;
+        if (a.deadline) txt += ` (due: ${a.deadline})`;
+        txt += "\n";
+      });
+      txt += "\n";
+    } else {
+      txt += `  (No action items)\n\n`;
+    }
+
+    txt += `Key Decisions\n`;
+    if (state.decisions?.length) {
+      state.decisions.forEach((d: Decision) => {
+        const byStr = d.by ? " — " + d.by : "";
+        txt += `  • ${d.text}${byStr}\n`;
+      });
+      txt += "\n";
+    } else {
+      txt += `  (No decisions recorded)\n\n`;
+    }
+
+    txt += `Topics Covered\n`;
+    if (state.topics?.length) {
+      state.topics.forEach((t: Topic) => {
+        txt += `  • ${t.name} (${t.status})\n`;
+      });
+      txt += "\n";
+    } else {
+      txt += `  (No topics detected)\n\n`;
+    }
+
+    txt += `Key Insights\n`;
+    if (state.keyInsights?.length) {
+      state.keyInsights
+        .filter((i) => i != null)
+        .forEach((insight: KeyInsight | string | null | undefined) => {
+          const text = typeof insight === "string" ? insight : insight?.text || "";
+          if (text) {
+            txt += `  • ${text}\n`;
+          }
+        });
+      txt += "\n";
+    } else {
+      txt += `  (No insights available)\n\n`;
+    }
+
+    return txt;
+  }
+
   let exportToastTimer: number | null = null;
 
   function showToast(message: string, type: "success" | "error" = "success"): void {
@@ -1210,7 +1291,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     try {
       const state = await chrome.runtime.sendMessage({ type: "GET_STATE" });
       if (!state) throw new Error("No meeting data available");
-      const textContent = generateMarkdown(state);
+      const textContent = generatePlainText(state);
       const filename = `meeting-summary-${new Date().toISOString().slice(0, 10)}.txt`;
       downloadFile(textContent, filename, "text/plain");
       showToast("Downloaded as .txt file", "success");

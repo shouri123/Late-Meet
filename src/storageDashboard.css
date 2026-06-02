@@ -176,3 +176,87 @@
   color: var(--color-text-secondary);
   padding: 16px 0;
 }
+
+/* Confirmation Modal */
+.storage-confirm-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.storage-confirm-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.storage-confirm-content {
+  position: relative;
+  background: var(--color-background-secondary);
+  border: 1px solid var(--color-border-tertiary);
+  border-radius: var(--border-radius-lg);
+  padding: 24px;
+  max-width: 340px;
+  width: 90%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.storage-confirm-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.storage-confirm-text {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.storage-confirm-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+.storage-confirm-cancel {
+  font-size: 13px;
+  padding: 6px 14px;
+  border: 1px solid var(--color-border-secondary);
+  border-radius: var(--border-radius-md);
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.storage-confirm-cancel:hover {
+  color: var(--color-text-primary);
+  border-color: var(--color-border-primary);
+}
+
+.storage-confirm-delete {
+  font-size: 13px;
+  padding: 6px 14px;
+  border: 1px solid var(--color-text-danger);
+  border-radius: var(--border-radius-md);
+  background: var(--color-text-danger);
+  color: #fff;
+  cursor: pointer;
+}
+
+.storage-confirm-delete:hover {
+  opacity: 0.9;
+}
+
+.storage-confirm-delete:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

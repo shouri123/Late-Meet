@@ -58,7 +58,8 @@
     "gantt",
     "glassmorphism",
     "Supabase",
-    "creds"
+    "creds",
+    "labelledby"
   ],
   "ignorePaths": [
     "node_modules",
