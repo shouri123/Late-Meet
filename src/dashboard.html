@@ -75,21 +75,98 @@
     </header>
 
     <!-- Tabs -->
-    <nav class="dash-tabs">
-      <button class="dash-tab active" data-tab="overview">Overview</button>
-      <button class="dash-tab" data-tab="transcript">Transcript</button>
-      <button class="dash-tab" data-tab="topics">Topics</button>
-      <button class="dash-tab" data-tab="decisions">Decisions</button>
-      <button class="dash-tab" data-tab="actions">Actions</button>
-      <button class="dash-tab" data-tab="people">People</button>
-      <button class="dash-tab" data-tab="timeline">Timeline</button>
-      <button class="dash-tab" data-tab="sessions">Sessions</button>
+    <nav class="dash-tabs" role="tablist" aria-label="Meeting Dashboard Tabs">
+      <button
+        class="dash-tab active"
+        data-tab="overview"
+        role="tab"
+        aria-selected="true"
+        aria-controls="tab-overview"
+        id="tab-btn-overview"
+      >
+        Overview
+      </button>
+      <button
+        class="dash-tab"
+        data-tab="transcript"
+        role="tab"
+        aria-selected="false"
+        aria-controls="tab-transcript"
+        id="tab-btn-transcript"
+      >
+        Transcript
+      </button>
+      <button
+        class="dash-tab"
+        data-tab="topics"
+        role="tab"
+        aria-selected="false"
+        aria-controls="tab-topics"
+        id="tab-btn-topics"
+      >
+        Topics
+      </button>
+      <button
+        class="dash-tab"
+        data-tab="decisions"
+        role="tab"
+        aria-selected="false"
+        aria-controls="tab-decisions"
+        id="tab-btn-decisions"
+      >
+        Decisions
+      </button>
+      <button
+        class="dash-tab"
+        data-tab="actions"
+        role="tab"
+        aria-selected="false"
+        aria-controls="tab-actions"
+        id="tab-btn-actions"
+      >
+        Actions
+      </button>
+      <button
+        class="dash-tab"
+        data-tab="people"
+        role="tab"
+        aria-selected="false"
+        aria-controls="tab-people"
+        id="tab-btn-people"
+      >
+        People
+      </button>
+      <button
+        class="dash-tab"
+        data-tab="timeline"
+        role="tab"
+        aria-selected="false"
+        aria-controls="tab-timeline"
+        id="tab-btn-timeline"
+      >
+        Timeline
+      </button>
+      <button
+        class="dash-tab"
+        data-tab="sessions"
+        role="tab"
+        aria-selected="false"
+        aria-controls="tab-sessions"
+        id="tab-btn-sessions"
+      >
+        Sessions
+      </button>
     </nav>
 
     <!-- Tab Content -->
     <main class="dash-content">
       <!-- OVERVIEW TAB -->
-      <section id="tab-overview" class="tab-panel active">
+      <section
+        id="tab-overview"
+        class="tab-panel active"
+        role="tabpanel"
+        aria-labelledby="tab-btn-overview"
+      >
         <!-- Audio Waveform Visualizer -->
         <div class="dash-card waveform-card" id="waveform-card">
           <div class="dash-card-head">
@@ -145,7 +222,7 @@
             <span class="dash-card-title">Live Summary</span>
             <span class="live-indicator"> <span class="live-dot"></span>LIVE </span>
           </div>
-          <div id="dash-summary" class="dash-summary-text">
+          <div id="dash-summary" class="dash-summary-text" aria-live="polite">
             Waiting for conversation to begin...
           </div>
         </div>
@@ -330,7 +407,7 @@
       </section>
 
       <!-- TOPICS TAB -->
-      <section id="tab-topics" class="tab-panel">
+      <section id="tab-topics" class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-topics">
         <div class="dash-card">
           <div class="dash-card-head">
             <span class="dash-card-icon">
@@ -358,7 +435,12 @@
       </section>
 
       <!-- DECISIONS TAB -->
-      <section id="tab-decisions" class="tab-panel">
+      <section
+        id="tab-decisions"
+        class="tab-panel"
+        role="tabpanel"
+        aria-labelledby="tab-btn-decisions"
+      >
         <div class="dash-card">
           <div class="dash-card-head">
             <span class="dash-card-icon">
@@ -387,7 +469,7 @@
       </section>
 
       <!-- ACTIONS TAB -->
-      <section id="tab-actions" class="tab-panel">
+      <section id="tab-actions" class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-actions">
         <div class="dash-card">
           <div class="dash-card-head">
             <span class="dash-card-icon">
@@ -422,7 +504,7 @@
       </section>
 
       <!-- PEOPLE TAB -->
-      <section id="tab-people" class="tab-panel">
+      <section id="tab-people" class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-people">
         <div class="dash-card">
           <div class="dash-card-head">
             <span class="dash-card-icon">
@@ -477,7 +559,12 @@
       </section>
 
       <!-- TIMELINE TAB -->
-      <section id="tab-timeline" class="tab-panel">
+      <section
+        id="tab-timeline"
+        class="tab-panel"
+        role="tabpanel"
+        aria-labelledby="tab-btn-timeline"
+      >
         <div class="dash-card">
           <div class="dash-card-head">
             <span class="dash-card-icon">
@@ -506,7 +593,12 @@
       </section>
 
       <!-- TRANSCRIPT TAB -->
-      <section id="tab-transcript" class="tab-panel">
+      <section
+        id="tab-transcript"
+        class="tab-panel"
+        role="tabpanel"
+        aria-labelledby="tab-btn-transcript"
+      >
         <div class="dash-card glow-card">
           <div class="dash-card-head">
             <span class="dash-card-icon">
@@ -539,7 +631,12 @@
           </div>
         </div>
       </section>
-      <section id="tab-sessions" class="tab-panel">
+      <section
+        id="tab-sessions"
+        class="tab-panel"
+        role="tabpanel"
+        aria-labelledby="tab-btn-sessions"
+      >
         <div class="dash-card">
           <div class="dash-card-head">
             <span class="dash-card-icon">
