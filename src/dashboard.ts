@@ -166,14 +166,24 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   }
 
-  tabs.forEach((tab) => {
-    tab.addEventListener("click", () => {
-      const tabId = (tab as HTMLElement).dataset.tab;
+  const tabContainer = document.querySelector(".dash-tabs");
+  if (tabContainer) {
+    tabContainer.addEventListener("click", (e) => {
+      const target = e.target as HTMLElement;
+      const tab = target.closest(".dash-tab") as HTMLElement | null;
+      if (!tab) return;
+
+      const tabId = tab.dataset.tab;
       if (!tabId) return;
 
-      tabs.forEach((t) => t.classList.remove("active"));
+      tabs.forEach((t) => {
+        t.classList.remove("active");
+        t.setAttribute("aria-selected", "false");
+      });
       panels.forEach((p) => p.classList.remove("active"));
-      (tab as HTMLElement).classList.add("active");
+
+      tab.classList.add("active");
+      tab.setAttribute("aria-selected", "true");
 
       const panel = document.getElementById(`tab-${tabId}`);
       if (panel) {
@@ -195,7 +205,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }, 150);
       }
     });
-  });
+  }
 
   // ——— State Management ———
   let lastState: State | null = null;
