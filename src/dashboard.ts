@@ -881,6 +881,24 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   });
 
+  document.getElementById("export-txt-btn")?.addEventListener("click", async () => {
+    try {
+      const state = await chrome.runtime.sendMessage({ type: "GET_STATE" });
+      if (!state) throw new Error("No meeting data available");
+      const markdown = generateMarkdown(state);
+      // Strip some basic markdown to make it plain text
+      const plainText = markdown.replace(/[*#_]/g, "").trim();
+      const filename = `meeting-summary-${new Date().toISOString().slice(0, 10)}.txt`;
+      downloadFile(plainText, filename, "text/plain");
+      showToast("Downloaded as .txt file", "success");
+    } catch (err) {
+      showToast("Failed to export: " + (err instanceof Error ? err.message : String(err)), "error");
+    } finally {
+      exportDropdown?.setAttribute("hidden", "");
+      exportBtn?.setAttribute("aria-expanded", "false");
+    }
+  });
+
   document.getElementById("export-clipboard-btn")?.addEventListener("click", async () => {
     try {
       const state = await chrome.runtime.sendMessage({ type: "GET_STATE" });
