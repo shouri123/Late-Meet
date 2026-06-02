@@ -1,3 +1,5 @@
+import { State } from "./types";
+
 /**
  * Tab State Manager
  *
@@ -5,32 +7,28 @@
  * Prevents state loss when users switch between multiple Meet tabs.
  */
 
-export interface TabState {
+export interface TabState extends Partial<State> {
   tabId: number;
-  isRecording: boolean;
-  startedAt: number | null;
-  transcript: string[];
-  meetingTitle: string;
 }
 
 const defaultState = (): Omit<TabState, "tabId"> => ({
-  isRecording: false,
-  startedAt: null,
+  audioActive: false,
+  isActive: false,
+  startTime: null,
   transcript: [],
-  meetingTitle: "",
 });
 
 /** Get state for a specific tab */
 export async function getTabState(tabId: number): Promise<TabState> {
   const key = `tab_state_${tabId}`;
-  const result = await chrome.storage.session.get(key);
+  const result = (await chrome.storage.session.get(key)) as any;
   return result[key] ?? { tabId, ...defaultState() };
 }
 
 /** Update state for a specific tab */
 export async function setTabState(
   tabId: number,
-  updates: Partial<Omit<TabState, "tabId">>
+  updates: Partial<Omit<TabState, "tabId">>,
 ): Promise<void> {
   const key = `tab_state_${tabId}`;
   const current = await getTabState(tabId);

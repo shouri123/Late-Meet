@@ -2,6 +2,7 @@
 
 import { State } from "./types";
 import { audioFileExtensionForMimeType, isChunkViable } from "./audioProcessing";
+import { getTabState, setTabState, clearTabState, initTabStateCleanup } from "./tabStateManager";
 
 const OPENAI_CHAT_URL = "https://api.openai.com/v1/chat/completions";
 const OPENAI_WHISPER_URL = "https://api.openai.com/v1/audio/transcriptions";
@@ -282,7 +283,42 @@ function snapshot() {
   };
 }
 
+async function saveCurrentTabState() {
+  if (state.targetTabId) {
+    const copy = { ...state };
+    delete (copy as any).pendingJoiners;
+    await setTabState(state.targetTabId, copy);
+  }
+}
+
+async function loadTabState(tabId: number) {
+  const tabState = await getTabState(tabId);
+  state.isActive = tabState.isActive ?? false;
+  state.meetingId = tabState.meetingId ?? null;
+  state.meetingUrl = tabState.meetingUrl ?? null;
+  state.startTime = tabState.startTime ?? null;
+  state.summary = tabState.summary ?? "";
+  state.topics = tabState.topics ?? [];
+  state.decisions = tabState.decisions ?? [];
+  state.actionItems = tabState.actionItems ?? [];
+  state.currentTopic = tabState.currentTopic ?? "";
+  state.sentiment = tabState.sentiment ?? "neutral";
+  state.keyInsights = tabState.keyInsights ?? [];
+  state.questionsRaised = tabState.questionsRaised ?? [];
+  state.participants = tabState.participants ?? [];
+  state.initialParticipants = tabState.initialParticipants ?? [];
+  state.lateJoiners = tabState.lateJoiners ?? [];
+  state.timeline = tabState.timeline ?? [];
+  state.transcript = tabState.transcript ?? [];
+  state.audioActive = tabState.audioActive ?? false;
+  state.targetTabId = tabId;
+  state.lastSummarizedAt = tabState.lastSummarizedAt ?? 0;
+  state.participantCount = tabState.participantCount ?? 0;
+  state.pendingJoiners.clear();
+}
+
 async function broadcastStateUpdate() {
+  await saveCurrentTabState();
   const snapshotData = snapshot();
   try {
     // To popup/dashboard
@@ -391,12 +427,12 @@ async function transcribeChunk(base64Audio: string, mimeType = "audio/webm", pro
   // Single declaration — retrieved from session storage with local storage fallback.
   let elevenlabsKey = await chrome.storage.session
     .get("elevenlabs_api_key")
-    .then((r) => r.elevenlabs_api_key);
+    .then((r: any) => r.elevenlabs_api_key as string | undefined);
 
   if (!elevenlabsKey) {
-    const localResult = await chrome.storage.local.get("elevenlabs_api_key");
+    const localResult = (await chrome.storage.local.get("elevenlabs_api_key")) as any;
     if (localResult.elevenlabs_api_key) {
-      elevenlabsKey = localResult.elevenlabs_api_key;
+      elevenlabsKey = localResult.elevenlabs_api_key as string;
       await chrome.storage.session.set({ elevenlabs_api_key: elevenlabsKey });
     }
   }
@@ -853,10 +889,10 @@ async function persistSession() {
   }
   isProcessingSession = true;
   try {
-    const { pendingSession, savedSessions } = await chrome.storage.local.get([
+    const { pendingSession, savedSessions } = (await chrome.storage.local.get([
       "pendingSession",
       "savedSessions",
-    ]);
+    ])) as { pendingSession?: any; savedSessions?: any };
     if (!pendingSession) {
       console.log("[LateMeet] No pending session found to save.");
       return;
@@ -1033,8 +1069,11 @@ async function stopAudioCapture(reason = "Stopped") {
     await savePendingSession();
   }
 
-  state.audioActive = false;
-  state.isActive = false;
+  if (state.targetTabId) {
+    await clearTabState(state.targetTabId);
+  }
+
+  resetState();
 
   await broadcastStateUpdate();
 
@@ -1073,10 +1112,21 @@ chrome.tabs.onActivated.addListener(async (activeInfo) => {
     if (tab.url?.includes("meet.google.com/")) {
       const urlMatch = tab.url.match(/meet\.google\.com\/([a-z\-]+)/);
       const meetingId = urlMatch ? urlMatch[1] : null;
-      if (meetingId && meetingId !== "new" && !state.isActive) {
-        state.meetingId = meetingId;
-        state.meetingUrl = tab.url;
-        state.targetTabId = activeInfo.tabId;
+      if (meetingId && meetingId !== "new") {
+        if (state.targetTabId && state.targetTabId !== activeInfo.tabId) {
+          await saveCurrentTabState();
+        }
+
+        await loadTabState(activeInfo.tabId);
+
+        if (!state.isActive) {
+          state.isActive = true;
+          state.meetingId = meetingId;
+          state.meetingUrl = tab.url || null;
+          state.targetTabId = activeInfo.tabId;
+          state.startTime = Date.now();
+          state.participants = ["You"];
+        }
         await broadcastStateUpdate();
       }
     }
@@ -1086,6 +1136,8 @@ chrome.tabs.onActivated.addListener(async (activeInfo) => {
 });
 
 chrome.tabs.onRemoved.addListener(async (tabId) => {
+  await clearTabState(tabId);
+
   if (state.targetTabId && tabId === state.targetTabId) {
     if (state.isActive) {
       await stopAudioCapture("Meeting tab closed");
@@ -1254,3 +1306,4 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 // Proactive scan on startup/load
 scanForMeetTabs();
+initTabStateCleanup();
