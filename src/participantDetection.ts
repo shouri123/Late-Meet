@@ -21,6 +21,11 @@ export interface ParticipantNameCandidate {
   text?: string | null;
 }
 
+const EXCLUDED_REGEXES = Array.from(EXCLUDED_PARTICIPANT_LABELS).map((label) => {
+  const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`\\b${escaped}\\b`, "gi");
+});
+
 function cleanText(value: string): string {
   return value.replace(/\s+/g, " ").trim();
 }
@@ -29,9 +34,7 @@ function stripExcludedLabels(value: string): string {
   let cleaned = cleanText(value);
   if (!cleaned) return "";
 
-  for (const label of EXCLUDED_PARTICIPANT_LABELS) {
-    const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const regex = new RegExp(`\\b${escaped}\\b`, "gi");
+  for (const regex of EXCLUDED_REGEXES) {
     cleaned = cleaned.replace(regex, " ");
   }
 

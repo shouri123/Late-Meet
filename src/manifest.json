@@ -1,12 +1,13 @@
 {
   "manifest_version": 3,
-  "name": "Late Meet",
-  "version": "1.1.0",
+  "name": "Late-Meet",
+  "version": "1.2.0",
   "description": "AI meeting copilot for Google Meet with local-first transcription and summaries",
   "permissions": [
     "storage",
     "tabs",
     "tabCapture",
+    "contextMenus",
     "offscreen",
     "sidePanel",
     "notifications",
@@ -33,7 +34,7 @@
   },
   "action": {
     "default_popup": "src/popup.html",
-    "default_title": "Late Meet"
+    "default_title": "Late-Meet"
   },
   "icons": {
     "128": "src/icons/icon128.png"
@@ -44,14 +45,31 @@
         "default": "Ctrl+Shift+S",
         "mac": "Command+Shift+S"
       },
-      "description": "Start/Stop recording toggle"
+      "description": "Start/Stop Copilot recording"
     },
     "open-side-panel": {
       "suggested_key": {
         "default": "Ctrl+Shift+P",
         "mac": "Command+Shift+P"
       },
-      "description": "Open the Late Meet side panel"
+      "description": "Open the Late-Meet side panel"
+    },
+    "generate-catch-me-up": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+M",
+        "mac": "Command+Shift+M"
+      },
+      "description": "Generate a quick catch-up summary"
+    },
+    "save-session": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+W",
+        "mac": "Command+Shift+W"
+      },
+      "description": "Save the current meeting session"
     }
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self';"
   }
 }

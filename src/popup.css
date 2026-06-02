@@ -538,6 +538,16 @@ body::-webkit-scrollbar-thumb {
   background: var(--bg-card);
 }
 
+.topic-dot.unresolved {
+  background: #f59e0b;
+  box-shadow: 0 0 6px rgba(245, 158, 11, 0.4);
+}
+
+.topic-status.unresolved {
+  color: #fbbf24;
+  background: rgba(245, 158, 11, 0.15);
+}
+
 /* ——— Late Joiners ——— */
 .late-joiner-item {
   display: flex;

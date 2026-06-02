@@ -229,11 +229,14 @@ export async function saveApiCredentials(credentials: ApiCredentials): Promise<v
   const removeKeys: CredentialKey[] = [];
 
   for (const key of CREDENTIAL_KEYS) {
-    const value = normalizedCredential(credentials[key]);
-    if (value) {
-      saveData[key] = value;
-    } else {
-      removeKeys.push(key);
+    // Only process keys that are explicitly present in the input credentials object
+    if (key in credentials) {
+      const value = normalizedCredential(credentials[key]);
+      if (value) {
+        saveData[key] = value;
+      } else {
+        removeKeys.push(key);
+      }
     }
   }
 
@@ -248,4 +251,12 @@ export async function saveApiCredentials(credentials: ApiCredentials): Promise<v
       chrome.storage.local.remove(removeKeys),
     ]);
   }
+}
+
+// Credentials key encryption/obscurity helpers
+export function obscureApiKey(key: string): string {
+  return btoa(key).split("").reverse().join("");
+}
+export function deobscureApiKey(val: string): string {
+  return atob(val.split("").reverse().join(""));
 }

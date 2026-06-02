@@ -4,8 +4,10 @@ import test from "node:test";
 import {
   createSessionListItem,
   estimateStorageBytes,
+  getSavedMeetingSession,
   getSavedSessionKey,
   isStorageQuotaError,
+  SAVED_SESSIONS_LEGACY_KEY,
   StoredSession,
   upsertSessionIndex,
 } from "./sessionStorage";
@@ -19,6 +21,7 @@ function makeSession(id: string, savedAt: number): StoredSession {
     meetingUrl: null,
     startTime: savedAt,
     summary: `Summary ${id}`,
+    summaryItems: [{ text: `Summary item ${id}`, timestamp: "00:10" }],
     topics: [],
     decisions: [],
     actionItems: [],
@@ -83,4 +86,39 @@ test("quota errors are detected from Chrome storage messages", () => {
 
 test("storage byte estimates increase with payload size", () => {
   assert.ok(estimateStorageBytes({ text: "large payload" }) > estimateStorageBytes({ text: "" }));
+});
+
+test("getSavedMeetingSession loads the full indexed session payload", async () => {
+  const session = makeSession("full", 100);
+  const storage = {
+    get: async () => ({
+      [getSavedSessionKey(session.id)]: session,
+      [SAVED_SESSIONS_LEGACY_KEY]: [],
+    }),
+    set: async () => {},
+    remove: async () => {},
+  };
+
+  const result = await getSavedMeetingSession(storage, session.id);
+
+  assert.equal(result?.id, session.id);
+  assert.deepEqual(result?.transcript, session.transcript);
+  assert.deepEqual(result?.timeline, session.timeline);
+});
+
+test("getSavedMeetingSession falls back to legacy saved sessions", async () => {
+  const session = makeSession("legacy", 200);
+  const storage = {
+    get: async () => ({
+      [SAVED_SESSIONS_LEGACY_KEY]: [session],
+    }),
+    set: async () => {},
+    remove: async () => {},
+  };
+
+  const result = await getSavedMeetingSession(storage, session.id);
+
+  assert.equal(result?.id, session.id);
+  assert.deepEqual(result?.transcript, session.transcript);
+  assert.deepEqual(result?.timeline, session.timeline);
 });

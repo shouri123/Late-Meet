@@ -40,17 +40,30 @@ test("meeting id extraction accepts real Meet rooms and rejects non-room URLs", 
   assert.equal(getMeetingIdFromUrl(undefined), null);
 });
 
+test("meeting id extraction rejects non-meeting paths under meet.google.com", () => {
+  assert.equal(getMeetingIdFromUrl("https://meet.google.com/landing"), null);
+  assert.equal(getMeetingIdFromUrl("https://meet.google.com/calling"), null);
+  assert.equal(getMeetingIdFromUrl("https://meet.google.com/support"), null);
+  assert.equal(getMeetingIdFromUrl("https://meet.google.com/about"), null);
+  assert.equal(getMeetingIdFromUrl("https://meet.google.com/"), null);
+  // Uppercase IDs are not valid (Meet IDs are always lowercase)
+  assert.equal(getMeetingIdFromUrl("https://meet.google.com/ABC-DEFG-HIJ"), null);
+  // Too many / too few segments
+  assert.equal(getMeetingIdFromUrl("https://meet.google.com/ab-cdef-ghi"), null);
+  assert.equal(getMeetingIdFromUrl("https://meet.google.com/abcd-defg-hijk"), null);
+});
+
 test("manual Meet tab resolution prefers the active meeting tab", async () => {
   const cleanup = mockChromeTabs([
     {
       id: 1,
-      url: "https://meet.google.com/old-room-aaa",
+      url: "https://meet.google.com/old-rmxx-aaa",
       active: false,
       currentWindow: true,
     },
     {
       id: 2,
-      url: "https://meet.google.com/live-room-bbb",
+      url: "https://meet.google.com/liv-room-bbb",
       active: true,
       currentWindow: true,
     },
@@ -59,7 +72,7 @@ test("manual Meet tab resolution prefers the active meeting tab", async () => {
   try {
     const selected = await resolveManualMeetTab();
     assert.equal(selected.tab.id, 2);
-    assert.equal(selected.meetingId, "live-room-bbb");
+    assert.equal(selected.meetingId, "liv-room-bbb");
   } finally {
     cleanup();
   }
@@ -75,7 +88,7 @@ test("manual Meet tab resolution falls back when exactly one meeting tab is open
     },
     {
       id: 4,
-      url: "https://meet.google.com/only-room-ccc",
+      url: "https://meet.google.com/onl-room-ccc",
       active: false,
       currentWindow: true,
     },
@@ -84,7 +97,7 @@ test("manual Meet tab resolution falls back when exactly one meeting tab is open
   try {
     const selected = await resolveManualMeetTab();
     assert.equal(selected.tab.id, 4);
-    assert.equal(selected.meetingUrl, "https://meet.google.com/only-room-ccc");
+    assert.equal(selected.meetingUrl, "https://meet.google.com/onl-room-ccc");
   } finally {
     cleanup();
   }
@@ -100,13 +113,13 @@ test("manual Meet tab resolution rejects ambiguous background meetings", async (
     },
     {
       id: 6,
-      url: "https://meet.google.com/first-room-ddd",
+      url: "https://meet.google.com/fir-stro-ddd",
       active: false,
       currentWindow: true,
     },
     {
       id: 7,
-      url: "https://meet.google.com/second-room-eee",
+      url: "https://meet.google.com/sec-ondo-eee",
       active: false,
       currentWindow: false,
     },

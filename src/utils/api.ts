@@ -1,9 +1,9 @@
 // OpenAI and ElevenLabs API wrappers for Meeting Copilot
 
 // @ts-ignore: Could not find a declaration file for module '@elevenlabs/elevenlabs-js'
-// @ts-ignore
 import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
 import { getOpenAiApiKey } from "./credentials";
+import { DEFAULT_CHAT_MODEL, ELEVENLABS_STT_MODEL, WHISPER_MODEL } from "../config";
 
 const OPENAI_CHAT_URL = "https://api.openai.com/v1/chat/completions";
 const OPENAI_WHISPER_URL = "https://api.openai.com/v1/audio/transcriptions";
@@ -57,7 +57,7 @@ export async function getApiKey(): Promise<string | null> {
  * @param {string} systemPrompt - System instructions that define the AI's behavior
  * @param {string} userPrompt - The user's message or question
  * @param {string} apiKey - OpenAI API key for authentication
- * @param {string} [model="gpt-4o-mini"] - The AI model to use (defaults to gpt-4o-mini)
+ * @param {string} [model] - The AI model to use
  * @returns {Promise<Record<string, unknown> | null>} Parsed JSON response, or null if parsing fails
  * @throws {Error} If API key is not provided or API call fails
  * @example
@@ -71,7 +71,7 @@ export async function chatCompletion(
   systemPrompt: string,
   userPrompt: string,
   apiKey: string,
-  model: string = "gpt-4o-mini",
+  model: string = DEFAULT_CHAT_MODEL,
 ): Promise<Record<string, unknown> | null> {
   if (!apiKey) throw new Error("OpenAI API key not configured");
 
@@ -91,6 +91,7 @@ export async function chatCompletion(
       max_tokens: 3000,
       response_format: { type: "json_object" },
     }),
+    signal: AbortSignal.timeout(30000),
   });
 
   if (!response.ok) {
@@ -128,7 +129,7 @@ export async function whisperTranscribe(
 
   const formData = new FormData();
   formData.append("file", audioBlob, "audio.webm");
-  formData.append("model", "whisper-1");
+  formData.append("model", WHISPER_MODEL);
   formData.append("response_format", "verbose_json");
 
   const response = await fetch(OPENAI_WHISPER_URL, {
@@ -137,6 +138,7 @@ export async function whisperTranscribe(
       Authorization: `Bearer ${apiKey}`,
     },
     body: formData,
+    signal: AbortSignal.timeout(60000),
   });
 
   if (!response.ok) {
@@ -181,7 +183,7 @@ export async function elevenlabsTranscribe(
 
   const response = await elevenlabs.speechToText.convert({
     file: file,
-    modelId: "scribe_v1",
+    modelId: ELEVENLABS_STT_MODEL,
   });
 
   return {
@@ -252,10 +254,8 @@ export async function validateElevenLabsKey(apiKey: string): Promise<boolean> {
     if (response.ok) {
       return true;
     }
-    if (response.status === 401) {
-      const data = await response.json();
-      return data?.detail?.status === "missing_permissions";
-    }
+    // Any non-OK response (including 401 Unauthorized) means the key is not usable
+    // for this extension's STT functionality — reject it during validation.
     return false;
   } catch (error: any) {
     if (error.name === "AbortError") {

@@ -6,6 +6,9 @@ export interface MeetTabSelection {
 
 const MEET_TAB_URL = "https://meet.google.com/*";
 
+/** Validates the standard Google Meet room ID format: three letters, four letters, three letters separated by dashes. */
+const MEET_ID_REGEX = /^[a-z]{3}-[a-z]{4}-[a-z]{3}$/;
+
 export function getMeetingIdFromUrl(url: string | undefined): string | null {
   if (!url) return null;
 
@@ -15,6 +18,8 @@ export function getMeetingIdFromUrl(url: string | undefined): string | null {
 
     const meetingId = parsed.pathname.split("/").filter(Boolean)[0];
     if (!meetingId || meetingId === "new") return null;
+
+    if (!MEET_ID_REGEX.test(meetingId)) return null;
 
     return meetingId;
   } catch {

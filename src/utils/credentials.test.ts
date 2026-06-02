@@ -217,3 +217,22 @@ test("encryption operations are blocked without derived key", async () => {
   const creds = await getApiCredentials();
   assert.equal(creds.openai_api_key, undefined);
 });
+
+test("saving partial credentials does not wipe out omitted keys", async () => {
+  const { session, local } = setupChromeStorage(
+    { openai_api_key: "existing-openai", elevenlabs_api_key: "existing-eleven" },
+    { openai_api_key: "existing-openai", elevenlabs_api_key: "existing-eleven" },
+  );
+
+  await unlockCredentials("test-passphrase");
+
+  // Omit elevenlabs_api_key entirely from the object
+  await saveApiCredentials({ openai_api_key: "new-openai" });
+
+  assert.deepEqual(session, {
+    openai_api_key: "new-openai",
+    elevenlabs_api_key: "existing-eleven",
+  });
+  assert.equal(local.elevenlabs_api_key, "existing-eleven");
+  assert.ok((local.openai_api_key as string).startsWith("enc:"));
+});

@@ -8,9 +8,11 @@ export interface Topic {
 }
 
 export interface TranscriptEntry {
+  id?: string;
   speaker: string;
   text: string;
   timestamp: number;
+  timestampLabel?: string;
 }
 
 export interface TimelineEvent {
@@ -19,10 +21,19 @@ export interface TimelineEvent {
   elapsed: number;
 }
 
+export interface SummaryItem {
+  text: string;
+  chunkId?: string;
+  timestamp?: string;
+  timestampLabel?: string;
+}
+
 export interface Decision {
   text: string;
   by?: string;
+  chunkId?: string;
   timestamp?: string;
+  timestampLabel?: string;
   classification?: "tentative" | "finalized";
 }
 
@@ -30,6 +41,9 @@ export interface ActionItem {
   task: string;
   owner?: string;
   deadline?: string;
+  chunkId?: string;
+  timestamp?: string;
+  timestampLabel?: string;
   confidence?: "high" | "medium" | "low";
   isSpeculative?: boolean;
 }
@@ -45,6 +59,8 @@ export interface Contradiction {
 }
 
 export interface State {
+  id?: string;
+  savedAt?: string | number;
   isActive: boolean;
   meetingId: string | null;
   meetingUrl: string | null;
@@ -64,14 +80,12 @@ export interface State {
   lateJoiners: string[];
   timeline: TimelineEvent[];
   transcript: TranscriptEntry[];
+  summaryItems: SummaryItem[];
   audioActive: boolean;
   currentSpeaker?: string | null;
   targetTabId?: number | null;
   lastSummarizedAt?: number;
-  duration?: number;
   participantCount?: number;
-  id?: string;
-  savedAt?: number;
 }
 
 export interface MeetingStorageInfo {

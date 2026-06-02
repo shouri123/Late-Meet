@@ -2,11 +2,9 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Settings — AI Meeting Copilot</title>
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
-      rel="stylesheet"
-    />
+    <link rel="stylesheet" href="fonts/fonts.css" />
     <link rel="stylesheet" href="options.css" />
     <link rel="stylesheet" href="storageDashboard.css" />
   </head>
@@ -423,6 +421,20 @@
             </div>
             <label class="toggle-switch">
               <input type="checkbox" id="sentiment-toggle" checked />
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+
+          <div class="toggle-item">
+            <div>
+              <div class="toggle-label">Transcript Refinement</div>
+              <div class="toggle-hint">
+                Use AI to clean up filler words and correct transcription errors (uses an additional
+                API call per audio chunk)
+              </div>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="refinement-toggle" aria-label="Transcript Refinement" />
               <span class="toggle-slider"></span>
             </label>
           </div>
