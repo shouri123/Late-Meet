@@ -668,9 +668,14 @@ document.addEventListener("DOMContentLoaded", async () => {
             : "";
 
         return `
-      <div class="decision-item">
-        <div class="decision-text">${escapeHtml(d.text || "")} ${d.classification === "tentative" ? '<span style="font-size: 11px; background: #FEF3C7; color: #D97706; padding: 2px 6px; border-radius: 4px; margin-left: 6px;">Tentative</span>' : ""}</div>
-        <div class="decision-meta">${d.by ? `By ${escapeHtml(d.by)}` : ""}${timestampChunk ? ` • ${timestampChunk}` : ""}</div>
+      <div class="decision-item" style="display: flex; align-items: flex-start; justify-content: space-between;">
+        <div style="flex: 1;">
+          <div class="decision-text">${escapeHtml(d.text || "")} ${d.classification === "tentative" ? '<span style="font-size: 11px; background: #FEF3C7; color: #D97706; padding: 2px 6px; border-radius: 4px; margin-left: 6px;">Tentative</span>' : ""}</div>
+          <div class="decision-meta">${d.by ? `By ${escapeHtml(d.by)}` : ""}${timestampChunk ? ` • ${timestampChunk}` : ""}</div>
+        </div>
+        <button type="button" class="copy-item-btn" data-copy-text="${escapeHtml(d.text || "")}" title="Copy decision" style="background: transparent; border: none; color: var(--text-muted); cursor: pointer; padding: 4px; border-radius: 4px; display: flex; align-items: center; justify-content: center; opacity: 0.4; margin-left: 8px; flex-shrink: 0; align-self: flex-start;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"></rect><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path></svg>
+        </button>
       </div>
     `;
       })
@@ -776,8 +781,19 @@ document.addEventListener("DOMContentLoaded", async () => {
         taskDiv.classList.toggle("action-task--done", isDone);
       });
 
+      const copyBtn = document.createElement("button");
+      copyBtn.type = "button";
+      copyBtn.className = "copy-item-btn";
+      copyBtn.title = "Copy action item";
+      copyBtn.setAttribute("aria-label", "Copy action item");
+      copyBtn.dataset.copyText = `${task}${owner ? ` (owner: ${owner})` : ""}${deadline ? ` (due: ${deadline})` : ""}`;
+      copyBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"></rect><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path></svg>`;
+      copyBtn.style.cssText =
+        "background: transparent; border: none; color: var(--text-muted); cursor: pointer; padding: 4px; border-radius: 4px; display: flex; align-items: center; justify-content: center; opacity: 0.4; margin-left: 8px; flex-shrink: 0; align-self: flex-start;";
+
       wrapper.appendChild(checkbox);
       wrapper.appendChild(label);
+      wrapper.appendChild(copyBtn);
       container.appendChild(wrapper);
     });
   }
@@ -1269,7 +1285,98 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   });
 
-  // ——— Helpers ———
+  // ——— Copy-to-Clipboard Helper ———
+  /**
+   * Copies the given text to the system clipboard.
+   * Falls back to execCommand for non-secure contexts.
+   */
+  async function copyTextToClipboard(text: string): Promise<void> {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+    } else {
+      const textArea = document.createElement("textarea");
+      textArea.value = text;
+      textArea.style.cssText = "position:fixed;left:-999999px;top:-999999px;";
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      document.execCommand("copy");
+      textArea.remove();
+    }
+  }
+
+  /** Briefly shows a ✓ checkmark inside a copy button, then restores the clipboard icon. */
+  function showCopyFeedback(btn: HTMLElement) {
+    const originalHTML = btn.innerHTML;
+    btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="icon"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+    btn.style.opacity = "1";
+    btn.style.color = "#22c55e";
+    window.setTimeout(() => {
+      btn.innerHTML = originalHTML;
+      btn.style.opacity = "0.4";
+      btn.style.color = "";
+    }, 1500);
+  }
+
+  // ——— Copy Summary Button ———
+  document.getElementById("copy-summary-btn")?.addEventListener("click", async () => {
+    try {
+      const summaryEl = document.getElementById("dash-summary");
+      const text = summaryEl?.textContent?.trim() || "";
+      if (!text || text === "Waiting for conversation to begin...") {
+        showToast("No summary available to copy", "error");
+        return;
+      }
+      await copyTextToClipboard(text);
+      const btn = document.getElementById("copy-summary-btn");
+      if (btn) showCopyFeedback(btn);
+      showToast("Summary copied to clipboard ✓", "success");
+    } catch {
+      showToast("Failed to copy summary", "error");
+    }
+  });
+
+  // ——— Event Delegation for Individual Decision & Action Copy Buttons ———
+  // We use delegation on the main content area because decisions/actions
+  // are dynamically re-rendered and their buttons can't be wired directly.
+  document.addEventListener("click", async (e: MouseEvent) => {
+    const target = (e.target as HTMLElement).closest(
+      ".copy-item-btn[data-copy-text]",
+    ) as HTMLElement | null;
+    if (!target) return;
+
+    // Skip the summary button — it has its own dedicated listener above.
+    if (target.id === "copy-summary-btn") return;
+
+    const text = target.dataset.copyText ?? "";
+    if (!text) return;
+
+    try {
+      await copyTextToClipboard(text);
+      showCopyFeedback(target);
+      showToast("Copied to clipboard ✓", "success");
+    } catch {
+      showToast("Failed to copy", "error");
+    }
+  });
+
+  // ——— Hover effect for copy buttons ———
+  document.addEventListener("mouseover", (e: MouseEvent) => {
+    const btn = (e.target as HTMLElement).closest(".copy-item-btn") as HTMLElement | null;
+    if (btn && !btn.id?.includes("copy-summary")) {
+      btn.style.opacity = "1";
+    }
+  });
+  document.addEventListener("mouseout", (e: MouseEvent) => {
+    const btn = (e.target as HTMLElement).closest(".copy-item-btn") as HTMLElement | null;
+    if (btn && !btn.id?.includes("copy-summary")) {
+      // Only reset if we're not in the "success" feedback state (green color)
+      if (btn.style.color !== "rgb(34, 197, 94)") {
+        btn.style.opacity = "0.4";
+      }
+    }
+  });
+
   function escapeHtml(str: string) {
     const div = document.createElement("div");
     div.textContent = str;

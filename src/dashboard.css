@@ -736,7 +736,42 @@ body::before {
   margin-top: 4px;
 }
 
-/* ——— Participants ——— */
+/* ——— Copy-to-Clipboard Buttons ——— */
+.copy-item-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.4;
+  flex-shrink: 0;
+  align-self: flex-start;
+  transition:
+    opacity 0.18s ease,
+    color 0.18s ease,
+    background 0.18s ease;
+}
+
+.copy-item-btn:hover {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-main);
+}
+
+.copy-item-btn:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.3);
+  outline-offset: 2px;
+  opacity: 1;
+}
+
+.copy-item-btn:active {
+  transform: scale(0.9);
+}
+
 .participant-item {
   display: flex;
   align-items: center;
