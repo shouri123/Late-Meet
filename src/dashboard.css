@@ -581,6 +581,24 @@ body::-webkit-scrollbar-thumb,
   margin-top: 4px;
 }
 
+.action-copy-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.action-copy-btn:hover {
+  background: var(--bg-surface);
+  color: var(--text-main);
+}
+
 /* ——— Participants ——— */
 .participant-item {
   display: flex;

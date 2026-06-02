@@ -564,6 +564,23 @@ document.addEventListener("DOMContentLoaded", async () => {
         label.appendChild(deadlineDiv);
       }
 
+      const copyBtn = document.createElement("button");
+      copyBtn.className = "action-copy-btn";
+      copyBtn.title = "Copy task to clipboard";
+      copyBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`;
+      copyBtn.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        navigator.clipboard
+          .writeText(task)
+          .then(() => {
+            showToast("Task copied to clipboard", "success");
+          })
+          .catch(() => {
+            showToast("Failed to copy task", "error");
+          });
+      });
+
       checkbox.addEventListener("change", () => {
         const taskText = checkbox.dataset.task || "";
         const meetId = checkbox.dataset.meetingId || currentMeetingId;
@@ -577,6 +594,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       wrapper.appendChild(checkbox);
       wrapper.appendChild(label);
+      wrapper.appendChild(copyBtn);
       container.appendChild(wrapper);
     });
   }
