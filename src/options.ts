@@ -235,38 +235,9 @@ document.addEventListener("DOMContentLoaded", async () => {
       (document.getElementById("elevenlabs-key") as HTMLInputElement | null)?.value.trim() ?? "";
 
     const originalText = saveBtn.textContent || "Save Settings";
-    if (pendingUnlock) await pendingUnlock;
-    if (!isUnlocked()) {
-      if (status) {
-        status.style.color = "red";
-        status.textContent =
-          "Enter your passphrase above to unlock encryption before saving API keys.";
-        status.classList.add("visible");
-        setTimeout(() => status.classList.remove("visible"), 4000);
-      }
-      return;
-    }
 
     saveBtn.disabled = true;
-    saveBtn.textContent = "Validating Keys...";
     try {
-      const [isOpenAIValid, isElevenLabsValid] = await Promise.all([
-        openaiKey ? validateOpenAIKey(openaiKey) : Promise.resolve(true),
-        elevenlabsKey ? validateElevenLabsKey(elevenlabsKey) : Promise.resolve(true),
-      ]);
-
-      if (!isOpenAIValid || !isElevenLabsValid) {
-        if (status) {
-          status.style.color = "red";
-          status.textContent = !isOpenAIValid
-            ? "Invalid OpenAI API Key. Please verify and try again."
-            : "Invalid ElevenLabs API Key. Please verify and try again.";
-          status.classList.add("visible");
-          setTimeout(() => status.classList.remove("visible"), 4000);
-        }
-        return;
-      }
-
       const parsedInterval = intervalSlider ? parseInt(intervalSlider.value, 10) : 30;
       const validatedInterval =
         Number.isNaN(parsedInterval) || !Number.isFinite(parsedInterval) ? 30 : parsedInterval;
@@ -298,15 +269,39 @@ document.addEventListener("DOMContentLoaded", async () => {
         accent: selectedAccentColor,
       };
 
-      await Promise.all([
-        chrome.storage.local.set({ settings: newSettings }),
-        saveApiCredentials({ openai_api_key: openaiKey, elevenlabs_api_key: elevenlabsKey }),
-      ]);
+      await chrome.storage.local.set({ settings: newSettings });
+
+      let credentialsSaved = false;
+      if (pendingUnlock) await pendingUnlock;
+      if (isUnlocked()) {
+        saveBtn.textContent = "Validating Keys...";
+        const [isOpenAIValid, isElevenLabsValid] = await Promise.all([
+          openaiKey ? validateOpenAIKey(openaiKey) : Promise.resolve(true),
+          elevenlabsKey ? validateElevenLabsKey(elevenlabsKey) : Promise.resolve(true),
+        ]);
+
+        if (!isOpenAIValid || !isElevenLabsValid) {
+          if (status) {
+            status.style.color = "red";
+            status.textContent = !isOpenAIValid
+              ? "Settings saved, but the OpenAI API key is invalid."
+              : "Settings saved, but the ElevenLabs API key is invalid.";
+            status.classList.add("visible");
+            setTimeout(() => status.classList.remove("visible"), 4000);
+          }
+          return;
+        }
+
+        await saveApiCredentials({ openai_api_key: openaiKey, elevenlabs_api_key: elevenlabsKey });
+        credentialsSaved = true;
+      }
 
       // Show success
       if (status) {
-        status.style.color = "";
-        status.textContent = "Settings saved successfully!";
+        status.style.color = credentialsSaved ? "" : "var(--accent-color, #22C55E)";
+        status.textContent = credentialsSaved
+          ? "Settings saved successfully!"
+          : "Settings saved. Unlock credential encryption to update API keys.";
         status.classList.add("visible");
 
         setTimeout(() => {
