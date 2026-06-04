@@ -81,7 +81,9 @@ async function pruneSessionsForQuota(
     if (session) pruned.push(session);
   }
 
-  let currentBytes = await getBytesInUse(storage, null);
+  // Measure only session-related keys, not all of chrome.storage.local
+  const sessionKeys = [SAVED_SESSION_INDEX_KEY, ...index.map((s) => getSavedSessionKey(s.id))];
+  let currentBytes = await getBytesInUse(storage, sessionKeys);
   while (
     currentBytes > 0 &&
     currentBytes + incomingBytes > STORAGE_SOFT_LIMIT_BYTES &&
@@ -158,6 +160,11 @@ export async function persistMeetingSession(
     [sessionKey]: pendingSession,
     [SAVED_SESSION_INDEX_KEY]: nextIndex,
   });
+
+  // One-time cleanup: remove legacy sessions key after successful migration
+  if (Array.isArray(values[SAVED_SESSIONS_LEGACY_KEY])) {
+    await storage.remove(SAVED_SESSIONS_LEGACY_KEY);
+  }
 
   return pendingSession;
 }

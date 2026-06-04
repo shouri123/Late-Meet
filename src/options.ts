@@ -125,14 +125,20 @@ document.addEventListener("DOMContentLoaded", async () => {
   // Set the active styling on the matching color dot button
   document.querySelectorAll(".color-dot").forEach((dot) => {
     const dotColor = dot.getAttribute("data-color");
-    if (dotColor === currentAccent) {
+    const isActive = dotColor === currentAccent;
+    if (isActive) {
       dot.classList.add("active");
     }
+    dot.setAttribute("aria-pressed", String(isActive));
 
     // Listen for color grid selections to give instant feedback
     dot.addEventListener("click", () => {
-      document.querySelectorAll(".color-dot").forEach((d) => d.classList.remove("active"));
+      document.querySelectorAll(".color-dot").forEach((d) => {
+        d.classList.remove("active");
+        d.setAttribute("aria-pressed", "false");
+      });
       dot.classList.add("active");
+      dot.setAttribute("aria-pressed", "true");
 
       const selectedTheme = (themeSelect?.value as Settings["theme"]) || "system";
       selectedAccentColor = dot.getAttribute("data-color") || "210, 100%, 50%";
@@ -154,11 +160,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     btn.addEventListener("click", () => {
       const targetId = btn.dataset.target;
       if (targetId) {
-        if (targetId) {
-          const target = document.getElementById(targetId) as HTMLInputElement | null;
-          if (target) {
-            target.type = target.type === "password" ? "text" : "password";
-          }
+        const target = document.getElementById(targetId) as HTMLInputElement | null;
+        if (target) {
+          target.type = target.type === "password" ? "text" : "password";
         }
       }
     });
@@ -173,13 +177,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (isUnlocked()) {
       if (passphraseInput) passphraseInput.disabled = true;
       if (passphraseStatus) {
-        passphraseStatus.style.color = "var(--accent-color, #22C55E)";
+        passphraseStatus.className = "passphrase-status status-success";
         passphraseStatus.textContent = "Unlocked — encryption key is active in memory";
       }
     } else {
       if (passphraseInput) passphraseInput.disabled = false;
       if (passphraseStatus) {
-        passphraseStatus.style.color = "#EF4444";
+        passphraseStatus.className = "passphrase-status status-danger";
         passphraseStatus.textContent = "Locked — enter passphrase to unlock credential encryption";
       }
     }
@@ -190,7 +194,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const passphrase = passphraseInput?.value ?? "";
     if (!passphrase) {
       if (passphraseStatus) {
-        passphraseStatus.style.color = "#EF4444";
+        passphraseStatus.className = "passphrase-status status-danger";
         passphraseStatus.textContent = "Please enter a passphrase";
       }
       return;
@@ -207,7 +211,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         elevenlabsKeyInput.value = creds.elevenlabs_api_key;
       }
     } else if (passphraseStatus) {
-      passphraseStatus.style.color = "#EF4444";
+      passphraseStatus.className = "passphrase-status status-danger";
       passphraseStatus.textContent = "Wrong passphrase — could not decrypt stored credentials";
     }
   }
@@ -234,7 +238,18 @@ document.addEventListener("DOMContentLoaded", async () => {
     const elevenlabsKey =
       (document.getElementById("elevenlabs-key") as HTMLInputElement | null)?.value.trim() ?? "";
 
-    const originalText = saveBtn.textContent || "Save Settings";
+    const originalText = saveBtn.textContent?.trim() || "Save Settings";
+    if (pendingUnlock) await pendingUnlock;
+    if (!isUnlocked()) {
+      if (status) {
+        status.style.color = "red";
+        status.textContent =
+          "Enter your passphrase above to unlock encryption before saving API keys.";
+        status.classList.add("visible");
+        setTimeout(() => status.classList.remove("visible"), 4000);
+      }
+      return;
+    }
 
     saveBtn.disabled = true;
     try {

@@ -4,7 +4,13 @@ export function openMeetingDB() {
     const req = indexedDB.open("LateMeetMeetings", 1);
     req.onupgradeneeded = () =>
       req.result.createObjectStore("transcripts", { keyPath: "meetingId" });
-    req.onsuccess = () => resolve(req.result);
+    req.onsuccess = () => {
+      const db = req.result;
+      db.onversionchange = () => {
+        db.close();
+      };
+      resolve(db);
+    };
     req.onerror = () => reject(req.error);
   });
 }

@@ -44,6 +44,29 @@ body::-webkit-scrollbar-thumb {
   vertical-align: middle;
 }
 
+/* ——— Status & Feedback Utilities ——— */
+.status-text {
+  font-size: 11px;
+  margin: 4px 0;
+  text-align: left;
+}
+
+.status-success {
+  color: var(--text-success);
+}
+
+.status-danger {
+  color: var(--text-danger);
+}
+
+.border-danger {
+  border-color: var(--text-danger) !important;
+}
+
+.shake {
+  animation: shake 0.4s ease;
+}
+
 /* ——— Setup View ——— */
 .setup-container {
   padding: 40px 24px;

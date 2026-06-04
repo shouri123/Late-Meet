@@ -18,6 +18,7 @@ import { createAudioCaptureStopPlan } from "./audioCaptureLifecycle";
 import { normalizeActiveSpeakerName, resolveTranscriptSpeaker } from "./speakerAttribution";
 import { getMeetingIdFromUrl } from "./meetingTabs";
 import { getOpenAiApiKey, getElevenLabsApiKey } from "./utils/credentials";
+import { isMessageFromActiveMeeting } from "./activeMeetingMessages";
 
 const OPENAI_CHAT_URL = "https://api.openai.com/v1/chat/completions";
 const OPENAI_WHISPER_URL = "https://api.openai.com/v1/audio/transcriptions";
@@ -1188,9 +1189,23 @@ async function savePendingSession() {
     await savePendingMeetingSession(chrome.storage.local, session);
   } catch (err) {
     console.error("[LateMeet] Failed to save pending session:", err);
+
     if (isStorageQuotaError(err)) {
+      try {
+        const sessions = await getSavedMeetingSessions(chrome.storage.local);
+        if (sessions.length > 0) {
+          const oldest = sessions[sessions.length - 1];
+          await deleteSavedMeetingSession(chrome.storage.local, oldest.id);
+          console.log("[LateMeet] Evicted oldest session to free quota:", oldest.id);
+          await savePendingMeetingSession(chrome.storage.local, session);
+          return;
+        }
+      } catch (recoveryErr) {
+        console.error("[LateMeet] Quota recovery failed:", recoveryErr);
+      }
+
       console.error(
-        "[LateMeet] Storage quota reached while saving pending session. Keep this extension active and export the session before closing Chrome.",
+        "[LateMeet] Storage quota reached while saving pending session and recovery failed.",
       );
     }
   }
@@ -1572,6 +1587,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       }
 
       case "PARTICIPANTS_UPDATED": {
+        if (
+          !isMessageFromActiveMeeting({
+            senderTabId: sender?.tab?.id,
+            senderUrl: sender?.tab?.url || sender?.url,
+            targetTabId: state.targetTabId,
+            meetingId: state.meetingId,
+          })
+        ) {
+          console.warn("[LateMeet] Ignoring participant update from non-active Meet tab");
+          sendResponse({ success: true, ignored: true });
+          return;
+        }
+
         if (!Array.isArray(message.participants)) {
           sendResponse({ success: false, error: "participants must be an array" });
           return;
@@ -1582,13 +1610,26 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         if (incomingSelfName) selfParticipantName = incomingSelfName;
 
         const joiners = detectNewJoiners(message.participants);
-        await maybeWelcomeJoiners(sender?.tab?.id || state.targetTabId || undefined, joiners);
+        await maybeWelcomeJoiners(state.targetTabId || undefined, joiners);
         await broadcastStateUpdate();
         sendResponse({ success: true, joiners });
         return;
       }
 
       case "ACTIVE_SPEAKER_CHANGED": {
+        if (
+          !isMessageFromActiveMeeting({
+            senderTabId: sender?.tab?.id,
+            senderUrl: sender?.tab?.url || sender?.url,
+            targetTabId: state.targetTabId,
+            meetingId: state.meetingId,
+          })
+        ) {
+          console.warn("[LateMeet] Ignoring speaker update from non-active Meet tab");
+          sendResponse({ success: true, ignored: true });
+          return;
+        }
+
         const speaker = normalizeActiveSpeakerName(message.name);
 
         if (!speaker) {
