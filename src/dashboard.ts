@@ -669,12 +669,33 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         return `
       <div class="decision-item">
-        <div class="decision-text">${escapeHtml(d.text || "")} ${d.classification === "tentative" ? '<span style="font-size: 11px; background: #FEF3C7; color: #D97706; padding: 2px 6px; border-radius: 4px; margin-left: 6px;">Tentative</span>' : ""}</div>
-        <div class="decision-meta">${d.by ? `By ${escapeHtml(d.by)}` : ""}${timestampChunk ? ` • ${timestampChunk}` : ""}</div>
+        <div style="flex: 1;">
+          <div class="decision-text">${escapeHtml(d.text || "")} ${d.classification === "tentative" ? '<span style="font-size: 11px; background: #FEF3C7; color: #D97706; padding: 2px 6px; border-radius: 4px; margin-left: 6px;">Tentative</span>' : ""}</div>
+          <div class="decision-meta">${d.by ? `By ${escapeHtml(d.by)}` : ""}${timestampChunk ? ` • ${timestampChunk}` : ""}</div>
+        </div>
+        <button type="button" class="copy-item-btn" data-copy-text="${escapeHtml(d.text || "")}" title="Copy decision" style="background: none; border: none; cursor: pointer; padding: 4px; display: flex; align-items: center; color: var(--text-muted); opacity: 0.6; margin-left: auto;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+        </button>
       </div>
     `;
       })
       .join("");
+
+    container.querySelectorAll(".copy-item-btn").forEach((btn) => {
+      btn.addEventListener("click", async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const text = btn.getAttribute("data-copy-text");
+        if (text) {
+          try {
+            await navigator.clipboard.writeText(text);
+            showToast("Copied to clipboard", "success");
+          } catch (err) {
+            console.error(err);
+          }
+        }
+      });
+    });
   }
 
   // ——— Action Items ———
@@ -776,8 +797,27 @@ document.addEventListener("DOMContentLoaded", async () => {
         taskDiv.classList.toggle("action-task--done", isDone);
       });
 
+      const copyBtn = document.createElement("button");
+      copyBtn.type = "button";
+      copyBtn.className = "copy-item-btn";
+      copyBtn.title = "Copy action item";
+      copyBtn.style.cssText =
+        "background: none; border: none; cursor: pointer; padding: 4px; display: flex; align-items: center; color: var(--text-muted); opacity: 0.6; margin-left: auto; flex-shrink: 0; margin-top: 2px;";
+      copyBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`;
+      copyBtn.addEventListener("click", async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        try {
+          await navigator.clipboard.writeText(task);
+          showToast("Copied to clipboard", "success");
+        } catch (err) {
+          console.error(err);
+        }
+      });
+
       wrapper.appendChild(checkbox);
       wrapper.appendChild(label);
+      wrapper.appendChild(copyBtn);
       container.appendChild(wrapper);
     });
   }
