@@ -461,6 +461,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     } else {
       if (statusDot) statusDot.classList.remove("active");
       if (statusText) statusText.textContent = "No active meeting";
+      setAudioBtnActive(false);
       if (timerInterval) {
         window.clearInterval(timerInterval);
         timerInterval = null;
@@ -924,51 +925,79 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   // ——— Live Transcript ———
+  let renderedTranscriptCount = 0;
+
+  function createTranscriptEntryHTML(entry: TranscriptEntry): string {
+    const timeStr = escapeHtml(entry.timestampLabel || formatDuration(entry.timestamp || 0));
+    const speaker = escapeHtml(entry.speaker || "Unknown");
+    const initials = speaker
+      .split(" ")
+      .filter(Boolean)
+      .map((w) => w[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
+    const isAudio = (entry.speaker || "") === "Audio";
+    const text = escapeHtml(entry.text || "");
+    const chunkId = entry.id ? `transcript-${escapeHtml(entry.id)}` : "";
+
+    return `
+      <div id="${chunkId}" class="transcript-entry ${isAudio ? "audio-source" : ""}">
+        <div class="transcript-time">${timeStr}</div>
+        <div class="transcript-avatar">${isAudio ? "🎙" : initials}</div>
+        <div class="transcript-body">
+          <div class="transcript-speaker">${speaker}</div>
+          <div class="transcript-text">${text}</div>
+        </div>
+      </div>
+    `;
+  }
+
   function updateTranscript(transcript: TranscriptEntry[]) {
     if (!transcriptContainer) return;
 
     if (!transcript || transcript.length === 0) {
       transcriptContainer.innerHTML =
         '<div class="empty-msg">No transcript yet. Start audio to begin capturing speech.</div>';
-
+      renderedTranscriptCount = 0;
       resetTranscriptSearchState();
-
       return;
     }
 
-    transcriptContainer.innerHTML = transcript
-      .map((entry) => {
-        const timeStr = escapeHtml(entry.timestampLabel || formatDuration(entry.timestamp || 0));
-        const speaker = escapeHtml(entry.speaker || "Unknown");
-        const initials = speaker
-          .split(" ")
-          .filter(Boolean)
-          .map((w) => w[0])
-          .join("")
-          .toUpperCase()
-          .slice(0, 2);
-        const isAudio = (entry.speaker || "") === "Audio";
-        const text = escapeHtml(entry.text || "");
-        const chunkId = entry.id ? `transcript-${escapeHtml(entry.id)}` : "";
+    // If the transcript shrunk (e.g., session reset), do a full re-render
+    if (transcript.length < renderedTranscriptCount) {
+      renderedTranscriptCount = 0;
+      transcriptContainer.innerHTML = "";
+    }
 
-        return `
-        <div id="${chunkId}" class="transcript-entry ${isAudio ? "audio-source" : ""}">
-          <div class="transcript-time">${timeStr}</div>
-          <div class="transcript-avatar">${isAudio ? "🎙" : initials}</div>
-          <div class="transcript-body">
-            <div class="transcript-speaker">${speaker}</div>
-            <div class="transcript-text">${text}</div>
-          </div>
-        </div>
-      `;
-      })
-      .join("");
+    // Only render new entries that haven't been rendered yet
+    if (transcript.length > renderedTranscriptCount) {
+      // Remove empty message if present
+      const emptyMsg = transcriptContainer.querySelector(".empty-msg");
+      if (emptyMsg) emptyMsg.remove();
 
-    if (searchInput?.value.trim()) {
-      executeTranscriptSearch(true);
-    } else {
-      transcriptContainer.scrollTop = transcriptContainer.scrollHeight;
-      updateTranscriptSearchControls();
+      const newEntries = transcript.slice(renderedTranscriptCount);
+      const fragment = document.createDocumentFragment();
+      const wrapper = document.createElement("div");
+      wrapper.innerHTML = newEntries.map((e) => createTranscriptEntryHTML(e)).join("");
+      while (wrapper.firstChild) {
+        fragment.appendChild(wrapper.firstChild);
+      }
+      transcriptContainer.appendChild(fragment);
+      renderedTranscriptCount = transcript.length;
+
+      if (searchInput?.value.trim()) {
+        executeTranscriptSearch(true);
+      } else {
+        // Auto-scroll only if user is near the bottom
+        const isNearBottom =
+          transcriptContainer.scrollHeight - transcriptContainer.scrollTop <=
+          transcriptContainer.clientHeight + 80;
+        if (isNearBottom) {
+          transcriptContainer.scrollTop = transcriptContainer.scrollHeight;
+        }
+        updateTranscriptSearchControls();
+      }
     }
   }
 
