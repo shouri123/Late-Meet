@@ -11,7 +11,10 @@
 }
 
 body {
-  width: 380px;
+  /* FLUID RESPONSIVE FIXES */
+  width: 100vw;
+  min-width: 320px;
+  max-width: 420px;
   min-height: 200px;
   max-height: 580px;
   overflow-y: auto;
@@ -42,6 +45,29 @@ body::-webkit-scrollbar-thumb {
   height: 1em;
   display: inline-block;
   vertical-align: middle;
+}
+
+/* ——— Status & Feedback Utilities ——— */
+.status-text {
+  font-size: 11px;
+  margin: 4px 0;
+  text-align: left;
+}
+
+.status-success {
+  color: var(--text-success);
+}
+
+.status-danger {
+  color: var(--text-danger);
+}
+
+.border-danger {
+  border-color: var(--text-danger) !important;
+}
+
+.shake {
+  animation: shake 0.4s ease;
 }
 
 /* ——— Setup View ——— */
@@ -303,6 +329,11 @@ body::-webkit-scrollbar-thumb {
   border-color: var(--border-main);
 }
 
+.icon-btn:focus-visible {
+  outline: 2px solid hsl(var(--accent-color));
+  outline-offset: 2px;
+}
+
 /* ——— Duration Bar ——— */
 .duration-bar {
   display: flex;
@@ -533,6 +564,16 @@ body::-webkit-scrollbar-thumb {
   background: var(--bg-card);
 }
 
+.topic-dot.unresolved {
+  background: #f59e0b;
+  box-shadow: 0 0 6px rgba(245, 158, 11, 0.4);
+}
+
+.topic-status.unresolved {
+  color: #fbbf24;
+  background: rgba(245, 158, 11, 0.15);
+}
+
 /* ——— Late Joiners ——— */
 .late-joiner-item {
   display: flex;
@@ -647,7 +688,6 @@ body::-webkit-scrollbar-thumb {
     transform 0.3s ease,
     color 0.3s ease;
 }
-
 .dashboard-btn:hover .btn-arrow {
   transform: translate(2px, -2px);
   color: var(--text-main);
@@ -772,6 +812,17 @@ body::-webkit-scrollbar-thumb {
   line-height: 1.5;
 }
 
+.session-modal-error {
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  border-radius: 8px;
+  color: #fecaca;
+  font-size: 12px;
+  line-height: 1.4;
+  margin: -8px 0 16px;
+  padding: 10px 12px;
+}
+
 .session-modal-actions {
   display: flex;
   gap: 10px;
@@ -810,4 +861,26 @@ body::-webkit-scrollbar-thumb {
 .session-btn.loading {
   cursor: wait;
   pointer-events: none;
+}
+/* --- RESPONSIVE ADJUSTMENTS FOR HIGH ZOOM LEVELS / SMALL SCREENS --- */
+@media (max-width: 360px) {
+  .stats-row {
+    grid-template-columns: repeat(
+      2,
+      1fr
+    ) !important; /* Stack stats in 2x2 grid instead of crushing 4 columns */
+
+  }
+
+  .duration-text {
+    font-size: 18px !important; /* Scale down heading font sizes smoothly */
+  }
+
+  .setup-container {
+    padding: 24px 16px !important;
+  }
+
+  .session-modal-content {
+    width: 90% !important; /* Prevent popup cards from hard-clipping */
+  }
 }

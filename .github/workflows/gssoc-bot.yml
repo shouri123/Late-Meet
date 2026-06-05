@@ -6,7 +6,7 @@ on:
   issue_comment:
     types: [created]
   pull_request_target:
-    types: [opened, synchronize]
+    types: [opened, synchronize, labeled]
 
 permissions:
   issues: write
@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: GSSoC Bot Action
-        uses: actions/github-script@v7
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
@@ -135,6 +135,34 @@ jobs:
               const creator = pr.user.login;
               const isBot = pr.user.type === 'Bot';
               const action = context.payload.action;
+
+              // Parse linked issue
+              const linkedIssueRegex = /(?:fixes|closes|resolves)\s+#(\d+)/i;
+              const match = pr.body ? pr.body.match(linkedIssueRegex) : null;
+              const linkedIssueNumber = match ? parseInt(match[1], 10) : null;
+
+              // Auto-sync labels from PR to linked issue to optimize GSSoC points (+10 pts difficulty & type)
+              if (linkedIssueNumber) {
+                try {
+                  const { data: prDetails } = await github.rest.pulls.get({
+                    owner,
+                    repo,
+                    pull_number: pr.number
+                  });
+                  const prLabels = prDetails.labels.map(l => l.name);
+                  if (prLabels.length > 0) {
+                    console.log(`Syncing labels from PR #${pr.number} to linked issue #${linkedIssueNumber}:`, prLabels);
+                    await github.rest.issues.setLabels({
+                      owner,
+                      repo,
+                      issue_number: linkedIssueNumber,
+                      labels: prLabels
+                    });
+                  }
+                } catch (e) {
+                  console.log("Failed to sync labels to linked issue", e);
+                }
+              }
 
               if (action === 'opened') {
                 // 1. Compulsory labels

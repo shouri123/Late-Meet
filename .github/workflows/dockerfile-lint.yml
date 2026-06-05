@@ -1,0 +1,33 @@
+name: Dockerfile Lint
+
+on:
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - "Dockerfile"
+      - "Dockerfile.*"
+      - ".dockerignore"
+  push:
+    branches: [main, develop]
+    paths:
+      - "Dockerfile"
+      - "Dockerfile.*"
+      - ".dockerignore"
+
+permissions:
+  contents: read
+
+jobs:
+  hadolint:
+    name: Dockerfile Lint (hadolint)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v4
+
+      - name: Run hadolint
+        uses: hadolint/hadolint-action@2332a7b74a6de0dda2e2221d575162eba76ba5e5 # v3.3.0
+        with:
+          dockerfile: Dockerfile
+          failure-threshold: warning

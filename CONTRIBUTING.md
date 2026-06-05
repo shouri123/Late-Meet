@@ -167,7 +167,12 @@ src/
 ├── types.ts             # TypeScript type definitions
 ├── manifest.json        # Chrome extension manifest (MV3)
 └── utils/
-    └── api.js           # API helper functions
+    ├── api.ts                    # API helper functions
+    ├── credentials.ts            # API credential storage helpers
+    ├── credentials.test.ts       # Tests for credential storage helpers
+    ├── indexedDbCache.ts         # IndexedDB caching utilities
+    ├── storageUtils.ts           # Chrome storage utility helpers
+    └── prompts.ts                # Prompt templates for AI summaries
 ```
 
 ---
@@ -274,6 +279,8 @@ Join a Google Meet and verify:
 If adding utilities or reusable logic:
 
 - add corresponding `.test.ts` files when applicable.
+
+> **🔧 For detailed extension debugging & Chrome DevTools guides**, see [**DEVELOPMENT.md**](DEVELOPMENT.md) — includes service worker debugging, content script inspection, hot reload workflow, and troubleshooting common errors.
 
 ---
 

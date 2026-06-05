@@ -15,6 +15,9 @@
   --text-muted: #737373;
   --text-invert: #ffffff;
 
+  --text-success: #16a34a;
+  --text-danger: #dc2626;
+
   --shadow-main: rgba(0, 0, 0, 0.1);
   --accent-color: 210, 100%, 50%; /* Default Dynamic Accent HSL */
 }
@@ -33,6 +36,9 @@
   --text-sub: #a3a3a3;
   --text-muted: #525252;
   --text-invert: #000000;
+
+  --text-success: #22c55e;
+  --text-danger: #ef4444;
 
   --shadow-main: rgba(0, 0, 0, 0.8);
 }

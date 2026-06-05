@@ -1,7 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { VoiceActivityTracker, audioFileExtensionForMimeType } from "./audioProcessing.ts";
+import {
+  VoiceActivityTracker,
+  audioFileExtensionForMimeType,
+  isChunkViable,
+} from "./audioProcessing.ts";
 
 // ─── existing tests ───────────────────────────────────────────────────────────
 
@@ -163,5 +167,39 @@ test("vadThreshold forwarded in message falls back to 0.012 when absent", () => 
     withoutThreshold.vadThreshold ?? 0.012,
     0.012,
     "missing threshold must default to 0.012",
+  );
+});
+
+test("audio chunks smaller than the default minimum size are rejected", () => {
+  const blob = new Blob(["a".repeat(1000)]);
+
+  assert.equal(isChunkViable(blob), false, "chunks smaller than 5000 bytes must be rejected");
+});
+
+test("audio chunks equal to the default minimum size are accepted", () => {
+  const blob = new Blob(["a".repeat(5000)]);
+
+  assert.equal(isChunkViable(blob), true, "chunks equal to 5000 bytes must be accepted");
+});
+
+test("audio chunks larger than the default minimum size are accepted", () => {
+  const blob = new Blob(["a".repeat(6000)]);
+
+  assert.equal(isChunkViable(blob), true, "chunks larger than 5000 bytes must be accepted");
+});
+
+test("empty audio chunks are rejected", () => {
+  const blob = new Blob([]);
+
+  assert.equal(isChunkViable(blob), false, "empty chunks must be rejected");
+});
+
+test("custom minimum chunk size is respected", () => {
+  const blob = new Blob(["a".repeat(1500)]);
+
+  assert.equal(
+    isChunkViable(blob, 1000),
+    true,
+    "custom minimum size must override the default threshold",
   );
 });

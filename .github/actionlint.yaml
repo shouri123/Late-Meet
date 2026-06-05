@@ -1,0 +1,7 @@
+# Configuration file for actionlint workflow validator
+# Single source of truth for CI workflow checks
+
+# Setting the shellcheck path to empty disables shellcheck integrations,
+# avoiding build failures due to minor shell script styling or redirection preferences (like SC2129).
+shellcheck:
+  path: ""

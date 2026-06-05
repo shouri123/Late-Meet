@@ -1,5 +1,11 @@
-import { getApiCredentials, saveApiCredentials } from "./utils/credentials";
+import {
+  getApiCredentials,
+  saveApiCredentials,
+  unlockCredentials,
+  isUnlocked,
+} from "./utils/credentials";
 import { validateOpenAIKey, validateElevenLabsKey } from "./utils/api.js";
+import { renderStorageDashboard } from "./storageDashboard";
 
 interface Settings {
   summarizationInterval?: number;
@@ -10,6 +16,7 @@ interface Settings {
   decisionDetection?: boolean;
   actionExtraction?: boolean;
   sentimentAnalysis?: boolean;
+  transcriptRefinement?: boolean;
   theme?: "system" | "light" | "dark";
   accent?: string;
   [key: string]: any;
@@ -38,6 +45,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   const settings: Settings = config.settings || {};
 
   // ——— Populate Existing UI Elements ———
+  const versionDisplay = document.getElementById("version-display");
+  if (versionDisplay) {
+    versionDisplay.textContent = chrome.runtime.getManifest().version;
+  }
 
   // VAD threshold slider
   const vadSlider = document.getElementById("vad-threshold") as HTMLInputElement | null;
@@ -71,6 +82,30 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   }
 
+  // Onboarding support: render if requested via query or via button
+  const onboardingRoot = document.getElementById("onboarding-root") as HTMLDivElement | null;
+  const viewOnboardingBtn = document.getElementById("view-onboarding") as HTMLButtonElement | null;
+
+  if (window.location.search.includes("onboarding=1") && onboardingRoot) {
+    const setupView = document.getElementById("setup-view") as HTMLDivElement | null;
+    const mainView = document.getElementById("main-view") as HTMLDivElement | null;
+    if (setupView) setupView.style.display = "none";
+    if (mainView) mainView.style.display = "none";
+    const mod = await import("./onboarding");
+    await mod.renderOnboarding(onboardingRoot);
+    return;
+  }
+
+  viewOnboardingBtn?.addEventListener("click", async () => {
+    if (!onboardingRoot) return;
+    const setupView = document.getElementById("setup-view") as HTMLDivElement | null;
+    const mainView = document.getElementById("main-view") as HTMLDivElement | null;
+    if (setupView) setupView.style.display = "none";
+    if (mainView) mainView.style.display = "none";
+    const mod = await import("./onboarding");
+    await mod.renderOnboarding(onboardingRoot);
+  });
+
   // AI Model
   const aiModelSelect = document.getElementById("ai-model") as HTMLSelectElement | null;
   if (aiModelSelect && settings.aiModel) {
@@ -84,19 +119,25 @@ document.addEventListener("DOMContentLoaded", async () => {
     { id: "decision-toggle", key: "decisionDetection" },
     { id: "action-toggle", key: "actionExtraction" },
     { id: "sentiment-toggle", key: "sentimentAnalysis" },
+    { id: "refinement-toggle", key: "transcriptRefinement" },
   ];
+
+  // Keys that default to off (opt-in features)
+  const defaultOffKeys = new Set(["transcriptRefinement"]);
 
   toggles.forEach((t) => {
     const el = document.getElementById(t.id) as HTMLInputElement | null;
     if (el) {
-      el.checked = settings[t.key] !== false;
+      el.checked = defaultOffKeys.has(t.key) ? settings[t.key] === true : settings[t.key] !== false;
     }
   });
+
+  let selectedAccentColor = settings.accent || "210, 100%, 50%";
 
   // ——— NEW: Theme & Color Initializations ———
   const themeSelect = document.getElementById("theme-select") as HTMLSelectElement | null;
   const currentTheme = settings.theme || "system";
-  const currentAccent = settings.accent || "210, 100%, 50%";
+  const currentAccent = selectedAccentColor;
 
   if (themeSelect) {
     themeSelect.value = currentTheme;
@@ -108,19 +149,24 @@ document.addEventListener("DOMContentLoaded", async () => {
   // Set the active styling on the matching color dot button
   document.querySelectorAll(".color-dot").forEach((dot) => {
     const dotColor = dot.getAttribute("data-color");
-    if (dotColor === currentAccent) {
+    const isActive = dotColor === currentAccent;
+    if (isActive) {
       dot.classList.add("active");
     }
+    dot.setAttribute("aria-pressed", String(isActive));
 
     // Listen for color grid selections to give instant feedback
     dot.addEventListener("click", () => {
-      document.querySelectorAll(".color-dot").forEach((d) => d.classList.remove("active"));
+      document.querySelectorAll(".color-dot").forEach((d) => {
+        d.classList.remove("active");
+        d.setAttribute("aria-pressed", "false");
+      });
       dot.classList.add("active");
+      dot.setAttribute("aria-pressed", "true");
 
       const selectedTheme = (themeSelect?.value as Settings["theme"]) || "system";
-      const selectedAccent =
-        dot.getAttribute("data-color") || settings.accent || currentAccent || "210, 100%, 50%";
-      applyThemePreview(selectedTheme, selectedAccent);
+      selectedAccentColor = dot.getAttribute("data-color") || "210, 100%, 50%";
+      applyThemePreview(selectedTheme, selectedAccentColor);
     });
   });
 
@@ -130,9 +176,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (!selectedTheme) {
       selectedTheme = "system";
     }
-    const activeDot = document.querySelector(".color-dot.active");
-    const selectedAccent = activeDot?.getAttribute("data-color") || "210, 100%, 50%";
-    applyThemePreview(selectedTheme, selectedAccent);
+    applyThemePreview(selectedTheme, selectedAccentColor);
   });
 
   // ——— Toggle password visibility ———
@@ -148,17 +192,89 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   });
 
+  // ——— Passphrase management ———
+  const passphraseInput = document.getElementById("passphrase-input") as HTMLInputElement | null;
+  const passphraseStatus = document.getElementById("passphrase-status");
+  let pendingUnlock: Promise<void> | null = null;
+
+  function updatePassphraseUI() {
+    if (isUnlocked()) {
+      if (passphraseInput) passphraseInput.disabled = true;
+      if (passphraseStatus) {
+        passphraseStatus.className = "passphrase-status status-success";
+        passphraseStatus.textContent = "Unlocked — encryption key is active in memory";
+      }
+    } else {
+      if (passphraseInput) passphraseInput.disabled = false;
+      if (passphraseStatus) {
+        passphraseStatus.className = "passphrase-status status-danger";
+        passphraseStatus.textContent = "Locked — enter passphrase to unlock credential encryption";
+      }
+    }
+  }
+
+  async function handleUnlock() {
+    if (isUnlocked()) return;
+    const passphrase = passphraseInput?.value ?? "";
+    if (!passphrase) {
+      if (passphraseStatus) {
+        passphraseStatus.className = "passphrase-status status-danger";
+        passphraseStatus.textContent = "Please enter a passphrase";
+      }
+      return;
+    }
+    const success = await unlockCredentials(passphrase);
+    if (success) {
+      updatePassphraseUI();
+      // Reload API keys now that we can decrypt
+      const creds = await getApiCredentials();
+      if (openaiKeyInput && creds.openai_api_key) {
+        openaiKeyInput.value = creds.openai_api_key;
+      }
+      if (elevenlabsKeyInput && creds.elevenlabs_api_key) {
+        elevenlabsKeyInput.value = creds.elevenlabs_api_key;
+      }
+    } else if (passphraseStatus) {
+      passphraseStatus.className = "passphrase-status status-danger";
+      passphraseStatus.textContent = "Wrong passphrase — could not decrypt stored credentials";
+    }
+  }
+
+  passphraseInput?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      pendingUnlock = handleUnlock();
+    }
+  });
+  passphraseInput?.addEventListener("blur", () => {
+    pendingUnlock = handleUnlock();
+  });
+
+  updatePassphraseUI();
+
   // ——— Save ———
   document.getElementById("save-btn")?.addEventListener("click", async () => {
     const saveBtn = document.getElementById("save-btn") as HTMLButtonElement;
     const status = document.getElementById("save-status");
 
-    const openaiKey = (document.getElementById("openai-key") as HTMLInputElement)?.value.trim();
-    const elevenlabsKey = (
-      document.getElementById("elevenlabs-key") as HTMLInputElement
-    )?.value.trim();
+    const openaiKey =
+      (document.getElementById("openai-key") as HTMLInputElement | null)?.value.trim() ?? "";
+    const elevenlabsKey =
+      (document.getElementById("elevenlabs-key") as HTMLInputElement | null)?.value.trim() ?? "";
 
-    const originalText = saveBtn.textContent || "Save Settings";
+    const originalText = saveBtn.textContent?.trim() || "Save Settings";
+    if (pendingUnlock) await pendingUnlock;
+    if (!isUnlocked()) {
+      if (status) {
+        status.style.color = "red";
+        status.textContent =
+          "Enter your passphrase above to unlock encryption before saving API keys.";
+        status.classList.add("visible");
+        setTimeout(() => status.classList.remove("visible"), 4000);
+      }
+      return;
+    }
+
     saveBtn.disabled = true;
     saveBtn.textContent = "Validating Keys...";
     try {
@@ -189,10 +305,8 @@ document.addEventListener("DOMContentLoaded", async () => {
           ? 0.012
           : parsedVadThreshold;
 
-      // Grab the active selected color dot element from the document view
-      const activeColorDot = document.querySelector(".color-dot.active");
-
       const newSettings: Settings = {
+        ...settings, // Retain existing unmapped fields
         summarizationInterval: validatedInterval,
         vadThreshold: validatedVadThreshold,
         aiModel: (document.getElementById("ai-model") as HTMLSelectElement)?.value,
@@ -204,14 +318,12 @@ document.addEventListener("DOMContentLoaded", async () => {
         actionExtraction: (document.getElementById("action-toggle") as HTMLInputElement)?.checked,
         sentimentAnalysis: (document.getElementById("sentiment-toggle") as HTMLInputElement)
           ?.checked,
+        transcriptRefinement: (document.getElementById("refinement-toggle") as HTMLInputElement)
+          ?.checked,
 
         // Save theme selections into the global config tree bundle block
         theme: (themeSelect?.value as Settings["theme"]) || "system",
-        accent:
-          activeColorDot?.getAttribute("data-color") ||
-          settings.accent ||
-          currentAccent ||
-          "210, 100%, 50%",
+        accent: selectedAccentColor,
       };
 
       await Promise.all([
@@ -242,4 +354,9 @@ document.addEventListener("DOMContentLoaded", async () => {
       saveBtn.textContent = originalText;
     }
   });
+  // ——— Storage Dashboard ———
+  const storageContainer = document.getElementById("storage-dashboard-container");
+  if (storageContainer) {
+    await renderStorageDashboard(storageContainer);
+  }
 });
