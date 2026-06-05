@@ -107,10 +107,31 @@ function buildBreakdownCard(label: string, bytes: number, total: number, color: 
 function attachEventListeners(container: HTMLElement): void {
   container.querySelectorAll(".storage-delete-btn").forEach((btn) => {
     btn.addEventListener("click", async (e) => {
-      const id = (e.target as HTMLElement).dataset.id!;
-      if (confirm("Delete this meeting's stored data?")) {
+      const target = e.currentTarget as HTMLElement;
+      const id = target.dataset.id;
+      if (!id) return;
+
+      // Show inline confirmation instead of native confirm() dialog
+      if (target.dataset.confirming === "true") {
+        // Second click — confirmed, proceed with deletion
+        target.dataset.confirming = "";
+        target.textContent = "Deleting...";
+        target.setAttribute("disabled", "true");
         await deleteSavedMeetingSession(chrome.storage.local, id);
         await renderStorageDashboard(container);
+      } else {
+        // First click — ask for confirmation
+        target.dataset.confirming = "true";
+        target.textContent = "Confirm?";
+        target.classList.add("confirming");
+        // Reset after 3 seconds if user doesn't confirm
+        setTimeout(() => {
+          if (target.dataset.confirming === "true") {
+            target.dataset.confirming = "";
+            target.textContent = "Delete";
+            target.classList.remove("confirming");
+          }
+        }, 3000);
       }
     });
   });

@@ -32,10 +32,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   function updatePassphraseStatus() {
     if (!passphraseStatus) return;
     if (isUnlocked()) {
-      passphraseStatus.style.color = "#22C55E";
+      passphraseStatus.className = "status-text status-success";
       passphraseStatus.textContent = "Unlocked — encryption key is active";
     } else {
-      passphraseStatus.style.color = "#EF4444";
+      passphraseStatus.className = "status-text status-danger";
       passphraseStatus.textContent = "Locked — enter passphrase to unlock encryption";
     }
   }
@@ -58,7 +58,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       return true;
     }
     if (passphraseStatus) {
-      passphraseStatus.style.color = "#EF4444";
+      passphraseStatus.className = "status-text status-danger";
       passphraseStatus.textContent = "Wrong passphrase — could not decrypt stored credentials";
     }
     return false;
@@ -117,7 +117,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (!errorEl) {
         errorEl = document.createElement("div");
         errorEl.id = "api-key-error";
-        errorEl.style.color = "#EF4444";
+        errorEl.className = "status-text status-danger";
         errorEl.style.fontSize = "11px";
         errorEl.style.marginTop = "6px";
         errorEl.style.textAlign = "left";
@@ -586,7 +586,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             <div class="late-joiner-item">
               <span class="joiner-icon">🚪</span>
               <span class="joiner-name">${escapeHtml(name || "")}</span>
-              <span style="color: #64748B; font-size: 10px;">briefed ✓</span>
+              <span style="color: var(--text-muted); font-size: 10px;">briefed ✓</span>
             </div>
           `,
             )
@@ -645,11 +645,17 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   function shakeElement(el: HTMLElement | null) {
     if (!el) return;
-    el.style.borderColor = "#EF4444";
-    el.style.animation = "shake 0.4s ease";
+    el.classList.add("shake", "border-danger");
     setTimeout(() => {
-      el.style.borderColor = "";
-      el.style.animation = "";
+      el.classList.remove("shake", "border-danger");
     }, 400);
   }
+
+  // ——— Cleanup on popup close ———
+  window.addEventListener("unload", () => {
+    if (durationInterval) {
+      clearInterval(durationInterval as number);
+      durationInterval = null;
+    }
+  });
 });

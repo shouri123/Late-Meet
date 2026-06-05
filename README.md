@@ -632,20 +632,16 @@ git push origin feature/your-feature-name
 
 #### 🟢 Beginner — `level-1`
 
-|                             #                             | Title                                                                                        | Skills  |
-| :-------------------------------------------------------: | :------------------------------------------------------------------------------------------- | :------ |
-| [#402](https://github.com/shouri123/Late-Meet/issues/402) | \[FEATURE\] Handle IndexedDB Connection Cleanup During Database Upgrades                     | General |
-| [#378](https://github.com/shouri123/Late-Meet/issues/378) | \[FEATURE\] Add storage usage insights and session cleanup tools                             | General |
-| [#104](https://github.com/shouri123/Late-Meet/issues/104) | \[FEAT\]: Show live recording duration timer in the popup UI                                 | General |
-|  [#98](https://github.com/shouri123/Late-Meet/issues/98)  | Chore: Add \`.editorconfig\` to maintain consistent coding styles                            | General |
-|  [#73](https://github.com/shouri123/Late-Meet/issues/73)  | Bug: Meeting Time Input Allows Invalid or Past Date/Time Selection Without Proper Validation | General |
+|                             #                             | Title                                                                    | Skills  |
+| :-------------------------------------------------------: | :----------------------------------------------------------------------- | :------ |
+| [#402](https://github.com/shouri123/Late-Meet/issues/402) | \[FEATURE\] Handle IndexedDB Connection Cleanup During Database Upgrades | General |
+| [#378](https://github.com/shouri123/Late-Meet/issues/378) | \[FEATURE\] Add storage usage insights and session cleanup tools         | General |
+| [#104](https://github.com/shouri123/Late-Meet/issues/104) | \[FEAT\]: Show live recording duration timer in the popup UI             | General |
 
 #### 🟡 Intermediate — `level-2`
 
 |                             #                             | Title                                                                                                                                                      | Skills  |
 | :-------------------------------------------------------: | :--------------------------------------------------------------------------------------------------------------------------------------------------------- | :------ |
-| [#420](https://github.com/shouri123/Late-Meet/issues/420) | \[Accessibility\] Improve Keyboard Navigation and Focus Visibility                                                                                         | General |
-| [#419](https://github.com/shouri123/Late-Meet/issues/419) | \[Accessibility\] Respect prefers-reduced-motion for All UI Animations                                                                                     | General |
 | [#418](https://github.com/shouri123/Late-Meet/issues/418) | \[UI\] Improve Responsiveness of Extension Popup Across Different Screen Sizes                                                                             | General |
 | [#412](https://github.com/shouri123/Late-Meet/issues/412) | \[Enhancement\] Add support for Google Meet breakout room transcription                                                                                    | General |
 | [#410](https://github.com/shouri123/Late-Meet/issues/410) | \[Bug\] \`background.ts\` service worker fails to restart after Chrome updates extension                                                                   | General |
@@ -667,39 +663,30 @@ git push origin feature/your-feature-name
 | [#353](https://github.com/shouri123/Late-Meet/issues/353) | \[BUG\] \`storageDashboard.ts\` uses native \`confirm()\` dialog for delete — inconsistent with custom modal UX pattern                                    | General |
 | [#352](https://github.com/shouri123/Late-Meet/issues/352) | 📋 Issue 1: Individual Copy-to-Clipboard Buttons for Action Items and Decisions                                                                            | General |
 | [#350](https://github.com/shouri123/Late-Meet/issues/350) | \[BUG\] Dashboard capture ignores denied microphone permission and still requests mic in offscreen document                                                | General |
-| [#346](https://github.com/shouri123/Late-Meet/issues/346) | \[BUG\] Unscoped participant updates from background Meet tabs can leak late-joiner summaries into the wrong meeting chat                                  | General |
 | [#289](https://github.com/shouri123/Late-Meet/issues/289) | \[BUG\]persistMeetingSession silently discards transcript updates after MV3 service worker restart — duplicate ID guard causes permanent data loss         | General |
 | [#238](https://github.com/shouri123/Late-Meet/issues/238) | \[Security\] \`credentials.ts\` stores API keys in plaintext in chrome.storage.local                                                                       | General |
 | [#236](https://github.com/shouri123/Late-Meet/issues/236) | \[Bug\] \`sessionStorage.ts\` does not handle \`chrome.storage\` quota exceeded errors                                                                     | General |
 | [#212](https://github.com/shouri123/Late-Meet/issues/212) | UI/UX Feature: Implement a Professional Empty States Design System for Dashboard                                                                           | General |
 | [#207](https://github.com/shouri123/Late-Meet/issues/207) | Feature/UX: Add Delete Functionality and Confirmation Modal for Action Items                                                                               | General |
-| [#200](https://github.com/shouri123/Late-Meet/issues/200) | \[FEATURE\] Make dashboard insight sections collapsibl                                                                                                     | General |
+| [#200](https://github.com/shouri123/Late-Meet/issues/200) | \[FEATURE\] Make dashboard insight sections collapsible                                                                                                    | General |
 | [#198](https://github.com/shouri123/Late-Meet/issues/198) | \[FEAT\]: Add one-click copy summary button in side panel                                                                                                  | General |
 | [#138](https://github.com/shouri123/Late-Meet/issues/138) | Feature: Implement One-Click Export to Markdown and PDF for Meeting Summaries & Transcripts                                                                | General |
-| [#134](https://github.com/shouri123/Late-Meet/issues/134) | \`pendingJoiners\` typed as \`any\` but initialized as \`Set\` — snapshot() omits it entirely, causing silent data loss of pending late-joiner state       | General |
 | [#112](https://github.com/shouri123/Late-Meet/issues/112) | \[SEC\]: Implement API key rotation reminders and age tracking                                                                                             | General |
-|  [#92](https://github.com/shouri123/Late-Meet/issues/92)  | \[FEATURE\] Interactive "Catch Me Up" Query - Ask Questions Against the Live Transcript                                                                    | General |
-|  [#45](https://github.com/shouri123/Late-Meet/issues/45)  | \[FEATURE\]: Local API Cost & Token Usage Statistics Tracker Dashboard Widget                                                                              | General |
-|  [#41](https://github.com/shouri123/Late-Meet/issues/41)  | \[BUG\]: Asynchronous Onboarding Key Validation with UX Shaking Feedback                                                                                   | General |
-|  [#11](https://github.com/shouri123/Late-Meet/issues/11)  | \[FEATURE\] Meeting Copilot Enhancements (Templates, Search, History, Shortcuts, Multi-language)                                                           | General |
 
 #### 🔴 Advanced — `level-3`
 
-|                             #                             | Title                                                                                                                                                                                                                        | Skills  |
-| :-------------------------------------------------------: | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------ |
-| [#421](https://github.com/shouri123/Late-Meet/issues/421) | \[BUG\] Saved session history exports omit transcript and timeline data                                                                                                                                                      | General |
-| [#411](https://github.com/shouri123/Late-Meet/issues/411) | \[Performance\] \`speakerAttribution.ts\` allocates new arrays on every audio frame                                                                                                                                          | General |
-| [#408](https://github.com/shouri123/Late-Meet/issues/408) | \[Security\] No integrity validation on meeting data loaded from storage                                                                                                                                                     | General |
-| [#405](https://github.com/shouri123/Late-Meet/issues/405) | \[Performance\] Dashboard renders all past meeting summaries at once without virtualization                                                                                                                                  | General |
-| [#403](https://github.com/shouri123/Late-Meet/issues/403) | \[Security\] Extension stores OpenAI API key in sync storage accessible across devices                                                                                                                                       | General |
-| [#393](https://github.com/shouri123/Late-Meet/issues/393) | \[Performance\] \`audioChunkQueue.ts\` processes audio chunks synchronously blocking the main thread                                                                                                                         | General |
-| [#392](https://github.com/shouri123/Late-Meet/issues/392) | \[Security\] Meeting transcription data sent to external API without transport encryption validation                                                                                                                         | General |
-| [#356](https://github.com/shouri123/Late-Meet/issues/356) | Graceful Error Handling and Actionable UX for Invalid/Expired API Keys                                                                                                                                                       | General |
-| [#346](https://github.com/shouri123/Late-Meet/issues/346) | \[BUG\] Unscoped participant updates from background Meet tabs can leak late-joiner summaries into the wrong meeting chat                                                                                                    | General |
-| [#235](https://github.com/shouri123/Late-Meet/issues/235) | \[Performance\] \`speakerAttribution.ts\` does not debounce speaker detection, causing excessive processing                                                                                                                  | General |
-| [#234](https://github.com/shouri123/Late-Meet/issues/234) | \[Bug\] \`audioProcessing.ts\` does not handle microphone permission denial gracefully                                                                                                                                       | General |
-| [#135](https://github.com/shouri123/Late-Meet/issues/135) | \`utils/prompts.ts\` is entirely dead code (~120 lines) while \`utils/api.ts\` has 3 unused exported functions — \`@openrouter/sdk\` dependency is also unused — overall dead code + unused dependencies bloat the extension | General |
-|  [#47](https://github.com/shouri123/Late-Meet/issues/47)  | \[SECURITY\]: Secure Storage for API Credentials using RAM-Only Session Storage                                                                                                                                              | General |
+|                             #                             | Title                                                                                                                     | Skills  |
+| :-------------------------------------------------------: | :------------------------------------------------------------------------------------------------------------------------ | :------ |
+| [#411](https://github.com/shouri123/Late-Meet/issues/411) | \[Performance\] \`speakerAttribution.ts\` allocates new arrays on every audio frame                                       | General |
+| [#408](https://github.com/shouri123/Late-Meet/issues/408) | \[Security\] No integrity validation on meeting data loaded from storage                                                  | General |
+| [#405](https://github.com/shouri123/Late-Meet/issues/405) | \[Performance\] Dashboard renders all past meeting summaries at once without virtualization                               | General |
+| [#403](https://github.com/shouri123/Late-Meet/issues/403) | \[Security\] Extension stores OpenAI API key in sync storage accessible across devices                                    | General |
+| [#393](https://github.com/shouri123/Late-Meet/issues/393) | \[Performance\] \`audioChunkQueue.ts\` processes audio chunks synchronously blocking the main thread                      | General |
+| [#392](https://github.com/shouri123/Late-Meet/issues/392) | \[Security\] Meeting transcription data sent to external API without transport encryption validation                      | General |
+| [#356](https://github.com/shouri123/Late-Meet/issues/356) | Graceful Error Handling and Actionable UX for Invalid/Expired API Keys                                                    | General |
+| [#346](https://github.com/shouri123/Late-Meet/issues/346) | \[BUG\] Unscoped participant updates from background Meet tabs can leak late-joiner summaries into the wrong meeting chat | General |
+| [#235](https://github.com/shouri123/Late-Meet/issues/235) | \[Performance\] \`speakerAttribution.ts\` does not debounce speaker detection, causing excessive processing               | General |
+| [#234](https://github.com/shouri123/Late-Meet/issues/234) | \[Bug\] \`audioProcessing.ts\` does not handle microphone permission denial gracefully                                    | General |
 
 </div>
 <!-- END_ISSUE_TABLES -->

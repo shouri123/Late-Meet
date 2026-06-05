@@ -461,6 +461,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     } else {
       if (statusDot) statusDot.classList.remove("active");
       if (statusText) statusText.textContent = "No active meeting";
+      setAudioBtnActive(false);
       if (timerInterval) {
         window.clearInterval(timerInterval);
         timerInterval = null;
@@ -908,51 +909,79 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   // ——— Live Transcript ———
+  let renderedTranscriptCount = 0;
+
+  function createTranscriptEntryHTML(entry: TranscriptEntry): string {
+    const timeStr = escapeHtml(entry.timestampLabel || formatDuration(entry.timestamp || 0));
+    const speaker = escapeHtml(entry.speaker || "Unknown");
+    const initials = speaker
+      .split(" ")
+      .filter(Boolean)
+      .map((w) => w[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
+    const isAudio = (entry.speaker || "") === "Audio";
+    const text = escapeHtml(entry.text || "");
+    const chunkId = entry.id ? `transcript-${escapeHtml(entry.id)}` : "";
+
+    return `
+      <div id="${chunkId}" class="transcript-entry ${isAudio ? "audio-source" : ""}">
+        <div class="transcript-time">${timeStr}</div>
+        <div class="transcript-avatar">${isAudio ? "🎙" : initials}</div>
+        <div class="transcript-body">
+          <div class="transcript-speaker">${speaker}</div>
+          <div class="transcript-text">${text}</div>
+        </div>
+      </div>
+    `;
+  }
+
   function updateTranscript(transcript: TranscriptEntry[]) {
     if (!transcriptContainer) return;
 
     if (!transcript || transcript.length === 0) {
       transcriptContainer.innerHTML =
         '<div class="empty-msg">No transcript yet. Start audio to begin capturing speech.</div>';
-
+      renderedTranscriptCount = 0;
       resetTranscriptSearchState();
-
       return;
     }
 
-    transcriptContainer.innerHTML = transcript
-      .map((entry) => {
-        const timeStr = escapeHtml(entry.timestampLabel || formatDuration(entry.timestamp || 0));
-        const speaker = escapeHtml(entry.speaker || "Unknown");
-        const initials = speaker
-          .split(" ")
-          .filter(Boolean)
-          .map((w) => w[0])
-          .join("")
-          .toUpperCase()
-          .slice(0, 2);
-        const isAudio = (entry.speaker || "") === "Audio";
-        const text = escapeHtml(entry.text || "");
-        const chunkId = entry.id ? `transcript-${escapeHtml(entry.id)}` : "";
+    // If the transcript shrunk (e.g., session reset), do a full re-render
+    if (transcript.length < renderedTranscriptCount) {
+      renderedTranscriptCount = 0;
+      transcriptContainer.innerHTML = "";
+    }
 
-        return `
-        <div id="${chunkId}" class="transcript-entry ${isAudio ? "audio-source" : ""}">
-          <div class="transcript-time">${timeStr}</div>
-          <div class="transcript-avatar">${isAudio ? "🎙" : initials}</div>
-          <div class="transcript-body">
-            <div class="transcript-speaker">${speaker}</div>
-            <div class="transcript-text">${text}</div>
-          </div>
-        </div>
-      `;
-      })
-      .join("");
+    // Only render new entries that haven't been rendered yet
+    if (transcript.length > renderedTranscriptCount) {
+      // Remove empty message if present
+      const emptyMsg = transcriptContainer.querySelector(".empty-msg");
+      if (emptyMsg) emptyMsg.remove();
 
-    if (searchInput?.value.trim()) {
-      executeTranscriptSearch(true);
-    } else {
-      transcriptContainer.scrollTop = transcriptContainer.scrollHeight;
-      updateTranscriptSearchControls();
+      const newEntries = transcript.slice(renderedTranscriptCount);
+      const fragment = document.createDocumentFragment();
+      const wrapper = document.createElement("div");
+      wrapper.innerHTML = newEntries.map((e) => createTranscriptEntryHTML(e)).join("");
+      while (wrapper.firstChild) {
+        fragment.appendChild(wrapper.firstChild);
+      }
+      transcriptContainer.appendChild(fragment);
+      renderedTranscriptCount = transcript.length;
+
+      if (searchInput?.value.trim()) {
+        executeTranscriptSearch(true);
+      } else {
+        // Auto-scroll only if user is near the bottom
+        const isNearBottom =
+          transcriptContainer.scrollHeight - transcriptContainer.scrollTop <=
+          transcriptContainer.clientHeight + 80;
+        if (isNearBottom) {
+          transcriptContainer.scrollTop = transcriptContainer.scrollHeight;
+        }
+        updateTranscriptSearchControls();
+      }
     }
   }
 
@@ -1068,6 +1097,87 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     return md;
+  }
+
+  function generatePlainText(state: State): string {
+    const dateVal = state.savedAt || state.startTime || Date.now();
+    const date = new Date(dateVal).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+
+    const duration = (state as State & { duration?: number }).duration || 0;
+    let txt = `Meeting Summary — ${date}\n\n`;
+    txt += `Meeting ID: ${state.meetingId || "N/A"}\n`;
+    txt += `Duration: ${formatDuration(duration)}\n`;
+    txt += `Sentiment: ${state.sentiment || "neutral"}\n\n`;
+
+    txt += `Attendees\n`;
+    if (state.participants?.length) {
+      txt += state.participants.map((p) => `  • ${p}`).join("\n") + "\n\n";
+    } else {
+      txt += `  (No participants detected)\n\n`;
+    }
+
+    txt += `Summary\n`;
+    txt += `  ${state.summary || "(No summary available)"}\n\n`;
+
+    txt += `Action Items\n`;
+    if (state.actionItems?.length) {
+      const sessionMeetingId = state.meetingId || "unknown";
+      state.actionItems.forEach((a: ActionItem) => {
+        const task = resolveActionKey(a);
+        if (!task) return;
+        const statusKey = buildActionStatusKey(sessionMeetingId, task);
+        const done = actionStatuses.get(statusKey) === true;
+        txt += done ? `  [done] ${task}` : `  [ ] ${task}`;
+        if (a.owner) txt += ` — ${a.owner}`;
+        if (a.deadline) txt += ` (due: ${a.deadline})`;
+        txt += "\n";
+      });
+      txt += "\n";
+    } else {
+      txt += `  (No action items)\n\n`;
+    }
+
+    txt += `Key Decisions\n`;
+    if (state.decisions?.length) {
+      state.decisions.forEach((d: Decision) => {
+        const byStr = d.by ? " — " + d.by : "";
+        txt += `  • ${d.text}${byStr}\n`;
+      });
+      txt += "\n";
+    } else {
+      txt += `  (No decisions recorded)\n\n`;
+    }
+
+    txt += `Topics Covered\n`;
+    if (state.topics?.length) {
+      state.topics.forEach((t: Topic) => {
+        txt += `  • ${t.name} (${t.status})\n`;
+      });
+      txt += "\n";
+    } else {
+      txt += `  (No topics detected)\n\n`;
+    }
+
+    txt += `Key Insights\n`;
+    if (state.keyInsights?.length) {
+      state.keyInsights
+        .filter((i) => i != null)
+        .forEach((insight: KeyInsight | string | null | undefined) => {
+          const text = typeof insight === "string" ? insight : insight?.text || "";
+          if (text) {
+            txt += `  • ${text}\n`;
+          }
+        });
+      txt += "\n";
+    } else {
+      txt += `  (No insights available)\n\n`;
+    }
+
+    return txt;
   }
 
   let exportToastTimer: number | null = null;
@@ -1194,7 +1304,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     try {
       const state = await chrome.runtime.sendMessage({ type: "GET_STATE" });
       if (!state) throw new Error("No meeting data available");
-      const textContent = generateMarkdown(state);
+      const textContent = generatePlainText(state);
       const filename = `meeting-summary-${new Date().toISOString().slice(0, 10)}.txt`;
       downloadFile(textContent, filename, "text/plain");
       showToast("Downloaded as .txt file", "success");

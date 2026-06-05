@@ -5,6 +5,7 @@
   "description": "AI meeting copilot for Google Meet with local-first transcription and summaries",
   "permissions": [
     "storage",
+    "unlimitedStorage",
     "tabs",
     "tabCapture",
     "contextMenus",
@@ -42,15 +43,15 @@
   "commands": {
     "toggle-recording": {
       "suggested_key": {
-        "default": "Ctrl+Shift+S",
-        "mac": "Command+Shift+S"
+        "default": "Alt+Shift+R",
+        "mac": "MacCtrl+Shift+R"
       },
       "description": "Start/Stop Copilot recording"
     },
     "open-side-panel": {
       "suggested_key": {
-        "default": "Ctrl+Shift+P",
-        "mac": "Command+Shift+P"
+        "default": "Alt+Shift+L",
+        "mac": "MacCtrl+Shift+L"
       },
       "description": "Open the Late-Meet side panel"
     },

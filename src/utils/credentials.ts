@@ -56,6 +56,17 @@ async function deriveKeyFromPassphrase(passphrase: string, salt: ArrayBuffer): P
 // Public API: passphrase management
 // ---------------------------------------------------------------------------
 
+/** Auto-lock timeout: clear the derived key after 30 minutes of inactivity. */
+const AUTO_LOCK_TIMEOUT_MS = 30 * 60 * 1000;
+let autoLockTimer: ReturnType<typeof setTimeout> | null = null;
+
+function resetAutoLockTimer() {
+  if (autoLockTimer) clearTimeout(autoLockTimer);
+  autoLockTimer = setTimeout(() => {
+    lockCredentials();
+  }, AUTO_LOCK_TIMEOUT_MS);
+}
+
 export function isUnlocked(): boolean {
   return derivedKey !== null;
 }
@@ -81,17 +92,23 @@ export async function unlockCredentials(passphrase: string): Promise<boolean> {
       }
     }
     derivedKey = key;
+    resetAutoLockTimer();
     return true;
   }
 
   const salt = crypto.getRandomValues(new Uint8Array(SALT_LENGTH));
   await chrome.storage.local.set({ [SALT_STORAGE_KEY]: arrayBufferToBase64(salt.buffer) });
   derivedKey = await deriveKeyFromPassphrase(passphrase, salt.buffer);
+  resetAutoLockTimer();
   return true;
 }
 
 export function lockCredentials(): void {
   derivedKey = null;
+  if (autoLockTimer) {
+    clearTimeout(autoLockTimer);
+    autoLockTimer = null;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -178,6 +195,9 @@ function unmarkEncrypted(data: Record<string, unknown>): ApiCredentials {
 // ---------------------------------------------------------------------------
 
 export async function getApiCredentials(): Promise<ApiCredentials> {
+  // Reset auto-lock timer on credential access (extends timeout on activity)
+  if (derivedKey) resetAutoLockTimer();
+
   const [sessionCredentials, localCredentials] = await Promise.all([
     chrome.storage.session.get(CREDENTIAL_KEYS),
     chrome.storage.local.get(CREDENTIAL_KEYS),
@@ -251,12 +271,4 @@ export async function saveApiCredentials(credentials: ApiCredentials): Promise<v
       chrome.storage.local.remove(removeKeys),
     ]);
   }
-}
-
-// Credentials key encryption/obscurity helpers
-export function obscureApiKey(key: string): string {
-  return btoa(key).split("").reverse().join("");
-}
-export function deobscureApiKey(val: string): string {
-  return atob(val.split("").reverse().join(""));
 }

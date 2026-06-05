@@ -1,4 +1,4 @@
-import { getSavedMeetingSessions } from "../sessionStorage";
+import { getSavedMeetingSession, getSavedMeetingSessions } from "../sessionStorage";
 import { StorageStats, MeetingStorageInfo } from "../types";
 
 const DEFAULT_QUOTA_BYTES = 10 * 1024 * 1024; // 10MB — chrome.storage.local default
@@ -15,8 +15,12 @@ export function formatBytes(bytes: number): string {
 }
 
 export async function getStorageStats(): Promise<StorageStats> {
-  // Reuse the existing helper to get all saved sessions
-  const sessions = await getSavedMeetingSessions(chrome.storage.local);
+  const sessionListItems = await getSavedMeetingSessions(chrome.storage.local);
+  const sessions = await Promise.all(
+    sessionListItems.map(async (session) => {
+      return (await getSavedMeetingSession(chrome.storage.local, session.id)) ?? session;
+    }),
+  );
 
   // Get everything in local storage to also measure settings + API keys
   const allItems = await chrome.storage.local.get(null);
