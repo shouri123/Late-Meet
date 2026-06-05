@@ -2,12 +2,12 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Settings — AI Meeting Copilot</title>
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
-      rel="stylesheet"
-    />
+    <link rel="stylesheet" href="fonts/fonts.css" />
     <link rel="stylesheet" href="options.css" />
+    <link rel="stylesheet" href="storageDashboard.css" />
+    <link rel="stylesheet" href="onboarding.css" />
   </head>
   <body>
     <div class="options-container">
@@ -45,6 +45,12 @@
           <p class="options-subtitle">Settings & Configuration</p>
         </div>
       </header>
+      <div id="onboarding-root" hidden></div>
+      <div class="options-actions">
+        <button id="view-onboarding" class="btn" aria-label="View onboarding">
+          View Onboarding
+        </button>
+      </div>
       <!-- Theme Section-->
       <div class="options-section">
         <div class="section-title">
@@ -134,6 +140,67 @@
         </div>
       </div>
 
+      <!-- Encryption Passphrase Section -->
+      <section class="options-section">
+        <h2 class="section-title">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            class="lucide lucide-lock"
+          >
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+          </svg>
+          Encryption Passphrase
+        </h2>
+        <div class="form-group">
+          <label class="form-label" for="passphrase-input">Passphrase</label>
+          <p class="form-hint">
+            Required to encrypt API keys at rest. Enter it each browser session to unlock.
+          </p>
+          <div class="input-row">
+            <input
+              type="password"
+              id="passphrase-input"
+              class="form-input"
+              placeholder="Enter encryption passphrase..."
+            />
+            <button
+              class="toggle-vis"
+              data-target="passphrase-input"
+              aria-label="Toggle passphrase visibility"
+              title="Show/Hide Passphrase"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="lucide lucide-eye"
+              >
+                <path
+                  d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"
+                />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+            </button>
+          </div>
+          <div id="passphrase-status" class="form-hint" style="margin-top: 8px"></div>
+        </div>
+      </section>
+
       <!-- API Keys Section -->
       <section class="options-section">
         <h2 class="section-title">
@@ -161,7 +228,12 @@
           <p class="form-hint">Required for AI summarization</p>
           <div class="input-row">
             <input type="password" id="openai-key" class="form-input" placeholder="sk-..." />
-            <button class="toggle-vis" data-target="openai-key">
+            <button
+              class="toggle-vis"
+              data-target="openai-key"
+              aria-label="Toggle API key visibility"
+              title="Show/Hide Key"
+            >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 width="16"
@@ -188,7 +260,12 @@
           <p class="form-hint">Required for Speech-to-Text transcription</p>
           <div class="input-row">
             <input type="password" id="elevenlabs-key" class="form-input" placeholder="sk_..." />
-            <button class="toggle-vis" data-target="elevenlabs-key">
+            <button
+              class="toggle-vis"
+              data-target="elevenlabs-key"
+              aria-label="Toggle API key visibility"
+              title="Show/Hide Key"
+            >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 width="16"
@@ -359,9 +436,46 @@
               <span class="toggle-slider"></span>
             </label>
           </div>
+
+          <div class="toggle-item">
+            <div>
+              <div class="toggle-label">Transcript Refinement</div>
+              <div class="toggle-hint">
+                Use AI to clean up filler words and correct transcription errors (uses an additional
+                API call per audio chunk)
+              </div>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="refinement-toggle" aria-label="Transcript Refinement" />
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
         </div>
       </section>
-
+      <!-- Storage Section -->
+      <section class="options-section">
+        <h2 class="section-title">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            class="lucide lucide-database"
+          >
+            <ellipse cx="12" cy="5" rx="9" ry="3" />
+            <path d="M3 5V19A9 3 0 0 0 21 19V5" />
+            <path d="M3 12A9 3 0 0 0 21 12" />
+          </svg>
+          Storage
+        </h2>
+        <p class="form-hint">View and manage local storage used by Late Meet.</p>
+        <div id="storage-dashboard-container"></div>
+      </section>
       <!-- Save Button -->
       <div class="save-section">
         <button id="save-btn" class="save-btn">
@@ -391,7 +505,7 @@
       </div>
 
       <footer class="options-footer">
-        <p>AI Meeting Copilot v1.0.0 — Built with Precision</p>
+        <p>AI Meeting Copilot v<span id="version-display">1.1.0</span> — Built with Precision</p>
       </footer>
     </div>
 

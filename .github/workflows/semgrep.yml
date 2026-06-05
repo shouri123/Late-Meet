@@ -1,0 +1,37 @@
+name: Semgrep Scan
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "0 0 * * *"
+
+permissions:
+  contents: read
+
+jobs:
+  semgrep:
+    name: Scan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v4.4.4
+        with:
+          persist-credentials: false
+
+      - name: Run Semgrep Scan
+        run: |
+          docker run --rm -v ${{ github.workspace }}:/src returntocorp/semgrep:1.163.0 semgrep scan --sarif --output=semgrep.sarif --config=p/security-audit --config=p/secrets --config=p/javascript
+
+      - name: Upload SARIF result to the GitHub Security Dashboard
+        uses: github/codeql-action/upload-sarif@dc73d59c2d7bd4f8194098a91219eeee6d8a1719 # v4
+        with:
+          sarif_file: semgrep.sarif
+        if: always()

@@ -1,7 +1,4 @@
 import { VoiceActivityTracker, isChunkViable } from "./audioProcessing";
-import { initTheme } from "./theme.js";
-
-initTheme();
 
 let mediaStream: MediaStream | null = null;
 let microphoneStream: MediaStream | null = null;
@@ -18,7 +15,10 @@ let isStopping = false;
 let isDrainingQueue = false;
 
 const VAD_SAMPLE_MS = 250;
-const WAVEFORM_INTERVAL_MS = 50;
+// Increased from 50ms (20x/sec) to 100ms (10x/sec)
+// to reduce unnecessary service worker wake-ups
+// and chrome.runtime.sendMessage calls
+const WAVEFORM_INTERVAL_MS = 100;
 const WAVEFORM_BUCKETS = 32;
 const WAVEFORM_GAIN = 6;
 const SILENCE_FLUSH_MS = 1500;
@@ -186,11 +186,15 @@ async function postChunk(blob: Blob) {
   relay(`sending chunk — ${blob.size} bytes  mimeType=${mimeType}`);
 
   try {
-    await chrome.runtime.sendMessage({
+    const response = await chrome.runtime.sendMessage({
       type: "OFFSCREEN_AUDIO_CHUNK",
       audioBase64,
       mimeType,
     });
+
+    if (!response?.success) {
+      relay(`chunk rejected by background — ${response?.error || "unknown error"}`);
+    }
   } catch (err) {
     console.error("[LateMeet][offscreen] Failed to send chunk:", err);
   }
@@ -332,6 +336,13 @@ async function startCapture(
         await stopCapture();
       } catch (err) {
         console.error("[LateMeet][offscreen] Cleanup after track end failed:", err);
+      } finally {
+        await chrome.runtime
+          .sendMessage({
+            type: "UNEXPECTED_TRACK_END",
+            reason: "Track ended unexpectedly (tab closed or mic disconnected)",
+          })
+          .catch(() => {});
       }
     };
   });

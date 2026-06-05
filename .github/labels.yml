@@ -1,0 +1,212 @@
+# ============================================================
+# Late-Meet — Centralized Label Configuration
+# ============================================================
+# This file is the SINGLE SOURCE OF TRUTH for all repository labels.
+# Labels defined here are synced to GitHub via the Label Sync workflow.
+# Any label not defined here will NOT be deleted (delete-other-labels: false).
+#
+# To add a new label: Add an entry below and push to main.
+# To rename a label: Use the 'aliases' field to preserve old references.
+# To change a color: Update the 'color' field and push to main.
+# ============================================================
+
+# ─── GitHub Defaults ─────────────────────────────────────────
+- name: bug
+  color: "d73a4a"
+  description: "Something isn't working"
+
+- name: documentation
+  color: "0075ca"
+  description: "Improvements or additions to documentation"
+
+- name: enhancement
+  color: "a2eeef"
+  description: "New feature or request"
+
+- name: "good first issue"
+  color: "7057ff"
+  description: "Good for newcomers"
+
+- name: "help wanted"
+  color: "008672"
+  description: "Extra attention is needed"
+
+- name: duplicate
+  color: "cfd3d7"
+  description: "This issue or pull request already exists"
+
+- name: wontfix
+  color: "ffffff"
+  description: "This will not be worked on"
+
+- name: invalid
+  color: "e4e669"
+  description: "This doesn't seem right"
+
+# ─── Difficulty Levels (GSSoC Scoring) ───────────────────────
+- name: "level:beginner"
+  color: "7057ff"
+  description: "Difficulty level: Beginner (20 pts)"
+
+- name: "level:intermediate"
+  color: "fbca04"
+  description: "Difficulty level: Intermediate (35 pts)"
+
+- name: "level:advanced"
+  color: "e11d48"
+  description: "Difficulty level: Advanced (55 pts)"
+
+# ─── Type Labels ─────────────────────────────────────────────
+- name: "type:bug"
+  color: "d73a4a"
+  description: "Type: Bug Fix (Optional bonus)"
+
+- name: "type:feature"
+  color: "0e8a16"
+  description: "Type: New Feature"
+
+- name: "type:security"
+  color: "b60205"
+  description: "Type: Security (Optional bonus)"
+
+- name: "type:testing"
+  color: "1d76db"
+  description: "Type: Testing (Optional bonus)"
+
+- name: "type:design"
+  color: "c5def5"
+  description: "Type: Design / UI / UX (Optional bonus)"
+
+- name: "type:code"
+  color: "5319e7"
+  description: "Type: Code change"
+
+- name: "type:style"
+  color: "bfd4f2"
+  description: "Type: CSS/Styling change"
+
+- name: "type:ci"
+  color: "fef2c0"
+  description: "Type: CI/CD pipeline"
+
+- name: "type:docs"
+  color: "0075ca"
+  description: "Type: Documentation"
+
+- name: "type:config"
+  color: "e4e669"
+  description: "Type: Configuration change"
+
+- name: "type:test"
+  color: "006b75"
+  description: "Type: Test files"
+
+- name: "type:refactor"
+  color: "d4c5f9"
+  description: "Type: Code refactoring"
+
+- name: "type:perf"
+  color: "ff9f1c"
+  description: "Type: Performance improvement"
+
+# ─── Priority Labels ─────────────────────────────────────────
+- name: "priority:critical"
+  color: "b60205"
+  description: "Priority: Critical — must fix immediately"
+
+- name: "priority:high"
+  color: "d93f0b"
+  description: "Priority: High — fix soon"
+
+- name: "priority:medium"
+  color: "fbca04"
+  description: "Priority: Medium — fix when convenient"
+
+- name: "priority:low"
+  color: "0e8a16"
+  description: "Priority: Low — nice to have"
+
+# ─── Status Labels ───────────────────────────────────────────
+- name: "status:needs-triage"
+  color: "ededed"
+  description: "Status: Needs triage and categorization"
+
+- name: "status:in-progress"
+  color: "fef2c0"
+  description: "Status: Work in progress"
+
+- name: "status:blocked"
+  color: "d73a4a"
+  description: "Status: Blocked by dependency"
+
+- name: "status:needs-review"
+  color: "e99695"
+  description: "Status: Needs code review"
+
+# ─── Component Labels ────────────────────────────────────────
+- name: "component:background"
+  color: "1d76db"
+  description: "Component: Background service worker"
+
+- name: "component:content-script"
+  color: "0075ca"
+  description: "Component: Content script (Meet page)"
+
+- name: "component:popup"
+  color: "c2e0c6"
+  description: "Component: Popup UI"
+
+- name: "component:dashboard"
+  color: "bfd4f2"
+  description: "Component: Dashboard/side panel"
+
+- name: "component:storage"
+  color: "fef2c0"
+  description: "Component: Storage layer"
+
+- name: "component:audio"
+  color: "d4c5f9"
+  description: "Component: Audio processing"
+
+- name: "component:ai"
+  color: "ff9f1c"
+  description: "Component: AI/LLM integration"
+
+- name: "component:manifest"
+  color: "e11d48"
+  description: "Component: Extension manifest"
+
+# ─── Scope Labels ────────────────────────────────────────────
+- name: "scope:mv3"
+  color: "c5def5"
+  description: "Related to Manifest V3 lifecycle"
+
+- name: "scope:privacy"
+  color: "b60205"
+  description: "Related to privacy/data handling"
+
+# ─── Special Labels ──────────────────────────────────────────
+- name: "security-review"
+  color: "b60205"
+  description: "Requires security review before merge"
+
+- name: performance
+  color: "ff9f1c"
+  description: "Performance-related issue or improvement"
+
+- name: "breaking-change"
+  color: "e11d48"
+  description: "Introduces a breaking change"
+
+# ─── GSSoC Labels ────────────────────────────────────────────
+- name: gssoc
+  color: "0e8a16"
+  description: "Official GSSoC contribution issue"
+
+- name: "gssoc:approved"
+  color: "28a745"
+  description: "GSSoC: PR approved and scored"
+
+- name: "gssoc:scored"
+  color: "6f42c1"
+  description: "GSSoC: Points awarded"

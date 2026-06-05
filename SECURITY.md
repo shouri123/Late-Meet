@@ -1,44 +1,42 @@
-# Security Policy
+# Security Policy for Late-Meet
 
-Late Meet is built with a **privacy-first, local-only** architecture. Security is a core design principle, not an afterthought.
+We take the security of Late-Meet very seriously. If you believe you have found a security vulnerability in this project, please report it to us responsibly using the guidelines below.
 
-## Supported Versions
+---
 
-| Version | Supported          |
-| ------- | ------------------ |
-| 1.0.x   | :white_check_mark: |
-| < 1.0   | :x:                |
+## 🛡️ Supported Versions
 
-## BYOK (Bring Your Own Key) Model
+We actively provide security patches for the following versions of Late-Meet:
 
-Late Meet follows a strict BYOK model. Users provide their own API keys for:
+| Version | Supported |
+| :------ | :-------: |
+| 1.2.x   |    Yes    |
+| < 1.2.0 |    No     |
 
-- **ElevenLabs** — Speech-to-text transcription
-- **OpenAI** — Meeting summarization and intelligence
+---
 
-The extension never ships with, stores, or manages API keys on behalf of users beyond their own browser.
+## 📞 Reporting a Vulnerability
 
-## Data Handling
+Please **do not** open public GitHub issues for security vulnerabilities, as this could expose users to potential risks before a patch is available. Instead, please report vulnerabilities via one of the following secure channels:
 
-- **Local storage only**: All meeting data (transcripts, summaries, action items) is stored exclusively in `chrome.storage.local`. No external databases, no cloud sync, no telemetry.
-- **No remote servers**: The extension communicates only with the AI API endpoints you configure (OpenAI, ElevenLabs). No data is sent to any Late Meet server.
-- **Session control**: After each meeting, users can choose to **Save** or **Discard** all session data. Nothing persists without explicit consent.
-- **No user tracking**: No analytics, no usage telemetry, no cookies, no fingerprinting.
+1. **GitHub Private Vulnerability Reporting**: Go to the **Security** tab of this repository on GitHub, click **Vulnerability reporting**, and submit a private report.
+2. **Email**: Send an email describing the vulnerability to the project maintainers.
+   - **Contact Email**: `chakrabortyshouri@gmail.com`
 
-## API Key Storage
+### Please include the following details in your report:
 
-- API keys are stored locally in `chrome.storage.local` within the browser profile.
-- Keys are never transmitted to any server other than the respective API providers (OpenAI, ElevenLabs).
-- Keys are never logged, cached externally, or included in any error reports.
+- A detailed description of the vulnerability and the potential impact.
+- Step-by-step instructions to reproduce the issue (including proof-of-concept scripts or screenshots if applicable).
+- Details of your testing environment (e.g. Chrome browser version, OS version).
 
-## Reporting a Vulnerability
+---
 
-Security is a priority for this project. If you discover a security issue or vulnerability, **please do not open a public issue on GitHub**.
+## ⏱️ Our Disclosure Policy
 
-Instead, responsibly report it privately by emailing us at **chakrabortyshouri@gmail.com**. Please include:
+We follow a Coordinated Vulnerability Disclosure (CVD) process:
 
-- A detailed description of the vulnerability.
-- Steps to reproduce the issue.
-- Any possible mitigation steps or workarounds if you have them.
+- **Initial Response**: We will acknowledge receipt of your report within **48 hours** and provide an initial assessment.
+- **Resolution**: We aim to resolve and release a patch for all verified high-severity vulnerabilities within **30 days** of receipt.
+- **Public Disclosure**: Once a fix is released, we will coordinate public disclosure of the vulnerability with you, giving you full credit for the discovery unless you choose to remain anonymous.
 
-We will acknowledge your email promptly, investigate the issue, and release a fix as soon as possible. We ask that you do not publicly disclose the vulnerability until we have had a chance to issue a patch and notify our users.
+Thank you for helping keep Late-Meet secure!

@@ -2,11 +2,9 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Meeting Dashboard — AI Copilot</title>
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
-      rel="stylesheet"
-    />
+    <link rel="stylesheet" href="fonts/fonts.css" />
     <link rel="stylesheet" href="dashboard.css" />
     <style>
       .icon {
@@ -34,6 +32,7 @@
             stroke-linecap="round"
             stroke-linejoin="round"
             class="icon"
+            aria-hidden="true"
           >
             <circle cx="12" cy="12" r="10"></circle>
             <path d="M8 14s1.5 2 4 2 4-2 4-2"></path>
@@ -63,6 +62,7 @@
             stroke-linejoin="round"
             class="icon"
             style="margin-right: 6px"
+            aria-hidden="true"
           >
             <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
             <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
@@ -75,21 +75,106 @@
     </header>
 
     <!-- Tabs -->
-    <nav class="dash-tabs">
-      <button class="dash-tab active" data-tab="overview">Overview</button>
-      <button class="dash-tab" data-tab="transcript">Transcript</button>
-      <button class="dash-tab" data-tab="topics">Topics</button>
-      <button class="dash-tab" data-tab="decisions">Decisions</button>
-      <button class="dash-tab" data-tab="actions">Actions</button>
-      <button class="dash-tab" data-tab="people">People</button>
-      <button class="dash-tab" data-tab="timeline">Timeline</button>
-      <button class="dash-tab" data-tab="sessions">Sessions</button>
+    <nav class="dash-tabs" role="tablist" aria-label="Dashboard Navigation">
+      <button
+        class="dash-tab active"
+        data-tab="overview"
+        role="tab"
+        id="tab-btn-overview"
+        aria-controls="tab-overview"
+        aria-selected="true"
+        tabindex="0"
+      >
+        Overview
+      </button>
+      <button
+        class="dash-tab"
+        data-tab="transcript"
+        role="tab"
+        id="tab-btn-transcript"
+        aria-controls="tab-transcript"
+        aria-selected="false"
+        tabindex="-1"
+      >
+        Transcript
+      </button>
+      <button
+        class="dash-tab"
+        data-tab="topics"
+        role="tab"
+        id="tab-btn-topics"
+        aria-controls="tab-topics"
+        aria-selected="false"
+        tabindex="-1"
+      >
+        Topics
+      </button>
+      <button
+        class="dash-tab"
+        data-tab="decisions"
+        role="tab"
+        id="tab-btn-decisions"
+        aria-controls="tab-decisions"
+        aria-selected="false"
+        tabindex="-1"
+      >
+        Decisions
+      </button>
+      <button
+        class="dash-tab"
+        data-tab="actions"
+        role="tab"
+        id="tab-btn-actions"
+        aria-controls="tab-actions"
+        aria-selected="false"
+        tabindex="-1"
+      >
+        Actions
+      </button>
+      <button
+        class="dash-tab"
+        data-tab="people"
+        role="tab"
+        id="tab-btn-people"
+        aria-controls="tab-people"
+        aria-selected="false"
+        tabindex="-1"
+      >
+        People
+      </button>
+      <button
+        class="dash-tab"
+        data-tab="timeline"
+        role="tab"
+        id="tab-btn-timeline"
+        aria-controls="tab-timeline"
+        aria-selected="false"
+        tabindex="-1"
+      >
+        Timeline
+      </button>
+      <button
+        class="dash-tab"
+        data-tab="history"
+        role="tab"
+        id="tab-btn-history"
+        aria-controls="tab-history"
+        aria-selected="false"
+        tabindex="-1"
+      >
+        History
+      </button>
     </nav>
 
     <!-- Tab Content -->
     <main class="dash-content">
       <!-- OVERVIEW TAB -->
-      <section id="tab-overview" class="tab-panel active">
+      <section
+        id="tab-overview"
+        class="tab-panel active"
+        role="tabpanel"
+        aria-labelledby="tab-btn-overview"
+      >
         <!-- Audio Waveform Visualizer -->
         <div class="dash-card waveform-card" id="waveform-card">
           <div class="dash-card-head">
@@ -105,6 +190,7 @@
                 stroke-linecap="round"
                 stroke-linejoin="round"
                 class="icon"
+                aria-hidden="true"
               >
                 <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
                 <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
@@ -132,6 +218,7 @@
                 stroke-linecap="round"
                 stroke-linejoin="round"
                 class="icon"
+                aria-hidden="true"
               >
                 <path
                   d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"
@@ -165,6 +252,7 @@
                 stroke-linecap="round"
                 stroke-linejoin="round"
                 class="icon"
+                aria-hidden="true"
               >
                 <circle cx="12" cy="12" r="10"></circle>
                 <circle cx="12" cy="12" r="6"></circle>
@@ -191,6 +279,7 @@
                 stroke-linecap="round"
                 stroke-linejoin="round"
                 class="icon"
+                aria-hidden="true"
               >
                 <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
               </svg>
@@ -211,6 +300,7 @@
                 stroke-linecap="round"
                 stroke-linejoin="round"
                 class="icon"
+                aria-hidden="true"
               >
                 <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
                 <polyline points="22 4 12 14.01 9 11.01"></polyline>
@@ -232,6 +322,7 @@
                 stroke-linecap="round"
                 stroke-linejoin="round"
                 class="icon"
+                aria-hidden="true"
               >
                 <rect width="8" height="4" x="8" y="2" rx="1" ry="1"></rect>
                 <path
@@ -259,6 +350,7 @@
                 stroke-linecap="round"
                 stroke-linejoin="round"
                 class="icon"
+                aria-hidden="true"
               >
                 <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
                 <circle cx="9" cy="7" r="4"></circle>
@@ -286,6 +378,7 @@
                 stroke-linecap="round"
                 stroke-linejoin="round"
                 class="icon"
+                aria-hidden="true"
               >
                 <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
               </svg>
@@ -297,7 +390,9 @@
           </div>
           <div class="sentiment-labels">
             <span>Negative</span>
-            <span id="dash-sentiment-label" style="font-weight: 700; color: #fafafa">Neutral</span>
+            <span id="dash-sentiment-label" style="font-weight: 700; color: var(--text-main)"
+              >Neutral</span
+            >
             <span>Positive</span>
           </div>
         </div>
@@ -317,6 +412,7 @@
                 stroke-linecap="round"
                 stroke-linejoin="round"
                 class="icon"
+                aria-hidden="true"
               >
                 <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
               </svg>
@@ -327,10 +423,8 @@
             <li class="empty-msg">Insights will appear as the conversation progresses</li>
           </ul>
         </div>
-      </section>
 
-      <!-- TOPICS TAB -->
-      <section id="tab-topics" class="tab-panel">
+        <!-- Unresolved Discussions -->
         <div class="dash-card">
           <div class="dash-card-head">
             <span class="dash-card-icon">
@@ -345,6 +439,69 @@
                 stroke-linecap="round"
                 stroke-linejoin="round"
                 class="icon"
+                aria-hidden="true"
+              >
+                <circle cx="12" cy="12" r="10"></circle>
+                <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                <line x1="12" x2="12.01" y1="17" y2="17"></line>
+              </svg>
+            </span>
+            <span class="dash-card-title">Unresolved Discussions</span>
+          </div>
+          <ul id="dash-unresolved-list" class="insight-list">
+            <li class="empty-msg">No unresolved discussions yet</li>
+          </ul>
+        </div>
+
+        <!-- Contradictions -->
+        <div class="dash-card">
+          <div class="dash-card-head">
+            <span class="dash-card-icon">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="icon"
+                aria-hidden="true"
+              >
+                <path
+                  d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"
+                ></path>
+                <line x1="12" x2="12" y1="9" y2="13"></line>
+                <line x1="12" x2="12.01" y1="17" y2="17"></line>
+              </svg>
+            </span>
+            <span class="dash-card-title">Contradictions</span>
+          </div>
+          <ul id="dash-contradictions-list" class="insight-list">
+            <li class="empty-msg">No contradictions detected</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- TOPICS TAB -->
+      <section id="tab-topics" class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-topics">
+        <div class="dash-card">
+          <div class="dash-card-head">
+            <span class="dash-card-icon">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="icon"
+                aria-hidden="true"
               >
                 <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
               </svg>
@@ -358,7 +515,12 @@
       </section>
 
       <!-- DECISIONS TAB -->
-      <section id="tab-decisions" class="tab-panel">
+      <section
+        id="tab-decisions"
+        class="tab-panel"
+        role="tabpanel"
+        aria-labelledby="tab-btn-decisions"
+      >
         <div class="dash-card">
           <div class="dash-card-head">
             <span class="dash-card-icon">
@@ -373,6 +535,7 @@
                 stroke-linecap="round"
                 stroke-linejoin="round"
                 class="icon"
+                aria-hidden="true"
               >
                 <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
                 <polyline points="22 4 12 14.01 9 11.01"></polyline>
@@ -387,7 +550,7 @@
       </section>
 
       <!-- ACTIONS TAB -->
-      <section id="tab-actions" class="tab-panel">
+      <section id="tab-actions" class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-actions">
         <div class="dash-card">
           <div class="dash-card-head">
             <span class="dash-card-icon">
@@ -402,6 +565,7 @@
                 stroke-linecap="round"
                 stroke-linejoin="round"
                 class="icon"
+                aria-hidden="true"
               >
                 <rect width="8" height="4" x="8" y="2" rx="1" ry="1"></rect>
                 <path
@@ -422,7 +586,7 @@
       </section>
 
       <!-- PEOPLE TAB -->
-      <section id="tab-people" class="tab-panel">
+      <section id="tab-people" class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-people">
         <div class="dash-card">
           <div class="dash-card-head">
             <span class="dash-card-icon">
@@ -437,6 +601,7 @@
                 stroke-linecap="round"
                 stroke-linejoin="round"
                 class="icon"
+                aria-hidden="true"
               >
                 <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
                 <circle cx="9" cy="7" r="4"></circle>
@@ -464,6 +629,7 @@
                 stroke-linecap="round"
                 stroke-linejoin="round"
                 class="icon"
+                aria-hidden="true"
               >
                 <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path>
                 <polyline points="10 17 15 12 10 7"></polyline>
@@ -477,7 +643,12 @@
       </section>
 
       <!-- TIMELINE TAB -->
-      <section id="tab-timeline" class="tab-panel">
+      <section
+        id="tab-timeline"
+        class="tab-panel"
+        role="tabpanel"
+        aria-labelledby="tab-btn-timeline"
+      >
         <div class="dash-card">
           <div class="dash-card-head">
             <span class="dash-card-icon">
@@ -492,6 +663,7 @@
                 stroke-linecap="round"
                 stroke-linejoin="round"
                 class="icon"
+                aria-hidden="true"
               >
                 <circle cx="12" cy="12" r="10"></circle>
                 <polyline points="12 6 12 12 16 14"></polyline>
@@ -506,7 +678,12 @@
       </section>
 
       <!-- TRANSCRIPT TAB -->
-      <section id="tab-transcript" class="tab-panel">
+      <section
+        id="tab-transcript"
+        class="tab-panel"
+        role="tabpanel"
+        aria-labelledby="tab-btn-transcript"
+      >
         <div class="dash-card glow-card">
           <div class="dash-card-head">
             <span class="dash-card-icon">
@@ -521,6 +698,7 @@
                 stroke-linecap="round"
                 stroke-linejoin="round"
                 class="icon"
+                aria-hidden="true"
               >
                 <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
                 <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
@@ -529,6 +707,121 @@
             </span>
             <span class="dash-card-title">Live Transcript</span>
             <span class="live-indicator"> <span class="live-dot"></span>LIVE </span>
+          </div>
+
+          <!-- Transcript Search Header -->
+          <div class="transcript-search-header" id="transcript-search-bar">
+            <div class="search-input-wrapper">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="icon search-icon"
+                aria-hidden="true"
+              >
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+
+              <input
+                type="search"
+                id="transcript-search-input"
+                class="search-input"
+                placeholder="Search transcript..."
+                autocomplete="off"
+                aria-label="Search transcript"
+              />
+
+              <button
+                id="search-clear"
+                class="search-clear-btn"
+                type="button"
+                title="Clear search"
+                aria-label="Clear transcript search"
+                disabled
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  class="icon"
+                  aria-hidden="true"
+                >
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </button>
+            </div>
+
+            <div class="search-controls">
+              <span id="transcript-search-counter" class="search-counter" aria-live="polite">
+                0/0
+              </span>
+
+              <div class="search-nav-buttons">
+                <button
+                  id="search-prev"
+                  class="search-action-btn"
+                  type="button"
+                  title="Previous match"
+                  aria-label="Previous transcript match"
+                  disabled
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    class="icon"
+                    aria-hidden="true"
+                  >
+                    <polyline points="18 15 12 9 6 15"></polyline>
+                  </svg>
+                </button>
+
+                <button
+                  id="search-next"
+                  class="search-action-btn"
+                  type="button"
+                  title="Next match"
+                  aria-label="Next transcript match"
+                  disabled
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    class="icon"
+                    aria-hidden="true"
+                  >
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                  </svg>
+                </button>
+              </div>
+            </div>
           </div>
           <div class="transcript-info">
             Each entry shows who spoke, what was said, and when. Audio entries are from the Whisper
@@ -539,7 +832,7 @@
           </div>
         </div>
       </section>
-      <section id="tab-sessions" class="tab-panel">
+      <section id="tab-history" class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-history">
         <div class="dash-card">
           <div class="dash-card-head">
             <span class="dash-card-icon">
@@ -554,6 +847,7 @@
                 stroke-linecap="round"
                 stroke-linejoin="round"
                 class="icon"
+                aria-hidden="true"
               >
                 <path
                   d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"
@@ -562,10 +856,10 @@
                 <path d="M7 3v4a1 1 0 0 0 1 1h7"></path>
               </svg>
             </span>
-            <span class="dash-card-title">Saved Sessions</span>
+            <span class="dash-card-title">Meeting History</span>
           </div>
-          <div id="dash-sessions-list" class="sessions-list">
-            <div class="empty-msg">No saved sessions yet</div>
+          <div id="dash-history-list" class="sessions-list">
+            <div class="empty-msg">No history exists yet.</div>
           </div>
         </div>
       </section>
@@ -587,6 +881,7 @@
             stroke-linejoin="round"
             class="icon"
             style="margin-right: 6px"
+            aria-hidden="true"
           >
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
             <polyline points="7 10 12 15 17 10"></polyline>
@@ -608,6 +903,7 @@
               stroke-linecap="round"
               stroke-linejoin="round"
               class="icon"
+              aria-hidden="true"
               style="margin-right: 8px"
             >
               <path
@@ -616,6 +912,29 @@
               <polyline points="14 2 14 8 20 8"></polyline>
             </svg>
             Download .md File
+          </button>
+          <button class="export-option" id="export-txt-btn" role="menuitem">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              class="icon"
+              aria-hidden="true"
+              style="margin-right: 8px"
+            >
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="16" x2="8" y1="13" y2="13"></line>
+              <line x1="16" x2="8" y1="17" y2="17"></line>
+              <line x1="10" x2="8" y1="9" y2="9"></line>
+            </svg>
+            Download .txt File
           </button>
           <button class="export-option" id="export-json-btn" role="menuitem">
             <svg
@@ -630,6 +949,7 @@
               stroke-linejoin="round"
               class="icon"
               style="margin-right: 8px"
+              aria-hidden="true"
             >
               <path
                 d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"
@@ -652,6 +972,7 @@
               stroke-linejoin="round"
               class="icon"
               style="margin-right: 8px"
+              aria-hidden="true"
             >
               <rect width="8" height="4" x="8" y="2" rx="1" ry="1"></rect>
               <path
@@ -665,6 +986,51 @@
 
       <div class="export-toast" id="export-toast" role="status" aria-live="polite"></div>
     </footer>
+
+    <!-- Delete Confirmation Modal -->
+    <div id="delete-confirm-modal" class="modal-overlay hidden">
+      <div class="dash-card modal-content glow-card">
+        <div class="dash-card-head">
+          <span class="dash-card-icon" style="color: #fca5a5">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              class="icon"
+              aria-hidden="true"
+            >
+              <path d="M3 6h18"></path>
+              <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
+              <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
+            </svg>
+          </span>
+          <span class="dash-card-title" style="color: #fca5a5">Delete Session</span>
+        </div>
+        <div class="modal-body">
+          <p>Are you sure you want to delete this session? This action cannot be undone.</p>
+        </div>
+        <div class="modal-actions">
+          <button id="cancel-delete-btn" class="dash-tab">Cancel</button>
+          <button
+            id="confirm-delete-btn"
+            class="session-delete-btn"
+            style="
+              background: rgba(239, 68, 68, 0.15);
+              color: #fca5a5;
+              border-color: rgba(239, 68, 68, 0.3);
+            "
+          >
+            Delete
+          </button>
+        </div>
+      </div>
+    </div>
 
     <script type="module" src="dashboard.ts"></script>
   </body>

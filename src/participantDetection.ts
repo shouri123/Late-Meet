@@ -21,6 +21,11 @@ export interface ParticipantNameCandidate {
   text?: string | null;
 }
 
+const EXCLUDED_REGEXES = Array.from(EXCLUDED_PARTICIPANT_LABELS).map((label) => {
+  const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`\\b${escaped}\\b`, "gi");
+});
+
 function cleanText(value: string): string {
   return value.replace(/\s+/g, " ").trim();
 }
@@ -29,9 +34,7 @@ function stripExcludedLabels(value: string): string {
   let cleaned = cleanText(value);
   if (!cleaned) return "";
 
-  for (const label of EXCLUDED_PARTICIPANT_LABELS) {
-    const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const regex = new RegExp(`\\b${escaped}\\b`, "gi");
+  for (const regex of EXCLUDED_REGEXES) {
     cleaned = cleaned.replace(regex, " ");
   }
 
@@ -48,10 +51,16 @@ export function participantNameFromCandidate(candidate: ParticipantNameCandidate
   const participantAriaName = ariaLabel.startsWith("Participant:")
     ? ariaLabel.replace(/^Participant:\s*/, "")
     : "";
+
   const rawName = selfName || participantAriaName || text;
   const name = cleanText(rawName);
 
-  if (!name || name.length > MAX_PARTICIPANT_NAME_LEN || name.includes("…")) {
+  const maxParticipantNameLength =
+    typeof MAX_PARTICIPANT_NAME_LEN === "number" && Number.isFinite(MAX_PARTICIPANT_NAME_LEN)
+      ? MAX_PARTICIPANT_NAME_LEN
+      : 120;
+
+  if (!name || name.length > maxParticipantNameLength || name.includes("…")) {
     return null;
   }
 
