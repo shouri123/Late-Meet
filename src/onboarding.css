@@ -1,0 +1,51 @@
+.onboard {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.onboard-card {
+  width: 100%;
+  max-width: 720px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-main);
+  border-radius: 8px;
+  padding: 20px;
+}
+.onboard-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 12px;
+}
+.onboard-nav {
+  display: flex;
+  gap: 8px;
+}
+.form-group {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.form-input {
+  padding: 8px;
+  border: 1px solid var(--border-sub);
+  border-radius: 6px;
+}
+.form-note {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.btn {
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border-main);
+  background: transparent;
+  cursor: pointer;
+}
+.btn-primary {
+  background: var(--bg-emphasis);
+  color: var(--text-main);
+  border-color: var(--border-emphasis);
+}

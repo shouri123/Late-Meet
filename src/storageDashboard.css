@@ -154,6 +154,12 @@
   background: var(--color-background-danger);
 }
 
+.storage-delete-btn.confirming {
+  background: var(--color-background-danger);
+  border-color: var(--color-text-danger);
+  font-weight: 600;
+}
+
 .storage-refresh-btn {
   align-self: flex-start;
   font-size: 13px;

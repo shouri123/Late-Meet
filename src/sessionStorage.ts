@@ -82,7 +82,7 @@ async function pruneSessionsForQuota(
   }
 
   // Measure only session-related keys, not all of chrome.storage.local
-  const sessionKeys = [SAVED_SESSION_INDEX_KEY, ...index.map((s) => getSavedSessionKey(s.id))];
+  const sessionKeys = [SAVED_SESSION_INDEX_KEY, ...nextIndex.map((s) => getSavedSessionKey(s.id))];
   let currentBytes = await getBytesInUse(storage, sessionKeys);
   while (
     currentBytes > 0 &&
