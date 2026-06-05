@@ -82,6 +82,30 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   }
 
+  // Onboarding support: render if requested via query or via button
+  const onboardingRoot = document.getElementById("onboarding-root") as HTMLDivElement | null;
+  const viewOnboardingBtn = document.getElementById("view-onboarding") as HTMLButtonElement | null;
+
+  if (window.location.search.includes("onboarding=1") && onboardingRoot) {
+    const setupView = document.getElementById("setup-view") as HTMLDivElement | null;
+    const mainView = document.getElementById("main-view") as HTMLDivElement | null;
+    if (setupView) setupView.style.display = "none";
+    if (mainView) mainView.style.display = "none";
+    const mod = await import("./onboarding");
+    await mod.renderOnboarding(onboardingRoot);
+    return;
+  }
+
+  viewOnboardingBtn?.addEventListener("click", async () => {
+    if (!onboardingRoot) return;
+    const setupView = document.getElementById("setup-view") as HTMLDivElement | null;
+    const mainView = document.getElementById("main-view") as HTMLDivElement | null;
+    if (setupView) setupView.style.display = "none";
+    if (mainView) mainView.style.display = "none";
+    const mod = await import("./onboarding");
+    await mod.renderOnboarding(onboardingRoot);
+  });
+
   // AI Model
   const aiModelSelect = document.getElementById("ai-model") as HTMLSelectElement | null;
   if (aiModelSelect && settings.aiModel) {

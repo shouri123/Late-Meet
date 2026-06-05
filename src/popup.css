@@ -11,7 +11,10 @@
 }
 
 body {
-  width: 380px;
+  /* FLUID RESPONSIVE FIXES */
+  width: 100vw;
+  min-width: 320px;
+  max-width: 420px;
   min-height: 200px;
   max-height: 580px;
   overflow-y: auto;
@@ -685,7 +688,6 @@ body::-webkit-scrollbar-thumb {
     transform 0.3s ease,
     color 0.3s ease;
 }
-
 .dashboard-btn:hover .btn-arrow {
   transform: translate(2px, -2px);
   color: var(--text-main);
@@ -859,4 +861,26 @@ body::-webkit-scrollbar-thumb {
 .session-btn.loading {
   cursor: wait;
   pointer-events: none;
+}
+/* --- RESPONSIVE ADJUSTMENTS FOR HIGH ZOOM LEVELS / SMALL SCREENS --- */
+@media (max-width: 360px) {
+  .stats-row {
+    grid-template-columns: repeat(
+      2,
+      1fr
+    ) !important; /* Stack stats in 2x2 grid instead of crushing 4 columns */
+
+  }
+
+  .duration-text {
+    font-size: 18px !important; /* Scale down heading font sizes smoothly */
+  }
+
+  .setup-container {
+    padding: 24px 16px !important;
+  }
+
+  .session-modal-content {
+    width: 90% !important; /* Prevent popup cards from hard-clipping */
+  }
 }

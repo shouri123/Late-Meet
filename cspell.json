@@ -59,6 +59,7 @@
     "glassmorphism",
     "Supabase",
     "creds",
+    "timeslice",
     "labelledby"
   ],
   "ignorePaths": [

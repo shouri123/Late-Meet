@@ -104,88 +104,35 @@ function buildBreakdownCard(label: string, bytes: number, total: number, color: 
   `;
 }
 
-function showDeleteConfirmModal(container: HTMLElement, sessionId: string): void {
-  // Remove any existing modal
-  container.querySelector(".storage-confirm-modal")?.remove();
-
-  const previouslyFocused = document.activeElement as HTMLElement | null;
-
-  const modal = document.createElement("div");
-  modal.className = "storage-confirm-modal";
-  modal.setAttribute("role", "dialog");
-  modal.setAttribute("aria-modal", "true");
-  modal.setAttribute("aria-labelledby", "storage-confirm-title");
-
-  modal.innerHTML = `
-    <div class="storage-confirm-backdrop"></div>
-    <div class="storage-confirm-content">
-      <h3 id="storage-confirm-title" class="storage-confirm-title">Delete Meeting Data</h3>
-      <p class="storage-confirm-text">Are you sure you want to delete this meeting's stored data? This action cannot be undone.</p>
-      <div class="storage-confirm-actions">
-        <button class="storage-confirm-cancel" type="button">Cancel</button>
-        <button class="storage-confirm-delete" type="button">Delete</button>
-      </div>
-    </div>
-  `;
-
-  container.appendChild(modal);
-
-  const cancelBtn = modal.querySelector(".storage-confirm-cancel") as HTMLButtonElement;
-  const deleteBtn = modal.querySelector(".storage-confirm-delete") as HTMLButtonElement;
-  const backdrop = modal.querySelector(".storage-confirm-backdrop") as HTMLElement;
-
-  function closeModal() {
-    document.removeEventListener("keydown", handleKeydown);
-    modal.remove();
-    previouslyFocused?.focus();
-  }
-
-  function handleKeydown(e: KeyboardEvent) {
-    if (e.key === "Escape") {
-      e.preventDefault();
-      closeModal();
-    }
-    if (e.key === "Tab") {
-      const focusable = [cancelBtn, deleteBtn];
-      const first = focusable[0];
-      const last = focusable.at(-1)!;
-      if (e.shiftKey && document.activeElement === first) {
-        e.preventDefault();
-        last.focus();
-      } else if (!e.shiftKey && document.activeElement === last) {
-        e.preventDefault();
-        first.focus();
-      }
-    }
-  }
-
-  cancelBtn.addEventListener("click", closeModal);
-  backdrop.addEventListener("click", closeModal);
-  document.addEventListener("keydown", handleKeydown);
-
-  deleteBtn.addEventListener("click", async () => {
-    deleteBtn.disabled = true;
-    deleteBtn.textContent = "Deleting...";
-    try {
-      await deleteSavedMeetingSession(chrome.storage.local, sessionId);
-      closeModal();
-      await renderStorageDashboard(container);
-    } catch (err) {
-      console.error("[LateMeet] Failed to delete session:", err);
-      deleteBtn.disabled = false;
-      deleteBtn.textContent = "Delete";
-    }
-  });
-
-  // Focus the cancel button by default (safer action)
-  cancelBtn.focus();
-}
-
 function attachEventListeners(container: HTMLElement): void {
   container.querySelectorAll(".storage-delete-btn").forEach((btn) => {
-    btn.addEventListener("click", (e) => {
-      const id = (e.target as HTMLElement).dataset.id!;
-      showDeleteConfirmModal(container, id);
+    btn.addEventListener("click", async (e) => {
+      const target = e.currentTarget as HTMLElement;
+      const id = target.dataset.id;
+      if (!id) return;
+
+      // Show inline confirmation instead of native confirm() dialog
+      if (target.dataset.confirming === "true") {
+        // Second click — confirmed, proceed with deletion
+        target.dataset.confirming = "";
+        target.textContent = "Deleting...";
+        target.setAttribute("disabled", "true");
+        await deleteSavedMeetingSession(chrome.storage.local, id);
+        await renderStorageDashboard(container);
+      } else {
+        // First click — ask for confirmation
+        target.dataset.confirming = "true";
+        target.textContent = "Confirm?";
+        target.classList.add("confirming");
+        // Reset after 3 seconds if user doesn't confirm
+        setTimeout(() => {
+          if (target.dataset.confirming === "true") {
+            target.dataset.confirming = "";
+            target.textContent = "Delete";
+            target.classList.remove("confirming");
+          }
+        }, 3000);
+      }
     });
   });
 
