@@ -225,6 +225,52 @@ export async function deleteSavedMeetingSession(
   });
 }
 
+export async function deleteMultipleSavedMeetingSessions(
+  storage: StorageArea,
+  sessionIds: string[],
+): Promise<void> {
+  if (!Array.isArray(sessionIds) || sessionIds.length === 0) return;
+
+  const values = await storage.get([SAVED_SESSION_INDEX_KEY, SAVED_SESSIONS_LEGACY_KEY]);
+  const indexedSessions = Array.isArray(values[SAVED_SESSION_INDEX_KEY])
+    ? (values[SAVED_SESSION_INDEX_KEY].map(asStoredSession).filter(Boolean) as StoredSession[])
+    : [];
+  const legacySessions = Array.isArray(values[SAVED_SESSIONS_LEGACY_KEY])
+    ? values[SAVED_SESSIONS_LEGACY_KEY]
+    : [];
+
+  // Remove payload keys
+  const keys = sessionIds.map((id) => getSavedSessionKey(id));
+  await storage.remove(keys);
+
+  // Update index(s)
+  const nextIndex = indexedSessions.filter((s) => !sessionIds.includes(s.id));
+  const nextLegacy = Array.isArray(legacySessions)
+    ? legacySessions.filter((s: Partial<StoredSession>) => !sessionIds.includes(s.id as string))
+    : [];
+
+  await storage.set({
+    [SAVED_SESSION_INDEX_KEY]: nextIndex,
+    [SAVED_SESSIONS_LEGACY_KEY]: nextLegacy,
+  });
+}
+
+export async function deleteAllSavedMeetingSessions(storage: StorageArea): Promise<void> {
+  const values = await storage.get([SAVED_SESSION_INDEX_KEY, SAVED_SESSIONS_LEGACY_KEY]);
+  const indexedSessions = Array.isArray(values[SAVED_SESSION_INDEX_KEY])
+    ? (values[SAVED_SESSION_INDEX_KEY].map(asStoredSession).filter(Boolean) as StoredSession[])
+    : [];
+  const legacySessions = Array.isArray(values[SAVED_SESSIONS_LEGACY_KEY])
+    ? (values[SAVED_SESSIONS_LEGACY_KEY].map(asStoredSession).filter(Boolean) as StoredSession[])
+    : [];
+
+  const allIds = [...indexedSessions, ...legacySessions].map((s) => s.id);
+  const keys = allIds.map((id) => getSavedSessionKey(id));
+  if (keys.length > 0) await storage.remove(keys);
+
+  await storage.set({ [SAVED_SESSION_INDEX_KEY]: [], [SAVED_SESSIONS_LEGACY_KEY]: [] });
+}
+
 // Safe local storage quota wrapper
 export function safeLocalStore(key: string, value: any) {
   try {

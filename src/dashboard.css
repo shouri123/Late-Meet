@@ -957,6 +957,45 @@ body::-webkit-scrollbar-thumb,
   word-break: break-word;
 }
 
+.transcript-highlight {
+  background: rgba(255, 223, 107, 0.2);
+  box-shadow: inset 0 0 0 1px rgba(255, 223, 107, 0.6);
+  transition:
+    background 0.3s ease,
+    box-shadow 0.3s ease;
+}
+
+.timestamp-link {
+  margin-top: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border: 1px solid var(--border-main);
+  border-radius: 999px;
+  background: var(--bg-surface);
+  color: var(--text-muted);
+  font-size: 11px;
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.timestamp-link:hover:not(:disabled) {
+  background: var(--bg-emphasis);
+  border-color: var(--border-emphasis);
+}
+
+.timestamp-link:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.timestamp-text {
+  cursor: default;
+}
+
 /* Export wrapper */
 .export-wrapper {
   position: relative;

@@ -3,8 +3,8 @@ import {
   Topic,
   TranscriptEntry,
   TimelineEvent,
-  Decision,
   ActionItem,
+  Decision,
   KeyInsight,
 } from "./types";
 import { initTheme } from "./theme.js";
