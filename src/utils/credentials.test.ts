@@ -1,4 +1,4 @@
-import test from "node:test";
+import test, { afterEach } from "node:test";
 import assert from "node:assert/strict";
 
 import {
@@ -48,6 +48,10 @@ function setupChromeStorage(sessionInitial: StorageArea = {}, localInitial: Stor
 
   return { session, local };
 }
+
+afterEach(() => {
+  lockCredentials();
+});
 
 test("isUnlocked returns false initially", () => {
   setupChromeStorage();
