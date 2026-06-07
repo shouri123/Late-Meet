@@ -76,23 +76,6 @@ class ApiTransactionManager {
   private paused = false;
 
   constructor() {
-    // Pause the queue while the extension context is offline.
-    self.addEventListener("offline", () => {
-      if (!this.paused) {
-        console.warn("[LateMeet][Queue] Network offline — queue paused");
-        this.paused = true;
-      }
-    });
-
-    // Resume (and immediately flush) when connectivity returns.
-    self.addEventListener("online", () => {
-      if (this.paused) {
-        console.info("[LateMeet][Queue] Network back online — resuming queue");
-        this.paused = false;
-        this.drain();
-      }
-    });
-
     // Re-enqueue any task whose alarm has fired (MV3-safe retry scheduling).
     chrome.alarms.onAlarm.addListener((alarm) => {
       const entry = this.retryingTasks.get(alarm.name);
@@ -117,13 +100,15 @@ class ApiTransactionManager {
   }
 
   private drain() {
-    if (this.processing || this.paused || this.queue.length === 0) return;
+    const isOffline = typeof navigator !== "undefined" && !navigator.onLine;
+    if (this.processing || isOffline || this.queue.length === 0) return;
     this.processing = true;
     this.processNext();
   }
 
   private async processNext() {
-    if (this.paused || this.queue.length === 0) {
+    const isOffline = typeof navigator !== "undefined" && !navigator.onLine;
+    if (isOffline || this.queue.length === 0) {
       this.processing = false;
       return;
     }
@@ -179,6 +164,8 @@ class ApiTransactionManager {
 
   private shouldRetry(err: unknown, attempt: number): boolean {
     if (attempt >= ApiTransactionManager.MAX_RETRIES) return false;
+    const isOffline = typeof navigator !== "undefined" && !navigator.onLine;
+    if (isOffline) return true;
     // Treat network errors (TypeError: failed to fetch) as retryable.
     if (err instanceof TypeError) return true;
     // Honour HTTP status codes embedded in thrown Error messages.
