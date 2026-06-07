@@ -586,7 +586,12 @@ initTheme();
     }
   });
 
-  observer.observe(document.body, { childList: true, subtree: true });
+  function startFloatingButtonObserver() {
+    if (document.getElementById("mc-float-btn")) return;
+    observer.observe(document.body, { childList: true, subtree: true });
+  }
+
+  startFloatingButtonObserver();
 
   function cleanUp() {
     console.log(`${COPILOT_PREFIX} Disconnecting observers and clearing active timers.`);
@@ -605,14 +610,15 @@ initTheme();
       activeSpeakerObserver.disconnect();
       activeSpeakerObserver = null;
     }
+  }
 
-    if (observer) {
-      observer.disconnect();
-    }
+  function destroyAll() {
+    cleanUp();
+    observer.disconnect();
   }
 
   // Hook cleanup to page unload/navigation and visibility change
-  window.addEventListener("beforeunload", cleanUp);
+  window.addEventListener("beforeunload", destroyAll);
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "hidden") {
       // Clear timers and observers when page is backgrounded or inactive to conserve resources
@@ -621,6 +627,11 @@ initTheme();
       // Re-initialize observation when resuming visibility
       startParticipantPolling();
       startActiveSpeakerDetection();
+      if (window.location.pathname.length > 5 && !window.location.pathname.includes("/_")) {
+        injectFloatingButton();
+      } else {
+        startFloatingButtonObserver();
+      }
     }
   });
 
