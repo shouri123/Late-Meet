@@ -23,6 +23,8 @@ const WAVEFORM_BUCKETS = 32;
 const WAVEFORM_GAIN = 6;
 const SILENCE_FLUSH_MS = 1500;
 const MAX_BUFFER_MS = 25000;
+const MAX_PENDING_CHUNKS = 20;
+const DRAIN_TIMEOUT_MS = 30000;
 const SILENCE_FLUSH_TICKS = Math.ceil(SILENCE_FLUSH_MS / VAD_SAMPLE_MS);
 let rmsThreshold = 0.012;
 
@@ -167,7 +169,7 @@ async function flushAudioChunk(force = false) {
       }
     });
 
-    await drainPendingChunks();
+    await drainWithTimeout();
   } finally {
     isFlushInProgress = false;
   }
@@ -200,6 +202,30 @@ async function postChunk(blob: Blob) {
   }
 }
 
+async function drainWithTimeout() {
+  const drainPromise = drainPendingChunks();
+  const timeoutPromise = new Promise<void>((resolve) => {
+    setTimeout(() => {
+      if (pendingChunks.length > 0 || isDrainingQueue) {
+        relay(
+          `drainPendingChunks exceeded ${DRAIN_TIMEOUT_MS}ms timeout — dropping ${pendingChunks.length} remaining chunks and restarting recorder`,
+        );
+        pendingChunks = [];
+        isDrainingQueue = false;
+        if (mediaRecorder?.state === "paused" || mediaRecorder?.state === "recording") {
+          try {
+            mediaRecorder.stop();
+          } catch (e) {
+            console.warn("[LateMeet][offscreen] Failed to stop recorder on drain timeout:", e);
+          }
+        }
+      }
+      resolve();
+    }, DRAIN_TIMEOUT_MS);
+  });
+  await Promise.race([drainPromise, timeoutPromise]);
+}
+
 async function drainPendingChunks() {
   if (isDrainingQueue) return;
 
@@ -215,6 +241,14 @@ async function drainPendingChunks() {
     }
   } finally {
     isDrainingQueue = false;
+    if (mediaRecorder?.state === "paused") {
+      relay("pendingChunks drained, resuming recording");
+      try {
+        mediaRecorder.resume();
+      } catch (e) {
+        console.warn("[LateMeet][offscreen] Failed to resume recorder:", e);
+      }
+    }
   }
 }
 
@@ -429,6 +463,14 @@ async function startCapture(
 
     if (event.data && event.data.size > 0) {
       pendingChunks.push(event.data);
+      if (pendingChunks.length >= MAX_PENDING_CHUNKS && mediaRecorder?.state === "recording") {
+        relay(`pendingChunks cap reached (${MAX_PENDING_CHUNKS}), pausing recording`);
+        try {
+          mediaRecorder.pause();
+        } catch (e) {
+          console.warn("[LateMeet][offscreen] Failed to pause recorder:", e);
+        }
+      }
     }
   });
 
@@ -453,7 +495,7 @@ async function startCapture(
   bufferStartTime = Date.now();
 
   vadTimer = setInterval(async () => {
-    if (isStopping || isVadBusy) return;
+    if (isStopping || isVadBusy || isDrainingQueue) return;
 
     isVadBusy = true;
 

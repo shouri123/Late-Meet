@@ -298,6 +298,18 @@ async function hydrateState() {
 // This state is discarded on service worker suspension and not restored.
 const pendingJoinersInFlight = new Set<string>();
 
+interface PerTabParticipantState {
+  participants: string[];
+  initialParticipants: string[];
+  lateJoiners: string[];
+  participantCount: number;
+}
+
+// Per-tab participant state to prevent cross-contamination when multiple
+// Google Meet tabs are open. Each tab's polling loop updates its own entry.
+// Discarded on service worker suspension; re-initialized from global state.
+const perTabParticipants = new Map<number, PerTabParticipantState>();
+
 /** Securely checks whether a URL belongs to meet.google.com using URL parsing (not substring matching). */
 function isMeetHostname(url: string | null | undefined): boolean {
   if (!url) return false;
@@ -340,6 +352,7 @@ function resetState() {
   state.targetTabId = null;
   state.lastSummarizedAt = 0;
   pendingJoinersInFlight.clear();
+  perTabParticipants.clear();
   audioChunkQueue.clear();
   state.participantCount = 0;
   selfParticipantName = null;
@@ -1023,36 +1036,46 @@ const audioChunkQueue = new AudioChunkQueue<QueuedAudioChunk>({
     addTimeline(`Audio chunk ${id} processing failed`);
     await broadcastStateUpdate();
   },
+  onDrain: () => {
+    chrome.runtime.sendMessage({ type: "OFFSCREEN_RESUME_RECORDING" }).catch(() => {});
+  },
 });
 
-function detectNewJoiners(currentList: string[]) {
-  if (state.participants.length === 0 && state.initialParticipants.length === 0) {
-    state.initialParticipants = [...currentList];
-    state.participants = [...currentList];
-    state.participantCount = currentList.length > 0 ? currentList.length : 1;
+function detectNewJoiners(currentList: string[], tabId: number): string[] {
+  let tabState = perTabParticipants.get(tabId);
+
+  if (!tabState) {
+    tabState = { participants: [], initialParticipants: [], lateJoiners: [], participantCount: 0 };
+    perTabParticipants.set(tabId, tabState);
+  }
+
+  if (tabState.participants.length === 0 && tabState.initialParticipants.length === 0) {
+    tabState.initialParticipants = [...currentList];
+    tabState.participants = [...currentList];
+    tabState.participantCount = currentList.length > 0 ? currentList.length : 1;
     return [];
   }
 
   const hasPlaceholderOnly =
-    (state.initialParticipants.length === 0 ||
-      (state.initialParticipants.length === 1 && state.initialParticipants[0] === "You")) &&
-    state.participants.length === 1 &&
-    state.participants[0] === "You";
+    (tabState.initialParticipants.length === 0 ||
+      (tabState.initialParticipants.length === 1 && tabState.initialParticipants[0] === "You")) &&
+    tabState.participants.length === 1 &&
+    tabState.participants[0] === "You";
 
   if (hasPlaceholderOnly) {
     const next = Array.isArray(currentList) ? currentList : [];
     if (next.length > 0 && !(next.length === 1 && next[0] === "You")) {
-      state.initialParticipants = [...next];
-      state.participants = [...next];
-      state.participantCount = next.length;
+      tabState.initialParticipants = [...next];
+      tabState.participants = [...next];
+      tabState.participantCount = next.length;
       return [];
     }
   }
 
   const normalizedSelf = normalizeParticipantName(selfParticipantName);
   const next = Array.isArray(currentList) ? currentList : [];
-  const normalizedParticipants = state.participants.map(normalizeParticipantName);
-  const normalizedInitial = state.initialParticipants.map(normalizeParticipantName);
+  const normalizedParticipants = tabState.participants.map(normalizeParticipantName);
+  const normalizedInitial = tabState.initialParticipants.map(normalizeParticipantName);
   const newJoiners = next.filter(
     (p) =>
       !normalizedParticipants.includes(normalizeParticipantName(p)) &&
@@ -1061,13 +1084,13 @@ function detectNewJoiners(currentList: string[]) {
   );
 
   if (newJoiners.length > 0) {
-    state.lateJoiners.push(...newJoiners);
-    if (state.participantCount !== undefined) {
-      state.participantCount += newJoiners.length;
+    tabState.lateJoiners.push(...newJoiners);
+    if (tabState.participantCount !== undefined) {
+      tabState.participantCount += newJoiners.length;
     }
   }
 
-  state.participants = [...next];
+  tabState.participants = [...next];
   return newJoiners;
 }
 
@@ -1506,6 +1529,7 @@ chrome.tabs.onActivated.addListener(async (activeInfo) => {
 });
 
 chrome.tabs.onRemoved.addListener(async (tabId) => {
+  perTabParticipants.delete(tabId);
   await hydrateState();
   if (state.targetTabId && tabId === state.targetTabId) {
     if (state.isActive && state.audioActive) {
@@ -1596,6 +1620,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return;
       }
 
+      case "OFFSCREEN_RESUME_RECORDING": {
+        sendResponse({ success: true });
+        return;
+      }
+
       case "OFFSCREEN_AUDIO_CHUNK": {
         if (!state.isActive) {
           console.warn("[LateMeet] chunk received but session not active — ignored");
@@ -1629,6 +1658,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             queued: false,
             pending: result.pending,
             error: result.error,
+            pauseRecorder: true,
           });
           return;
         }
@@ -1643,6 +1673,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       }
 
       case "PARTICIPANTS_UPDATED": {
+        const tabId = sender?.tab?.id;
+        if (typeof tabId !== "number") {
+          sendResponse({ success: false, error: "no tab id" });
+          return;
+        }
+
         if (
           !isMessageFromActiveMeeting({
             senderTabId: sender?.tab?.id,
@@ -1665,8 +1701,32 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           typeof message.selfName === "string" ? message.selfName.trim() : "";
         if (incomingSelfName) selfParticipantName = incomingSelfName;
 
-        const joiners = detectNewJoiners(message.participants);
-        await maybeWelcomeJoiners(state.targetTabId || undefined, joiners);
+        // Initialize per-tab state from global state for the active tab
+        // (e.g. after service worker resume / state hydration).
+        if (!perTabParticipants.has(tabId) && tabId === state.targetTabId) {
+          perTabParticipants.set(tabId, {
+            participants: [...state.participants],
+            initialParticipants: [...state.initialParticipants],
+            lateJoiners: [...state.lateJoiners],
+            participantCount: state.participantCount ?? 0,
+          });
+        }
+
+        const joiners = detectNewJoiners(message.participants, tabId);
+
+        // Sync the active tab's per-tab state back to the global arrays
+        // so snapshot() and UI consumers see the correct participant data.
+        if (tabId === state.targetTabId) {
+          const tabState = perTabParticipants.get(tabId);
+          if (tabState) {
+            state.participants = tabState.participants;
+            state.initialParticipants = tabState.initialParticipants;
+            state.lateJoiners = tabState.lateJoiners;
+            state.participantCount = tabState.participantCount;
+          }
+        }
+
+        await maybeWelcomeJoiners(tabId, joiners);
         await broadcastStateUpdate();
         sendResponse({ success: true, joiners });
         return;
