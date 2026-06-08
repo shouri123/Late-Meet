@@ -127,8 +127,65 @@ function sampleAndSendWaveform() {
   chrome.runtime.sendMessage({ type: "WAVEFORM_DATA", buckets }).catch(() => {});
 }
 
+function pauseTimers() {
+  if (vadTimer) {
+    clearInterval(vadTimer);
+    vadTimer = null;
+  }
+  if (waveformTimer) {
+    clearInterval(waveformTimer);
+    waveformTimer = null;
+  }
+  bufferStartTime = 0;
+  silenceTicks = 0;
+}
+
+function resumeTimers() {
+  bufferStartTime = Date.now();
+  silenceTicks = 0;
+  waveformTimer = setInterval(sampleAndSendWaveform, WAVEFORM_INTERVAL_MS);
+  vadTimer = setInterval(vadLoop, VAD_SAMPLE_MS);
+}
+
+async function vadLoop() {
+  if (isStopping || isVadBusy || isDrainingQueue || mediaRecorder?.state !== "recording") return;
+
+  isVadBusy = true;
+
+  try {
+    const rms = getCurrentRms();
+    voiceActivity.observe(rms);
+
+    if (rms < rmsThreshold) {
+      silenceTicks++;
+    } else {
+      silenceTicks = 0;
+    }
+
+    const naturalPause = silenceTicks >= SILENCE_FLUSH_TICKS;
+    const overflowReached = Date.now() - bufferStartTime >= MAX_BUFFER_MS;
+
+    if (naturalPause || overflowReached) {
+      const reason = naturalPause ? "silence-pause" : "overflow-cap";
+      relay(
+        `flush triggered — reason=${reason} rms=${rms.toFixed(4)} silenceTicks=${silenceTicks}`,
+      );
+      silenceTicks = 0;
+      bufferStartTime = Date.now();
+      // Force-flush on overflow so silent audio doesn't block the buffer cap.
+      await flushAudioChunk(overflowReached && !naturalPause);
+    }
+  } catch (err) {
+    console.error("[LateMeet][offscreen] VAD loop error:", err);
+  } finally {
+    isVadBusy = false;
+  }
+}
+
 async function flushAudioChunk(force = false) {
-  if (isFlushInProgress || !mediaRecorder || mediaRecorder.state !== "recording") {
+  if (isFlushInProgress) return;
+  if (!mediaRecorder || mediaRecorder.state !== "recording") {
+    bufferStartTime = Date.now();
     return;
   }
 
@@ -248,6 +305,7 @@ async function drainPendingChunks() {
       } catch (e) {
         console.warn("[LateMeet][offscreen] Failed to resume recorder:", e);
       }
+      resumeTimers();
     }
   }
 }
@@ -473,6 +531,7 @@ async function startCapture(
       pendingChunks.push(event.data);
       if (pendingChunks.length >= MAX_PENDING_CHUNKS && mediaRecorder?.state === "recording") {
         relay(`pendingChunks cap reached (${MAX_PENDING_CHUNKS}), pausing recording`);
+        pauseTimers();
         try {
           mediaRecorder.pause();
         } catch (e) {
@@ -502,40 +561,7 @@ async function startCapture(
   silenceTicks = 0;
   bufferStartTime = Date.now();
 
-  vadTimer = setInterval(async () => {
-    if (isStopping || isVadBusy || isDrainingQueue) return;
-
-    isVadBusy = true;
-
-    try {
-      const rms = getCurrentRms();
-      voiceActivity.observe(rms);
-
-      if (rms < rmsThreshold) {
-        silenceTicks++;
-      } else {
-        silenceTicks = 0;
-      }
-
-      const naturalPause = silenceTicks >= SILENCE_FLUSH_TICKS;
-      const overflowReached = Date.now() - bufferStartTime >= MAX_BUFFER_MS;
-
-      if (naturalPause || overflowReached) {
-        const reason = naturalPause ? "silence-pause" : "overflow-cap";
-        relay(
-          `flush triggered — reason=${reason} rms=${rms.toFixed(4)} silenceTicks=${silenceTicks}`,
-        );
-        silenceTicks = 0;
-        bufferStartTime = Date.now();
-        // Force-flush on overflow so silent audio doesn't block the buffer cap.
-        await flushAudioChunk(overflowReached && !naturalPause);
-      }
-    } catch (err) {
-      console.error("[LateMeet][offscreen] VAD loop error:", err);
-    } finally {
-      isVadBusy = false;
-    }
-  }, VAD_SAMPLE_MS);
+  vadTimer = setInterval(vadLoop, VAD_SAMPLE_MS);
 
   relay(`capture started — mic=${Boolean(microphoneStream)} rmsThreshold=${rmsThreshold}`);
 
