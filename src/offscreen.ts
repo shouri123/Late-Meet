@@ -184,7 +184,7 @@ async function vadLoop() {
 
 async function flushAudioChunk(force = false) {
   if (isFlushInProgress) return;
-  if (!mediaRecorder || mediaRecorder.state !== "recording") {
+  if (mediaRecorder?.state !== "recording") {
     bufferStartTime = Date.now();
     return;
   }
@@ -315,6 +315,8 @@ function stopTracks(stream: MediaStream | null) {
 }
 
 async function cleanupResources() {
+  pauseTimers();
+
   stopTracks(mediaStream);
   stopTracks(microphoneStream);
   stopTracks(recorderStream);
@@ -322,11 +324,6 @@ async function cleanupResources() {
   mediaStream = null;
   microphoneStream = null;
   recorderStream = null;
-
-  if (waveformTimer) {
-    clearInterval(waveformTimer);
-    waveformTimer = null;
-  }
 
   if (audioContext) {
     try {
