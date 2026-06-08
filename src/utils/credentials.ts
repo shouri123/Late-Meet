@@ -109,6 +109,15 @@ export function lockCredentials(): void {
     clearTimeout(autoLockTimer);
     autoLockTimer = null;
   }
+  // Purge plaintext API keys from session storage on lock.
+  // The session store holds decrypted keys for fast access (avoids re-deriving
+  // the PBKDF2 key on every lookup). If we only clear the in-memory derivedKey
+  // but leave the session store intact, an attacker who gains access to
+  // chrome.storage.session after lock expiry can still read the raw keys
+  // without knowing the passphrase.
+  chrome.storage.session.remove(CREDENTIAL_KEYS as unknown as string[]).catch((err) => {
+    console.warn("[LateMeet][credentials] Failed to purge session keys on lock:", err);
+  });
 }
 
 // ---------------------------------------------------------------------------

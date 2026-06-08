@@ -14,13 +14,28 @@ import assert from "node:assert/strict";
 // Chrome API mock
 // ---------------------------------------------------------------------------
 
+// Fallback interfaces for types not exported by @types/chrome
+interface TabChangeInfo {
+  status?: string;
+  url?: string;
+  pinned?: boolean;
+  audible?: boolean;
+  mutedInfo?: chrome.tabs.MutedInfo;
+  [key: string]: any;
+}
+
+interface TabActiveInfo {
+  tabId: number;
+  windowId: number;
+}
+
 type TabUpdatedCallback = (
   tabId: number,
-  changeInfo: chrome.tabs.OnUpdatedInfo,
+  changeInfo: TabChangeInfo,
   tab: chrome.tabs.Tab,
 ) => Promise<void>;
 
-type TabActivatedCallback = (activeInfo: chrome.tabs.OnActivatedInfo) => Promise<void>;
+type TabActivatedCallback = (activeInfo: TabActiveInfo) => Promise<void>;
 
 interface CapturedListeners {
   onUpdated?: TabUpdatedCallback;
@@ -63,6 +78,7 @@ function installChromeMock(options: MockChromeOptions = {}) {
       onMessage: { addListener: () => {} },
       onInstalled: { addListener: () => {} },
       onStartup: { addListener: () => {} },
+      onSuspend: { addListener: () => {} },
     },
     alarms: {
       onAlarm: { addListener: () => {} },

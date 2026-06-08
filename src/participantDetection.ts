@@ -43,6 +43,10 @@ function stripExcludedLabels(value: string): string {
   return cleanText(cleaned);
 }
 
+const LOWERCASE_EXCLUDED_LABELS = new Set(
+  Array.from(EXCLUDED_PARTICIPANT_LABELS).map((label) => label.toLowerCase()),
+);
+
 export function participantNameFromCandidate(candidate: ParticipantNameCandidate): string | null {
   const selfName = cleanText(candidate.selfName || "");
   const text = stripExcludedLabels(candidate.text || "");
@@ -64,7 +68,7 @@ export function participantNameFromCandidate(candidate: ParticipantNameCandidate
     return null;
   }
 
-  if (EXCLUDED_PARTICIPANT_LABELS.has(name)) {
+  if (LOWERCASE_EXCLUDED_LABELS.has(name.toLowerCase())) {
     return null;
   }
 

@@ -4,32 +4,6 @@
 /* --- THEME TOKENS --- */
 @import "./theme.css";
 
-:root {
-  --lm-space-xs: 4px;
-  --lm-space-xs2: 6px;
-  --lm-space-sm: 8px;
-  --lm-space-sm2: 10px;
-  --lm-space-md: 12px;
-  --lm-space-md2: 14px;
-  --lm-space-lg: 20px;
-  --lm-space-xl: 24px;
-
-  --lm-radius-xs: 4px;
-  --lm-radius-sm: 8px;
-  --lm-radius-base: 10px;
-  --lm-radius-md: 12px;
-  --lm-radius-lg: 16px;
-  --lm-radius-xl: 18px;
-  --lm-radius-2xl: 20px;
-
-  --lm-font-size-xs: 11px;
-  --lm-font-size-sm: 12px;
-  --lm-font-size-base: 13px;
-  --lm-font-size-md: 14px;
-  --lm-font-size-lg: 20px;
-  --lm-font-size-xl: 24px;
-}
-
 /* ——— Floating Dashboard Button ——— */
 #mc-float-btn {
   position: fixed;
@@ -38,7 +12,7 @@
   z-index: 999999;
   display: flex;
   align-items: center;
-  gap: var(--lm-space-sm);
+  gap: 8px;
   cursor: pointer;
   opacity: 0;
   transform: translateY(20px) scale(0.9);
@@ -54,7 +28,12 @@
 #mc-float-btn:hover {
   transform: translateY(-2px) scale(1.05);
 }
-
+#mc-float-btn:focus-visible {
+  outline: 2px solid #8ec0fe;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 3.5px #8ec0fe;
+  border-radius: 16px;
+}
 #mc-float-btn:hover .mc-float-label {
   opacity: 1;
   transform: translateX(0);
@@ -64,7 +43,7 @@
   position: relative;
   width: 52px;
   height: 52px;
-  border-radius: var(--lm-radius-lg);
+  border-radius: 16px;
   background: var(--bg-app);
   border: 1px solid var(--border-sub);
   display: flex;
@@ -83,7 +62,7 @@
 .mc-float-pulse {
   position: absolute;
   inset: -3px;
-  border-radius: var(--lm-radius-lg);
+  border-radius: 18px;
   border: 1px solid var(--border-element);
   opacity: 0.5;
   animation: mc-pulse 2s ease-in-out infinite;
@@ -103,7 +82,7 @@
 
 .mc-float-icon {
   position: relative;
-  font-size: var(--lm-font-size-xl);
+  font-size: 24px;
   z-index: 1;
   display: flex;
   color: var(--text-main);
@@ -114,11 +93,11 @@
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   color: var(--text-main);
-  font-size: var(--lm-font-size-sm);
+  font-size: 12px;
   font-weight: 600;
-  font-family: "Inter", "Segoe UI", sans-serif;
-  padding: var(--lm-space-xs2) var(--lm-space-md);
-  border-radius: var(--lm-radius-sm);
+  font-family: Inter, "Segoe UI", sans-serif;
+  padding: 6px 12px;
+  border-radius: 8px;
   white-space: nowrap;
   opacity: 0;
   transform: translateX(8px);
@@ -138,7 +117,7 @@
   display: flex;
   align-items: flex-start;
   justify-content: flex-end;
-  padding: var(--lm-space-xl);
+  padding: 24px;
   opacity: 0;
   transform: translateX(100%);
   transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
@@ -157,11 +136,11 @@
   background: var(--bg-app);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border-radius: var(--lm-radius-lg);
+  border-radius: 20px;
   border: 1px solid var(--border-sub);
   box-shadow: 0 25px 80px var(--shadow-main);
   color: var(--text-main);
-  padding: var(--lm-space-xl);
+  padding: 24px;
   font-family:
     "Inter",
     "Segoe UI",
@@ -175,26 +154,26 @@
 
 .mc-brief-card::-webkit-scrollbar-thumb {
   background: var(--border-element);
-  border-radius: var(--lm-radius-xs);
+  border-radius: 4px;
 }
 
 .mc-brief-header {
   display: flex;
   align-items: center;
-  gap: var(--lm-space-sm2);
-  margin-bottom: var(--lm-space-lg);
-  padding-bottom: var(--lm-space-md2); /* 14px - closest match, or add --lm-space-md3: 16px */
+  gap: 10px;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
   border-bottom: 1px solid var(--border-main);
 }
 
 .mc-brief-icon {
-  font-size: var(--lm-font-size-xl);
+  font-size: 24px;
   color: var(--text-main);
 }
 
 .mc-brief-title {
   flex: 1;
-  font-size: var(--lm-font-size-md);
+  font-size: 14px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 1px;
@@ -207,8 +186,8 @@
   color: var(--text-sub);
   width: 32px;
   height: 32px;
-  border-radius: var(--lm-radius-base);
-  font-size: var(--lm-font-size-md);
+  border-radius: 10px;
+  font-size: 14px;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -223,34 +202,34 @@
 }
 
 .mc-brief-greeting {
-  font-size: var(--lm-font-size-lg);
+  font-size: 20px;
   font-weight: 700;
-  margin-bottom: var(--lm-space-xs2);
+  margin-bottom: 6px;
   color: var(--text-main);
 }
 
 .mc-brief-text {
-  font-size: var(--lm-font-size-md);
+  font-size: 14px;
   color: var(--text-sub);
-  margin-bottom: var(--lm-space-lg);
+  margin-bottom: 20px;
   white-space: pre-wrap;
 }
 
 .mc-brief-section {
-  margin-bottom: var(--lm-space-md);
-  padding: var(--lm-space-md2);
+  margin-bottom: 16px;
+  padding: 14px;
   background: var(--bg-surface);
-  border-radius: var(--lm-radius-md);
+  border-radius: 12px;
   border: 1px solid var(--border-main);
 }
 
 .mc-brief-label {
-  font-size: var(--lm-font-size-sm);
+  font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   color: var(--text-main);
-  margin-bottom: var(--lm-space-sm);
+  margin-bottom: 8px;
   display: flex;
   align-items: center;
 }
@@ -264,7 +243,7 @@
 .mc-brief-list li {
   position: relative;
   padding: 6px 0 6px 18px;
-  font-size: var(--lm-font-size-base);
+  font-size: 13px;
   color: var(--text-sub);
   line-height: 1.5;
 }
@@ -278,21 +257,31 @@
 }
 
 .mc-brief-current {
-  font-size: var(--lm-font-size-md);
+  font-size: 14px;
   color: var(--text-main);
   font-weight: 500;
-  padding: var(--lm-space-sm) var(--lm-space-md);
+  padding: 8px 12px;
   background: var(--bg-card);
-  border-radius: var(--lm-radius-sm);
+  border-radius: 8px;
   border-left: 3px solid hsl(var(--accent-color));
 }
 
 .mc-brief-footer {
   text-align: center;
-  font-size: var(--lm-font-size-xs);
+  font-size: 11px;
   color: var(--text-muted);
-  margin-top: var(--lm-space-md2); /* 14px - closest match, or add --lm-space-md3: 16px */
-  padding-top: var(--lm-space-md);
+  margin-top: 16px;
+  padding-top: 12px;
   border-top: 1px solid var(--border-main);
   font-style: italic;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [id^="mc-"],
+  [id^="mc-"]::before,
+  [id^="mc-"]::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
 }

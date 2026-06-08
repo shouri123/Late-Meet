@@ -95,3 +95,9 @@ test("label stripping does not remove embedded words", () => {
   assert.equal(participantNameFromCandidate({ text: "Mutee Johnson" }), "Mutee Johnson");
   assert.equal(participantNameFromCandidate({ text: "Unmuteable Ada" }), "Unmuteable Ada");
 });
+
+test("case-insensitive control labels are rejected", () => {
+  assert.equal(participantNameFromCandidate({ selfName: "you" }), null);
+  assert.equal(participantNameFromCandidate({ selfName: "mute" }), null);
+  assert.equal(participantNameFromCandidate({ selfName: "Camera Off" }), null);
+});

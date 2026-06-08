@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "test": "tsx --test src/activeMeetingMessages.test.ts src/audioCaptureLifecycle.test.ts src/audioProcessing.test.ts src/audioChunkQueue.test.ts src/audioChunkQueue.fuzz.test.ts src/participantDetection.test.ts src/meetingTabs.test.ts src/sessionStorage.test.ts src/dashboardCapture.test.ts src/popupCapture.test.ts src/speakerAttribution.test.ts src/utils/credentials.test.ts src/utils/storageUtils.test.ts src/background.urlParsing.test.ts",
+    "test": "tsx --test src/activeMeetingMessages.test.ts src/audioCaptureLifecycle.test.ts src/audioProcessing.test.ts src/audioChunkQueue.test.ts src/audioChunkQueue.fuzz.test.ts src/participantDetection.test.ts src/meetingTabs.test.ts src/sessionStorage.test.ts src/dashboardCapture.test.ts src/popupCapture.test.ts src/speakerAttribution.test.ts src/utils/credentials.test.ts src/utils/storageUtils.test.ts src/background.urlParsing.test.ts src/lateJoinerDelivery.test.ts",
     "lint": "eslint . --ext .ts,.js",
     "type-check": "tsc --noEmit",
     "format": "prettier --write .",
@@ -46,18 +46,18 @@
     "@types/chrome": "^0.1.42",
     "@types/node": "^25.9.1",
     "@typescript-eslint/eslint-plugin": "^8.60.0",
-    "@typescript-eslint/parser": "^8.59.3",
+    "@typescript-eslint/parser": "^8.60.1",
     "chrome-types": "^0.1.429",
     "eslint": "^10.4.1",
     "eslint-config-prettier": "^10.1.8",
     "fast-check": "^4.8.0",
     "globals": "^17.6.0",
     "husky": "^9.0.11",
-    "lint-staged": "^17.0.6",
+    "lint-staged": "^17.0.7",
     "prettier": "^3.2.5",
-    "tsx": "^4.20.3",
+    "tsx": "^4.22.4",
     "typescript": "^6.0.3",
-    "vite": "^8.0.14"
+    "vite": "^8.0.16"
   },
   "dependencies": {
     "@elevenlabs/elevenlabs-js": "^2.49.1"

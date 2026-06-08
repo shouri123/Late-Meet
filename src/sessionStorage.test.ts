@@ -106,6 +106,25 @@ test("getSavedMeetingSession loads the full indexed session payload", async () =
   assert.deepEqual(result?.timeline, session.timeline);
 });
 
+test("getSavedMeetingSession normalizes string savedAt values from older storage", async () => {
+  const session = {
+    ...makeSession("legacy-string-date", 100),
+    savedAt: "2025-05-13T12:00:00Z",
+  };
+  const storage = {
+    get: async () => ({
+      [getSavedSessionKey(session.id)]: session,
+      [SAVED_SESSIONS_LEGACY_KEY]: [],
+    }),
+    set: async () => {},
+    remove: async () => {},
+  };
+
+  const result = await getSavedMeetingSession(storage, session.id);
+
+  assert.equal(result?.savedAt, Date.parse("2025-05-13T12:00:00Z"));
+});
+
 test("getSavedMeetingSession falls back to legacy saved sessions", async () => {
   const session = makeSession("legacy", 200);
   const storage = {

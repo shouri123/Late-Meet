@@ -23,6 +23,8 @@ const WAVEFORM_BUCKETS = 32;
 const WAVEFORM_GAIN = 6;
 const SILENCE_FLUSH_MS = 1500;
 const MAX_BUFFER_MS = 25000;
+const MAX_PENDING_CHUNKS = 20;
+const DRAIN_TIMEOUT_MS = 30000;
 const SILENCE_FLUSH_TICKS = Math.ceil(SILENCE_FLUSH_MS / VAD_SAMPLE_MS);
 let rmsThreshold = 0.012;
 
@@ -167,7 +169,7 @@ async function flushAudioChunk(force = false) {
       }
     });
 
-    await drainPendingChunks();
+    await drainWithTimeout();
   } finally {
     isFlushInProgress = false;
   }
@@ -200,6 +202,30 @@ async function postChunk(blob: Blob) {
   }
 }
 
+async function drainWithTimeout() {
+  const drainPromise = drainPendingChunks();
+  const timeoutPromise = new Promise<void>((resolve) => {
+    setTimeout(() => {
+      if (pendingChunks.length > 0 || isDrainingQueue) {
+        relay(
+          `drainPendingChunks exceeded ${DRAIN_TIMEOUT_MS}ms timeout — dropping ${pendingChunks.length} remaining chunks and restarting recorder`,
+        );
+        pendingChunks = [];
+        isDrainingQueue = false;
+        if (mediaRecorder?.state === "paused" || mediaRecorder?.state === "recording") {
+          try {
+            mediaRecorder.stop();
+          } catch (e) {
+            console.warn("[LateMeet][offscreen] Failed to stop recorder on drain timeout:", e);
+          }
+        }
+      }
+      resolve();
+    }, DRAIN_TIMEOUT_MS);
+  });
+  await Promise.race([drainPromise, timeoutPromise]);
+}
+
 async function drainPendingChunks() {
   if (isDrainingQueue) return;
 
@@ -215,6 +241,14 @@ async function drainPendingChunks() {
     }
   } finally {
     isDrainingQueue = false;
+    if (mediaRecorder?.state === "paused") {
+      relay("pendingChunks drained, resuming recording");
+      try {
+        mediaRecorder.resume();
+      } catch (e) {
+        console.warn("[LateMeet][offscreen] Failed to resume recorder:", e);
+      }
+    }
   }
 }
 
@@ -303,6 +337,29 @@ function connectSourceToRecorder(
   audioSources.push(source);
 }
 
+async function stopMediaRecorder() {
+  if (mediaRecorder && mediaRecorder.state !== "inactive") {
+    const recorder = mediaRecorder;
+
+    await new Promise<void>((resolve) => {
+      const timeout = setTimeout(resolve, 2000);
+
+      recorder.addEventListener("stop", () => resolve(), { once: true });
+
+      recorder.addEventListener("error", () => resolve(), { once: true });
+
+      try {
+        recorder.stop();
+      } catch (err) {
+        console.warn("[LateMeet][offscreen] Recorder stop failed:", err);
+        resolve();
+      }
+
+      recorder.addEventListener("stop", () => clearTimeout(timeout), { once: true });
+    });
+  }
+}
+
 async function startCapture(
   streamId: string,
   _tabId: number,
@@ -332,10 +389,26 @@ async function startCapture(
 
       if (isStopping) return;
 
+      isStopping = true;
+
       try {
-        await stopCapture();
+        if (vadTimer) {
+          clearInterval(vadTimer);
+          vadTimer = null;
+        }
+
+        if (waveformTimer) {
+          clearInterval(waveformTimer);
+          waveformTimer = null;
+        }
+
+        await stopMediaRecorder();
+
+        await drainPendingChunks();
+        await cleanupResources();
       } catch (err) {
         console.error("[LateMeet][offscreen] Cleanup after track end failed:", err);
+        await cleanupResources();
       } finally {
         await chrome.runtime
           .sendMessage({
@@ -371,6 +444,14 @@ async function startCapture(
 
     if (microphoneStream) {
       connectSourceToRecorder(microphoneStream, destination);
+
+      microphoneStream.getTracks().forEach((track) => {
+        track.onended = () => {
+          console.warn("[LateMeet][offscreen] Microphone track ended unexpectedly");
+          if (isStopping) return;
+          relay("Microphone track ended unexpectedly (input device disconnected)");
+        };
+      });
     }
   }
 
@@ -390,6 +471,14 @@ async function startCapture(
 
     if (event.data && event.data.size > 0) {
       pendingChunks.push(event.data);
+      if (pendingChunks.length >= MAX_PENDING_CHUNKS && mediaRecorder?.state === "recording") {
+        relay(`pendingChunks cap reached (${MAX_PENDING_CHUNKS}), pausing recording`);
+        try {
+          mediaRecorder.pause();
+        } catch (e) {
+          console.warn("[LateMeet][offscreen] Failed to pause recorder:", e);
+        }
+      }
     }
   });
 
@@ -414,7 +503,7 @@ async function startCapture(
   bufferStartTime = Date.now();
 
   vadTimer = setInterval(async () => {
-    if (isStopping || isVadBusy) return;
+    if (isStopping || isVadBusy || isDrainingQueue) return;
 
     isVadBusy = true;
 
@@ -474,26 +563,7 @@ async function stopCapture() {
       waveformTimer = null;
     }
 
-    if (mediaRecorder && mediaRecorder.state !== "inactive") {
-      const recorder = mediaRecorder;
-
-      await new Promise<void>((resolve) => {
-        const timeout = setTimeout(resolve, 2000);
-
-        recorder.addEventListener("stop", () => resolve(), { once: true });
-
-        recorder.addEventListener("error", () => resolve(), { once: true });
-
-        try {
-          recorder.stop();
-        } catch (err) {
-          console.warn("[LateMeet][offscreen] Recorder stop failed:", err);
-          resolve();
-        }
-
-        recorder.addEventListener("stop", () => clearTimeout(timeout), { once: true });
-      });
-    }
+    await stopMediaRecorder();
 
     await drainPendingChunks();
 
@@ -511,6 +581,11 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   }
 
   (async () => {
+    if (message.type === "OFFSCREEN_PING") {
+      sendResponse({ success: true });
+      return;
+    }
+
     if (message.type === "OFFSCREEN_START_CAPTURE") {
       try {
         const captureInfo = await startCapture(
@@ -537,6 +612,11 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     }
 
     if (message.type === "OFFSCREEN_STOP_CAPTURE") {
+      if (isStopping) {
+        sendResponse({ success: false, alreadyStopping: true });
+        return;
+      }
+
       try {
         await stopCapture();
       } finally {

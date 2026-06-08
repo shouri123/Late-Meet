@@ -1,4 +1,3 @@
-import "./content.css";
 import {
   collectParticipantNames,
   participantNameFromCandidate,
@@ -7,7 +6,7 @@ import {
 
 import { initTheme } from "./theme.js";
 
-initTheme();
+void initTheme().catch((err) => console.error(err));
 
 (() => {
   const COPILOT_PREFIX = "[LateMeet]";
@@ -535,6 +534,7 @@ initTheme();
     btn.id = "mc-float-btn";
     btn.type = "button";
     btn.setAttribute("aria-label", "Start Late Meet Copilot");
+    btn.setAttribute("tabindex", "0");
 
     const inner = document.createElement("div");
     inner.className = "mc-float-btn-inner";
@@ -611,8 +611,20 @@ initTheme();
     }
   }
 
-  // Hook cleanup to page unload/navigation and visibility change
-  window.addEventListener("beforeunload", cleanUp);
+  // Hook cleanup to page unload/navigation and visibility change.
+  // A single consolidated handler ensures SAVE_SESSION is dispatched *before*
+  // cleanUp() tears down observers and timers (fixes #555 — two separate
+  // listeners would always run cleanUp first due to registration order).
+  window.addEventListener("beforeunload", () => {
+    // 1. Attempt auto-save first, while the runtime is still reachable.
+    try {
+      chrome.runtime.sendMessage({ type: "SAVE_SESSION" }).catch(() => {});
+    } catch {
+      // Ignore — page is already unloading
+    }
+    // 2. Tear down observers and timers after save is dispatched.
+    cleanUp();
+  });
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "hidden") {
       // Clear timers and observers when page is backgrounded or inactive to conserve resources
@@ -667,14 +679,9 @@ initTheme();
     return false;
   });
 
-  window.addEventListener("beforeunload", () => {
-    try {
-      // Fire-and-forget message to auto-save the session on tab close
-      chrome.runtime.sendMessage({ type: "SAVE_SESSION" }).catch(() => {});
-    } catch {
-      // Ignore errors during unload
-    }
-  });
+  // Note: SAVE_SESSION auto-save on tab close is handled by the consolidated
+  // beforeunload listener registered above (line 615). Do not add a second
+  // beforeunload listener here — see #555.
 
   startParticipantPolling();
   startActiveSpeakerDetection();

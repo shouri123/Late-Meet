@@ -14,12 +14,14 @@ interface AudioChunkQueueOptions<T> {
   maxPending: number;
   process: (entry: AudioChunkQueueItem<T>) => Promise<void>;
   onError?: (error: unknown, entry: AudioChunkQueueItem<T>) => void | Promise<void>;
+  onDrain?: () => void;
 }
 
 export class AudioChunkQueue<T> {
   private readonly maxPending: number;
   private readonly process: AudioChunkQueueOptions<T>["process"];
   private readonly onError?: AudioChunkQueueOptions<T>["onError"];
+  private readonly onDrain?: AudioChunkQueueOptions<T>["onDrain"];
   private pendingItems: AudioChunkQueueItem<T>[] = [];
   private processing = false;
   private nextId = 1;
@@ -28,6 +30,7 @@ export class AudioChunkQueue<T> {
     this.maxPending = Math.max(1, options.maxPending);
     this.process = options.process;
     this.onError = options.onError;
+    this.onDrain = options.onDrain;
   }
 
   get pending() {
@@ -71,6 +74,7 @@ export class AudioChunkQueue<T> {
     if (this.processing) return;
 
     this.processing = true;
+    const wasFull = this.pendingItems.length >= this.maxPending;
 
     try {
       while (this.pendingItems.length > 0) {
@@ -89,6 +93,9 @@ export class AudioChunkQueue<T> {
       }
     } finally {
       this.processing = false;
+      if (wasFull && this.pendingItems.length < this.maxPending) {
+        this.onDrain?.();
+      }
     }
   }
 }

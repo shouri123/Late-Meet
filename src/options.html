@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="storageDashboard.css" />
     <link rel="stylesheet" href="onboarding.css" />
   </head>
-  <body>
+  <body class="no-transitions">
     <div class="options-container">
       <header class="options-header">
         <div class="options-logo">
@@ -384,11 +384,28 @@
             <div>
               <div class="toggle-label">Late Joiner Briefing</div>
               <div class="toggle-hint">
-                Automatically generate and send context briefs to late joiners
+                Automatically generate a private local context brief when someone joins late
               </div>
             </div>
             <label class="toggle-switch">
               <input type="checkbox" id="late-joiner-toggle" checked />
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+
+          <div class="toggle-item">
+            <div>
+              <div class="toggle-label">Public Chat Briefings</div>
+              <div class="toggle-hint">
+                Also post late-joiner briefs into Google Meet chat for everyone to see
+              </div>
+            </div>
+            <label class="toggle-switch">
+              <input
+                type="checkbox"
+                id="public-late-joiner-chat-toggle"
+                aria-label="Public Chat Briefings"
+              />
               <span class="toggle-slider"></span>
             </label>
           </div>
