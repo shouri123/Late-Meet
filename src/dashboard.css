@@ -483,6 +483,22 @@ body::-webkit-scrollbar-thumb,
 /* ——— Decisions List ——— */
 .decision-item {
   border-left: 3px solid var(--text-main);
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.copy-item-btn {
+  transition:
+    opacity 0.2s ease,
+    color 0.2s ease,
+    transform 0.2s ease;
+}
+
+.copy-item-btn:hover {
+  opacity: 1 !important;
+  color: var(--text-main) !important;
+  transform: scale(1.15);
 }
 
 .decision-text {
