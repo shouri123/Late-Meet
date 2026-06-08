@@ -19,7 +19,21 @@ type StorageArea = Pick<chrome.storage.StorageArea, "get" | "set" | "remove"> & 
 function asStoredSession(value: unknown): StoredSession | null {
   if (!value || typeof value !== "object") return null;
   const session = value as Partial<StoredSession>;
-  if (!session.id || !session.savedAt) return null;
+  if (typeof session.id !== "string" || session.id.trim() === "") {
+    return null;
+  }
+  if (typeof session.savedAt !== "number") {
+    return null;
+  }
+  if (session.duration !== undefined && typeof session.duration !== "number") {
+    return null;
+  }
+  if (session.transcript !== undefined && !Array.isArray(session.transcript)) {
+    return null;
+  }
+  if (session.timeline !== undefined && !Array.isArray(session.timeline)) {
+    return null;
+  }
   return session as StoredSession;
 }
 
