@@ -17,10 +17,10 @@ jobs:
       SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
       - name: Run Snyk to check for vulnerabilities
         if: env.SNYK_TOKEN != ''
-        uses: snyk/actions/node@b98d498629f1c368650224d6d212bf7dfa89e4bf # 0.4.0
+        uses: snyk/actions/node@9adf32b1121593767fc3c057af55b55db032dc04 # 1.0.0
         with:
           args: --severity-threshold=high

@@ -444,6 +444,14 @@ async function startCapture(
 
     if (microphoneStream) {
       connectSourceToRecorder(microphoneStream, destination);
+
+      microphoneStream.getTracks().forEach((track) => {
+        track.onended = () => {
+          console.warn("[LateMeet][offscreen] Microphone track ended unexpectedly");
+          if (isStopping) return;
+          relay("Microphone track ended unexpectedly (input device disconnected)");
+        };
+      });
     }
   }
 
@@ -599,6 +607,11 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   }
 
   (async () => {
+    if (message.type === "OFFSCREEN_PING") {
+      sendResponse({ success: true });
+      return;
+    }
+
     if (message.type === "OFFSCREEN_START_CAPTURE") {
       try {
         const captureInfo = await startCapture(

@@ -1,4 +1,3 @@
-import { getSavedMeetingSession, getSavedMeetingSessions } from "../sessionStorage";
 import { StorageStats, MeetingStorageInfo } from "../types";
 
 const DEFAULT_QUOTA_BYTES = 10 * 1024 * 1024; // 10MB — chrome.storage.local default
@@ -15,15 +14,34 @@ export function formatBytes(bytes: number): string {
 }
 
 export async function getStorageStats(): Promise<StorageStats> {
-  const sessionListItems = await getSavedMeetingSessions(chrome.storage.local);
-  const sessions = await Promise.all(
-    sessionListItems.map(async (session) => {
-      return (await getSavedMeetingSession(chrome.storage.local, session.id)) ?? session;
-    }),
-  );
-
-  // Get everything in local storage to also measure settings + API keys
+  // Get everything in local storage in a single query to also measure settings + API keys
   const allItems = await chrome.storage.local.get(null);
+
+  // Extract saved sessions using the index and legacy lists from allItems
+  const SAVED_SESSION_INDEX_KEY = "savedSessionIndex";
+  const SAVED_SESSIONS_LEGACY_KEY = "savedSessions";
+
+  const indexedSessions = Array.isArray(allItems[SAVED_SESSION_INDEX_KEY])
+    ? allItems[SAVED_SESSION_INDEX_KEY]
+    : [];
+
+  const legacySessions = Array.isArray(allItems[SAVED_SESSIONS_LEGACY_KEY])
+    ? allItems[SAVED_SESSIONS_LEGACY_KEY]
+    : [];
+
+  const sessionListItems = indexedSessions.length > 0 ? indexedSessions : legacySessions;
+
+  const sessions = sessionListItems
+    .map((session: any) => {
+      if (!session || !session.id) return session;
+      const key = `savedSession:${session.id}`;
+      const fullSession = allItems[key];
+      if (fullSession && typeof fullSession === "object") {
+        return fullSession;
+      }
+      return session;
+    })
+    .filter(Boolean);
 
   // --- Per-category byte counting ---
   let transcriptBytes = 0;

@@ -24,6 +24,12 @@
   box-sizing: border-box;
 }
 
+/* Prevent transition flicker on initial load */
+.no-transitions,
+.no-transitions * {
+  transition: none !important;
+}
+
 body {
   font-family:
     "Inter",
@@ -33,6 +39,9 @@ body {
   background: var(--bg-app);
   color: var(--text-main);
   min-height: 100vh;
+  transition:
+    background-color 0.3s cubic-bezier(0.25, 1, 0.5, 1),
+    color 0.3s cubic-bezier(0.25, 1, 0.5, 1);
 }
 
 .options-container {
@@ -79,7 +88,11 @@ body {
   border-radius: 12px;
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+  transition:
+    background-color 0.3s cubic-bezier(0.25, 1, 0.5, 1),
+    border-color 0.3s cubic-bezier(0.25, 1, 0.5, 1),
+    transform 0.3s cubic-bezier(0.25, 1, 0.5, 1),
+    box-shadow 0.3s cubic-bezier(0.25, 1, 0.5, 1);
 }
 
 .options-section:hover {

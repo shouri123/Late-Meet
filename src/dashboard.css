@@ -483,6 +483,13 @@ body::-webkit-scrollbar-thumb,
 /* ——— Decisions List ——— */
 .decision-item {
   border-left: 3px solid var(--text-main);
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.decision-content {
+  flex: 1;
 }
 
 .decision-text {
@@ -495,6 +502,32 @@ body::-webkit-scrollbar-thumb,
 .decision-meta {
   font-size: 11px;
   color: var(--text-muted);
+}
+
+.copy-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  margin-top: -2px;
+}
+
+.copy-btn:hover {
+  background: var(--bg-card);
+  border-color: var(--border-sub);
+  color: var(--text-main);
+}
+
+.copy-btn svg {
+  width: 14px;
+  height: 14px;
 }
 
 /* ——— Action Items List ——— */

@@ -40,3 +40,35 @@ We follow a Coordinated Vulnerability Disclosure (CVD) process:
 - **Public Disclosure**: Once a fix is released, we will coordinate public disclosure of the vulnerability with you, giving you full credit for the discovery unless you choose to remain anonymous.
 
 Thank you for helping keep Late-Meet secure!
+
+## Chrome Extension Security Guidelines
+
+### API Key Handling
+- **Never** commit API keys to the repository
+- API keys should be stored in `chrome.storage.local` only
+- Rotate any accidentally exposed API keys immediately
+- Keys should be treated like passwords — never share them
+
+### Extension-Specific Threats
+
+| Threat | Mitigation |
+|--------|-----------|
+| XSS in extension pages | Strict CSP in manifest.json |
+| API key theft | Encrypted storage, local-only sync |
+| Malicious website access | Declare minimal permissions in manifest |
+| Storage corruption | Schema validation on load |
+| MITM transcript interception | HTTPS-only API endpoints |
+
+### Permissions Principle
+The extension should request minimal permissions:
+- Only `activeTab` when possible instead of broad `tabs`
+- Avoid `<all_urls>` host permissions
+- Use `scripting` API with specific URL patterns
+
+### Reporting Extension Vulnerabilities
+
+For Chrome extension-specific vulnerabilities:
+1. Report privately via GitHub Security Advisories
+2. Include the Chrome version and extension version
+3. Describe if the vulnerability requires user interaction
+4. Note whether the exploit requires a malicious website

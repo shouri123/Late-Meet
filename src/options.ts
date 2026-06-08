@@ -7,11 +7,17 @@ import {
 import { validateOpenAIKey, validateElevenLabsKey } from "./utils/api.js";
 import { renderStorageDashboard } from "./storageDashboard";
 
-interface Settings {
+/**
+ * Strongly-typed map of all recognized extension settings keys and their
+ * expected value types. Used to provide type safety alongside the open-ended
+ * `Settings` type that allows arbitrary extra keys.
+ */
+interface KnownSettings {
   summarizationInterval?: number;
   vadThreshold?: number;
   aiModel?: string;
   lateJoinerBriefing?: boolean;
+  publicLateJoinerChat?: boolean;
   topicDetection?: boolean;
   decisionDetection?: boolean;
   actionExtraction?: boolean;
@@ -19,10 +25,31 @@ interface Settings {
   transcriptRefinement?: boolean;
   theme?: "system" | "light" | "dark";
   accent?: string;
-  [key: string]: any;
 }
 
-// Utility to apply style visual changes instantly to the page
+/**
+ * The full settings object stored in chrome.storage.local. Combines all known
+ * typed settings with an open index signature that preserves any unrecognized
+ * keys written by older or future extension versions.
+ */
+type Settings = KnownSettings & Record<string, unknown>;
+
+/**
+ * A union of all `KnownSettings` keys whose value type is `boolean | undefined`.
+ * Used to constrain the feature-toggle mapping so only boolean settings can be
+ * bound to checkbox inputs.
+ */
+type BooleanSettingKey = {
+  [Key in keyof KnownSettings]-?: KnownSettings[Key] extends boolean | undefined ? Key : never;
+}[keyof KnownSettings];
+
+/**
+ * Applies theme and accent-color CSS variables to the document root immediately,
+ * giving users instant visual feedback as they interact with the theme controls.
+ * When `theme` is `"system"`, the active theme is resolved from the OS preference.
+ * @param theme - The desired theme: `"system"`, `"light"`, or `"dark"`.
+ * @param accent - A CSS HSL string (e.g. `"210, 100%, 50%"`) for the accent color.
+ */
 function applyThemePreview(theme: "system" | "light" | "dark", accent: string) {
   const root = document.documentElement;
 
@@ -113,8 +140,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   // Feature toggles
-  const toggles = [
+  const toggles: Array<{ id: string; key: BooleanSettingKey }> = [
     { id: "late-joiner-toggle", key: "lateJoinerBriefing" },
+    { id: "public-late-joiner-chat-toggle", key: "publicLateJoinerChat" },
     { id: "topic-toggle", key: "topicDetection" },
     { id: "decision-toggle", key: "decisionDetection" },
     { id: "action-toggle", key: "actionExtraction" },
@@ -123,7 +151,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   ];
 
   // Keys that default to off (opt-in features)
-  const defaultOffKeys = new Set(["transcriptRefinement"]);
+  const defaultOffKeys = new Set(["publicLateJoinerChat", "transcriptRefinement"]);
 
   toggles.forEach((t) => {
     const el = document.getElementById(t.id) as HTMLInputElement | null;
@@ -145,6 +173,13 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // Run initial theme application right away so options page isn't broken
   applyThemePreview(currentTheme, currentAccent);
+
+  // Enable transitions after initial application completes to prevent page-load transitions
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      document.body.classList.remove("no-transitions");
+    });
+  });
 
   // Set the active styling on the matching color dot button
   document.querySelectorAll(".color-dot").forEach((dot) => {
@@ -296,14 +331,18 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
 
       const parsedInterval = intervalSlider ? parseInt(intervalSlider.value, 10) : 30;
-      const validatedInterval =
+      let validatedInterval =
         Number.isNaN(parsedInterval) || !Number.isFinite(parsedInterval) ? 30 : parsedInterval;
+      if (validatedInterval < 10) validatedInterval = 10;
+      if (validatedInterval > 300) validatedInterval = 300;
 
       const parsedVadThreshold = vadSlider ? parseFloat(vadSlider.value) : 0.012;
-      const validatedVadThreshold =
+      let validatedVadThreshold =
         Number.isNaN(parsedVadThreshold) || !Number.isFinite(parsedVadThreshold)
           ? 0.012
           : parsedVadThreshold;
+      if (validatedVadThreshold < 0.001) validatedVadThreshold = 0.001;
+      if (validatedVadThreshold > 1.0) validatedVadThreshold = 1.0;
 
       const newSettings: Settings = {
         ...settings, // Retain existing unmapped fields
@@ -312,6 +351,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         aiModel: (document.getElementById("ai-model") as HTMLSelectElement)?.value,
         lateJoinerBriefing: (document.getElementById("late-joiner-toggle") as HTMLInputElement)
           ?.checked,
+        publicLateJoinerChat: (
+          document.getElementById("public-late-joiner-chat-toggle") as HTMLInputElement
+        )?.checked,
         topicDetection: (document.getElementById("topic-toggle") as HTMLInputElement)?.checked,
         decisionDetection: (document.getElementById("decision-toggle") as HTMLInputElement)
           ?.checked,

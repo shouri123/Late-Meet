@@ -24,17 +24,29 @@ function resolveTheme(theme: ThemeMode): "light" | "dark" {
   return theme;
 }
 
-export function isValidAccent(value: string): boolean {
-  const accent = value.trim();
-  return (
-    /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(accent) ||
-    /^\d{1,3}\s*,\s*\d{1,3}%\s*,\s*\d{1,3}%$/.test(accent) ||
-    /^\d{1,3}\s+\d{1,3}%\s+\d{1,3}%$/.test(accent)
-  );
+function isValidHslComponent(hue: string, sat: string, light: string): boolean {
+  const h = parseInt(hue, 10);
+  const s = parseInt(sat, 10);
+  const l = parseInt(light, 10);
+  return h >= 0 && h <= 360 && s >= 0 && s <= 100 && l >= 0 && l <= 100;
 }
 
-function normalizeSettings(raw: unknown): Settings {
-  const candidate = (raw ?? {}) as Partial<Settings>;
+export function isValidAccent(value: string): boolean {
+  const accent = value.trim();
+
+  if (/^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(accent)) return true;
+
+  const commaMatch = accent.match(/^(\d{1,3})\s*,\s*(\d{1,3})%\s*,\s*(\d{1,3})%$/);
+  if (commaMatch) return isValidHslComponent(commaMatch[1], commaMatch[2], commaMatch[3]);
+
+  const spaceMatch = accent.match(/^(\d{1,3})\s+(\d{1,3})%\s+(\d{1,3})%$/);
+  if (spaceMatch) return isValidHslComponent(spaceMatch[1], spaceMatch[2], spaceMatch[3]);
+
+  return false;
+}
+
+function normalizeSettings(raw: unknown): any {
+  const candidate = (raw ?? {}) as Record<string, any>;
 
   const theme: ThemeMode =
     candidate.theme === "light" || candidate.theme === "dark" || candidate.theme === "system"
@@ -45,9 +57,10 @@ function normalizeSettings(raw: unknown): Settings {
 
   const accent = isValidAccent(accentCandidate) ? accentCandidate : DEFAULT_SETTINGS.accent;
 
-  return { theme, accent };
+  return { ...candidate, theme, accent };
 }
-export async function getSettings(): Promise<Settings> {
+
+export async function getSettings(): Promise<any> {
   const result = await chrome.storage.local.get("settings");
   return normalizeSettings(result.settings);
 }
