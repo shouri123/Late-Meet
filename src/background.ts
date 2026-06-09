@@ -701,6 +701,7 @@ interface Settings {
   actionExtraction?: boolean;
   sentimentAnalysis?: boolean;
   transcriptRefinement?: boolean;
+  microphoneDeviceId?: string;
 }
 
 // getSettings is imported from theme.js at the top of the file
@@ -1616,12 +1617,15 @@ async function startAudioCapture(
     const raw = settings.vadThreshold;
     const vadThreshold =
       typeof raw === "number" && Number.isFinite(raw) && raw >= 0.001 && raw <= 1.0 ? raw : 0.012;
+    const microphoneDeviceId =
+      typeof settings.microphoneDeviceId === "string" ? settings.microphoneDeviceId : "";
     const response = await chrome.runtime.sendMessage({
       type: "OFFSCREEN_START_CAPTURE",
       streamId,
       tabId,
       includeMicrophone,
       vadThreshold,
+      microphoneDeviceId,
     });
 
     if (!response?.success) {

@@ -6,6 +6,7 @@ import {
 } from "./utils/credentials";
 import { validateOpenAIKey, validateElevenLabsKey } from "./utils/api.js";
 import { renderStorageDashboard } from "./storageDashboard";
+import { normalizeMicrophoneId, toMicrophoneOptions } from "./microphoneDevices";
 
 /**
  * Strongly-typed map of all recognized extension settings keys and their
@@ -23,6 +24,7 @@ interface KnownSettings {
   actionExtraction?: boolean;
   sentimentAnalysis?: boolean;
   transcriptRefinement?: boolean;
+  microphoneDeviceId?: string;
   theme?: "system" | "light" | "dark";
   accent?: string;
 }
@@ -150,6 +152,65 @@ document.addEventListener("DOMContentLoaded", async () => {
   if (aiModelSelect && settings.aiModel) {
     aiModelSelect.value = settings.aiModel;
   }
+
+  // Microphone device selection (#624). enumerateDevices() only exposes device
+  // labels once microphone permission has been granted, so `requestPermission`
+  // (the Refresh button) first calls getUserMedia to unlock the names.
+  const micSelect = document.getElementById("microphone-device") as HTMLSelectElement | null;
+  const micHint = document.getElementById("microphone-hint");
+  const refreshMicBtn = document.getElementById("refresh-microphones") as HTMLButtonElement | null;
+
+  async function populateMicrophones(requestPermission: boolean): Promise<void> {
+    if (!micSelect || !navigator.mediaDevices?.enumerateDevices) return;
+
+    let tempStream: MediaStream | null = null;
+    try {
+      if (requestPermission && navigator.mediaDevices.getUserMedia) {
+        tempStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      }
+
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const options = toMicrophoneOptions(devices);
+      const selected = normalizeMicrophoneId(settings.microphoneDeviceId);
+
+      // Reset to the single default option, then append detected devices.
+      micSelect.length = 1;
+      for (const option of options) {
+        const el = document.createElement("option");
+        el.value = option.deviceId;
+        el.textContent = option.label;
+        micSelect.appendChild(el);
+      }
+
+      // Preserve the saved choice even if its label isn't visible yet.
+      micSelect.value = selected;
+      if (micSelect.value !== selected && selected) {
+        const placeholder = document.createElement("option");
+        placeholder.value = selected;
+        placeholder.textContent = "Saved microphone (not detected)";
+        micSelect.appendChild(placeholder);
+        micSelect.value = selected;
+      }
+
+      if (micHint && options.some((option) => option.label.startsWith("Microphone "))) {
+        micHint.textContent = "Click Refresh and allow microphone access to see device names.";
+      } else if (micHint) {
+        micHint.textContent = "Choose which microphone is captured during meetings.";
+      }
+    } catch (err) {
+      console.warn("[LateMeet] Could not enumerate microphones:", err);
+      if (micHint) {
+        micHint.textContent = "Microphone access was blocked, so device names are unavailable.";
+      }
+    } finally {
+      tempStream?.getTracks().forEach((track) => track.stop());
+    }
+  }
+
+  await populateMicrophones(false);
+  refreshMicBtn?.addEventListener("click", () => {
+    void populateMicrophones(true);
+  });
 
   // Feature toggles
   const toggles: Array<{ id: string; key: BooleanSettingKey }> = [
@@ -331,6 +392,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         summarizationInterval: validatedInterval,
         vadThreshold: validatedVadThreshold,
         aiModel: (document.getElementById("ai-model") as HTMLSelectElement)?.value,
+        microphoneDeviceId: normalizeMicrophoneId(
+          (document.getElementById("microphone-device") as HTMLSelectElement | null)?.value,
+        ),
         lateJoinerBriefing: (document.getElementById("late-joiner-toggle") as HTMLInputElement)
           ?.checked,
         publicLateJoinerChat: (

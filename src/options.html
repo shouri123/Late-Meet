@@ -355,6 +355,27 @@
             <option value="gpt-3.5-turbo">GPT-3.5 Turbo (Budget)</option>
           </select>
         </div>
+
+        <div class="form-group">
+          <label class="form-label" for="microphone-device">Microphone</label>
+          <div class="input-row">
+            <select id="microphone-device" class="form-select">
+              <option value="">System default microphone</option>
+            </select>
+            <button
+              id="refresh-microphones"
+              type="button"
+              class="btn"
+              aria-label="Refresh device list"
+            >
+              Refresh
+            </button>
+          </div>
+          <p class="form-hint" id="microphone-hint">
+            Choose which microphone is captured during meetings. Click Refresh and allow microphone
+            access to see device names.
+          </p>
+        </div>
       </section>
 
       <!-- Features Section -->

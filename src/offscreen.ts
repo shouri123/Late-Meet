@@ -1,4 +1,5 @@
 import { VoiceActivityTracker, isChunkViable } from "./audioProcessing";
+import { buildMicrophoneConstraints } from "./microphoneDevices";
 
 let mediaStream: MediaStream | null = null;
 let microphoneStream: MediaStream | null = null;
@@ -325,19 +326,30 @@ async function getTabAudioStream(streamId: string) {
   });
 }
 
-async function getMicrophoneStream() {
+async function getMicrophoneStream(deviceId?: string) {
+  const constraints = buildMicrophoneConstraints(deviceId);
   try {
-    return await navigator.mediaDevices.getUserMedia({
-      audio: {
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true,
-      },
-      video: false,
-    });
+    return await navigator.mediaDevices.getUserMedia({ audio: constraints, video: false });
   } catch (err) {
-    console.warn("[LateMeet][offscreen] Microphone capture unavailable:", err);
+    // A pinned device may have been unplugged; fall back to the system default
+    // so meetings still capture mic audio instead of silently dropping it (#624).
+    if (constraints.deviceId) {
+      console.warn(
+        "[LateMeet][offscreen] Preferred microphone unavailable, falling back to default:",
+        err,
+      );
+      try {
+        return await navigator.mediaDevices.getUserMedia({
+          audio: buildMicrophoneConstraints(),
+          video: false,
+        });
+      } catch (fallbackErr) {
+        console.warn("[LateMeet][offscreen] Microphone capture unavailable:", fallbackErr);
+        return null;
+      }
+    }
 
+    console.warn("[LateMeet][offscreen] Microphone capture unavailable:", err);
     return null;
   }
 }
@@ -470,6 +482,7 @@ async function startCapture(
   _tabId: number,
   includeMicrophone = true,
   vadThreshold?: number,
+  microphoneDeviceId?: string,
 ) {
   if (mediaRecorder && mediaRecorder.state === "recording") {
     console.log("[LateMeet][offscreen] Capture already running");
@@ -545,7 +558,7 @@ async function startCapture(
   audioSources.push(tabSource);
 
   if (includeMicrophone) {
-    microphoneStream = await getMicrophoneStream();
+    microphoneStream = await getMicrophoneStream(microphoneDeviceId);
 
     if (microphoneStream) {
       connectSourceToRecorder(microphoneStream, destination);
@@ -670,6 +683,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
           message.tabId,
           message.includeMicrophone !== false,
           message.vadThreshold,
+          message.microphoneDeviceId,
         );
 
         sendResponse({
