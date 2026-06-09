@@ -44,6 +44,7 @@ Thank you for helping keep Late-Meet secure!
 ## Chrome Extension Security Guidelines
 
 ### API Key Handling
+
 - **Never** commit API keys to the repository
 - API keys should be stored in `chrome.storage.local` only
 - Rotate any accidentally exposed API keys immediately
@@ -51,16 +52,18 @@ Thank you for helping keep Late-Meet secure!
 
 ### Extension-Specific Threats
 
-| Threat | Mitigation |
-|--------|-----------|
-| XSS in extension pages | Strict CSP in manifest.json |
-| API key theft | Encrypted storage, local-only sync |
-| Malicious website access | Declare minimal permissions in manifest |
-| Storage corruption | Schema validation on load |
-| MITM transcript interception | HTTPS-only API endpoints |
+| Threat                       | Mitigation                              |
+| ---------------------------- | --------------------------------------- |
+| XSS in extension pages       | Strict CSP in manifest.json             |
+| API key theft                | Encrypted storage, local-only sync      |
+| Malicious website access     | Declare minimal permissions in manifest |
+| Storage corruption           | Schema validation on load               |
+| MITM transcript interception | HTTPS-only API endpoints                |
 
 ### Permissions Principle
+
 The extension should request minimal permissions:
+
 - Only `activeTab` when possible instead of broad `tabs`
 - Avoid `<all_urls>` host permissions
 - Use `scripting` API with specific URL patterns
@@ -68,6 +71,7 @@ The extension should request minimal permissions:
 ### Reporting Extension Vulnerabilities
 
 For Chrome extension-specific vulnerabilities:
+
 1. Report privately via GitHub Security Advisories
 2. Include the Chrome version and extension version
 3. Describe if the vulnerability requires user interaction

@@ -124,7 +124,6 @@ export interface StorageStats {
   warningThreshold: number;
 }
 
-
 // ============================================================
 // Storage Types — for type-safe chrome.storage operations
 // ============================================================
@@ -135,22 +134,22 @@ export interface MeetingSession {
   tabId: number;
   meetingUrl: string;
   meetingTitle: string;
-  startTime: number;        // Unix timestamp (ms)
-  endTime: number | null;   // null if recording is still active
+  startTime: number; // Unix timestamp (ms)
+  endTime: number | null; // null if recording is still active
   durationMs: number | null;
   participants: string[];
   transcript: TranscriptEntry[];
   summary: string | null;
-  language: string;         // BCP 47 language tag (e.g., "en-US")
-  schemaVersion: number;    // For migration support
+  language: string; // BCP 47 language tag (e.g., "en-US")
+  schemaVersion: number; // For migration support
 }
 
 /** A single transcript entry with speaker and timestamp */
 export interface TranscriptEntry {
   speaker: string;
   text: string;
-  timestamp: number;        // Offset from meeting start in ms
-  confidence: number;       // 0.0 to 1.0
+  timestamp: number; // Offset from meeting start in ms
+  confidence?: number; // 0.0 to 1.0
 }
 
 /** Root schema for chrome.storage.local */
@@ -167,6 +166,6 @@ export interface ExtensionPreferences {
   autoStart: boolean;
   language: string;
   showTranscriptInMeeting: boolean;
-  summaryStyle: 'brief' | 'detailed' | 'bullets';
-  theme: 'light' | 'dark' | 'system';
+  summaryStyle: "brief" | "detailed" | "bullets";
+  theme: "light" | "dark" | "system";
 }

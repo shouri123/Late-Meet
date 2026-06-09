@@ -55,7 +55,7 @@ function applyThemePreview(theme: "system" | "light" | "dark", accent: string) {
 
   let activeTheme = theme;
   if (theme === "system") {
-    activeTheme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    activeTheme = globalThis.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
   }
 
   root.setAttribute("data-theme", activeTheme);
@@ -113,7 +113,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const onboardingRoot = document.getElementById("onboarding-root") as HTMLDivElement | null;
   const viewOnboardingBtn = document.getElementById("view-onboarding") as HTMLButtonElement | null;
 
-  if (window.location.search.includes("onboarding=1") && onboardingRoot) {
+  if (globalThis.location.search.includes("onboarding=1") && onboardingRoot) {
     const setupView = document.getElementById("setup-view") as HTMLDivElement | null;
     const mainView = document.getElementById("main-view") as HTMLDivElement | null;
     if (setupView) setupView.style.display = "none";
@@ -131,6 +131,18 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (mainView) mainView.style.display = "none";
     const mod = await import("./onboarding");
     await mod.renderOnboarding(onboardingRoot);
+  });
+
+  // ——— Clear Data ———
+  document.getElementById("clear-data-btn")?.addEventListener("click", async () => {
+    if (confirm("Are you sure you want to clear all data? This cannot be undone.")) {
+      await chrome.storage.local.clear();
+      if (typeof chrome !== "undefined" && chrome.storage?.session) {
+        await chrome.storage.session.clear();
+      }
+      alert("All data cleared successfully. The page will now reload.");
+      globalThis.location.reload();
+    }
   });
 
   // AI Model
@@ -298,38 +310,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       (document.getElementById("elevenlabs-key") as HTMLInputElement | null)?.value.trim() ?? "";
 
     const originalText = saveBtn.textContent?.trim() || "Save Settings";
-    if (pendingUnlock) await pendingUnlock;
-    if (!isUnlocked()) {
-      if (status) {
-        status.style.color = "red";
-        status.textContent =
-          "Enter your passphrase above to unlock encryption before saving API keys.";
-        status.classList.add("visible");
-        setTimeout(() => status.classList.remove("visible"), 4000);
-      }
-      return;
-    }
-
     saveBtn.disabled = true;
-    saveBtn.textContent = "Validating Keys...";
     try {
-      const [isOpenAIValid, isElevenLabsValid] = await Promise.all([
-        openaiKey ? validateOpenAIKey(openaiKey) : Promise.resolve(true),
-        elevenlabsKey ? validateElevenLabsKey(elevenlabsKey) : Promise.resolve(true),
-      ]);
-
-      if (!isOpenAIValid || !isElevenLabsValid) {
-        if (status) {
-          status.style.color = "red";
-          status.textContent = !isOpenAIValid
-            ? "Invalid OpenAI API Key. Please verify and try again."
-            : "Invalid ElevenLabs API Key. Please verify and try again.";
-          status.classList.add("visible");
-          setTimeout(() => status.classList.remove("visible"), 4000);
-        }
-        return;
-      }
-
       const parsedInterval = intervalSlider ? parseInt(intervalSlider.value, 10) : 30;
       let validatedInterval =
         Number.isNaN(parsedInterval) || !Number.isFinite(parsedInterval) ? 30 : parsedInterval;
@@ -368,15 +350,39 @@ document.addEventListener("DOMContentLoaded", async () => {
         accent: selectedAccentColor,
       };
 
-      await Promise.all([
-        chrome.storage.local.set({ settings: newSettings }),
-        saveApiCredentials({ openai_api_key: openaiKey, elevenlabs_api_key: elevenlabsKey }),
-      ]);
+      await chrome.storage.local.set({ settings: newSettings });
+
+      let credentialsSaved = false;
+      if (pendingUnlock) await pendingUnlock;
+      if (isUnlocked()) {
+        saveBtn.textContent = "Validating Keys...";
+        const [isOpenAIValid, isElevenLabsValid] = await Promise.all([
+          openaiKey ? validateOpenAIKey(openaiKey) : Promise.resolve(true),
+          elevenlabsKey ? validateElevenLabsKey(elevenlabsKey) : Promise.resolve(true),
+        ]);
+
+        if (!isOpenAIValid || !isElevenLabsValid) {
+          if (status) {
+            status.style.color = "red";
+            status.textContent = !isOpenAIValid
+              ? "Settings saved, but the OpenAI API key is invalid."
+              : "Settings saved, but the ElevenLabs API key is invalid.";
+            status.classList.add("visible");
+            setTimeout(() => status.classList.remove("visible"), 4000);
+          }
+          return;
+        }
+
+        await saveApiCredentials({ openai_api_key: openaiKey, elevenlabs_api_key: elevenlabsKey });
+        credentialsSaved = true;
+      }
 
       // Show success
       if (status) {
-        status.style.color = "";
-        status.textContent = "Settings saved successfully!";
+        status.style.color = credentialsSaved ? "" : "var(--accent-color, #22C55E)";
+        status.textContent = credentialsSaved
+          ? "Settings saved successfully!"
+          : "Settings saved. Unlock credential encryption to update API keys.";
         status.classList.add("visible");
 
         setTimeout(() => {

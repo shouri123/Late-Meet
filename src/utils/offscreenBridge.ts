@@ -12,10 +12,7 @@ type OffscreenMessage = {
 };
 
 /** Send an audio chunk to the offscreen document for processing */
-export async function sendChunkToOffscreen(
-  chunk: ArrayBuffer,
-  tabId: number
-): Promise<void> {
+export async function sendChunkToOffscreen(chunk: ArrayBuffer, tabId: number): Promise<void> {
   await ensureOffscreenDocument();
 
   await chrome.runtime.sendMessage({
