@@ -865,7 +865,7 @@ async function transcribeChunk(base64Audio: string, mimeType = "audio/webm", pro
   });
 }
 
-async function refineTranscription(rawText: string) {
+export async function refineTranscription(rawText: string) {
   if (!rawText || rawText.length < 5) return rawText;
 
   // Skip refinement for very short or likely-noise transcriptions
