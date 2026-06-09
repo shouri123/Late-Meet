@@ -46,7 +46,13 @@ export function isValidAccent(value: string): boolean {
 }
 
 function normalizeSettings(raw: unknown): any {
-  const candidate = (raw ?? {}) as Record<string, any>;
+  const isPlainObject =
+    typeof raw === "object" &&
+    raw !== null &&
+    !Array.isArray(raw) &&
+    (Object.getPrototypeOf(raw) === Object.prototype || Object.getPrototypeOf(raw) === null);
+
+  const candidate = (isPlainObject ? raw : {}) as Record<string, any>;
 
   const theme: ThemeMode =
     candidate.theme === "light" || candidate.theme === "dark" || candidate.theme === "system"

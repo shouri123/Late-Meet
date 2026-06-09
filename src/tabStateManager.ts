@@ -45,7 +45,14 @@ export async function getTabState(tabId: number): Promise<TabState> {
   const key = `tab_state_${tabId}`;
   const session = await getSessionStorage();
   const result = (await session.get(key)) as any;
-  return result[key] ?? { tabId, ...defaultState() };
+  const rawState = result[key];
+  const isPlainObject =
+    typeof rawState === "object" &&
+    rawState !== null &&
+    !Array.isArray(rawState) &&
+    (Object.getPrototypeOf(rawState) === Object.prototype || Object.getPrototypeOf(rawState) === null);
+
+  return (isPlainObject ? rawState : undefined) ?? { tabId, ...defaultState() };
 }
 
 /** Update state for a specific tab */

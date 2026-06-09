@@ -69,7 +69,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     chrome.storage.local.get("settings") as Promise<{ settings?: Settings }>,
   ]);
 
-  const settings: Settings = config.settings || {};
+  let rawSettings = config.settings;
+  const isPlainObject =
+    typeof rawSettings === "object" &&
+    rawSettings !== null &&
+    !Array.isArray(rawSettings) &&
+    (Object.getPrototypeOf(rawSettings) === Object.prototype || Object.getPrototypeOf(rawSettings) === null);
+
+  const settings: Settings = (isPlainObject ? rawSettings : {}) as Settings;
 
   // ——— Populate Existing UI Elements ———
   const versionDisplay = document.getElementById("version-display");
