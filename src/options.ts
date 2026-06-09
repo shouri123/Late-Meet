@@ -6,6 +6,14 @@ import {
 } from "./utils/credentials";
 import { validateOpenAIKey, validateElevenLabsKey } from "./utils/api.js";
 import { renderStorageDashboard } from "./storageDashboard";
+import {
+  SUMMARIZATION_INTERVAL_DEFAULT,
+  VAD_THRESHOLD_DEFAULT,
+  clampSummarizationInterval,
+  clampVadThreshold,
+  resolveSaveStatus,
+  shouldSaveCredentials,
+} from "./optionsSettings";
 
 /**
  * Strongly-typed map of all recognized extension settings keys and their
@@ -312,19 +320,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     const originalText = saveBtn.textContent?.trim() || "Save Settings";
     saveBtn.disabled = true;
     try {
-      const parsedInterval = intervalSlider ? parseInt(intervalSlider.value, 10) : 30;
-      let validatedInterval =
-        Number.isNaN(parsedInterval) || !Number.isFinite(parsedInterval) ? 30 : parsedInterval;
-      if (validatedInterval < 10) validatedInterval = 10;
-      if (validatedInterval > 300) validatedInterval = 300;
+      const validatedInterval = clampSummarizationInterval(
+        intervalSlider ? parseInt(intervalSlider.value, 10) : SUMMARIZATION_INTERVAL_DEFAULT,
+      );
 
-      const parsedVadThreshold = vadSlider ? parseFloat(vadSlider.value) : 0.012;
-      let validatedVadThreshold =
-        Number.isNaN(parsedVadThreshold) || !Number.isFinite(parsedVadThreshold)
-          ? 0.012
-          : parsedVadThreshold;
-      if (validatedVadThreshold < 0.001) validatedVadThreshold = 0.001;
-      if (validatedVadThreshold > 1.0) validatedVadThreshold = 1.0;
+      const validatedVadThreshold = clampVadThreshold(
+        vadSlider ? parseFloat(vadSlider.value) : VAD_THRESHOLD_DEFAULT,
+      );
 
       const newSettings: Settings = {
         ...settings, // Retain existing unmapped fields
@@ -353,8 +355,12 @@ document.addEventListener("DOMContentLoaded", async () => {
       await chrome.storage.local.set({ settings: newSettings });
 
       let credentialsSaved = false;
+      let invalidKey: "openai" | "elevenlabs" | null = null;
       if (pendingUnlock) await pendingUnlock;
-      if (isUnlocked()) {
+      const unlocked = isUnlocked();
+      // Credentials are only written while encryption is unlocked, so non-secret
+      // settings (already persisted above) save regardless of lock state (#526).
+      if (unlocked && shouldSaveCredentials(unlocked)) {
         saveBtn.textContent = "Validating Keys...";
         const [isOpenAIValid, isElevenLabsValid] = await Promise.all([
           openaiKey ? validateOpenAIKey(openaiKey) : Promise.resolve(true),
@@ -362,32 +368,30 @@ document.addEventListener("DOMContentLoaded", async () => {
         ]);
 
         if (!isOpenAIValid || !isElevenLabsValid) {
-          if (status) {
-            status.style.color = "red";
-            status.textContent = !isOpenAIValid
-              ? "Settings saved, but the OpenAI API key is invalid."
-              : "Settings saved, but the ElevenLabs API key is invalid.";
-            status.classList.add("visible");
-            setTimeout(() => status.classList.remove("visible"), 4000);
-          }
-          return;
+          invalidKey = !isOpenAIValid ? "openai" : "elevenlabs";
+        } else {
+          await saveApiCredentials({
+            openai_api_key: openaiKey,
+            elevenlabs_api_key: elevenlabsKey,
+          });
+          credentialsSaved = true;
         }
-
-        await saveApiCredentials({ openai_api_key: openaiKey, elevenlabs_api_key: elevenlabsKey });
-        credentialsSaved = true;
       }
 
-      // Show success
+      // Settings are always persisted; the message reflects the credential outcome.
       if (status) {
-        status.style.color = credentialsSaved ? "" : "var(--accent-color, #22C55E)";
-        status.textContent = credentialsSaved
-          ? "Settings saved successfully!"
-          : "Settings saved. Unlock credential encryption to update API keys.";
+        const saveStatus = resolveSaveStatus({ unlocked, credentialsSaved, invalidKey });
+        status.style.color =
+          saveStatus.tone === "error"
+            ? "red"
+            : saveStatus.tone === "info"
+              ? "var(--accent-color, #22C55E)"
+              : "";
+        status.textContent = saveStatus.message;
         status.classList.add("visible");
 
-        setTimeout(() => {
-          status.classList.remove("visible");
-        }, 3000);
+        const hideAfterMs = saveStatus.tone === "error" ? 4000 : 3000;
+        setTimeout(() => status.classList.remove("visible"), hideAfterMs);
       }
     } catch (error) {
       console.error("Error saving settings:", error);
