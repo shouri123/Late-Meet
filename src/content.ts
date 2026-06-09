@@ -4,6 +4,8 @@ import {
   type ParticipantNameCandidate,
 } from "./participantDetection.ts";
 
+import { MUTE_BUTTON_SELECTORS, parseMuteState } from "./muteState.ts";
+
 import { initTheme } from "./theme.js";
 
 void initTheme().catch((err) => console.error(err));
@@ -526,6 +528,66 @@ void initTheme().catch((err) => console.error(err));
     lastActiveSpeakerName = null;
   }
 
+  // ——— Microphone mute synchronization (#631) ———
+  let muteObserver: MutationObserver | null = null;
+  let muteCheckTimer: number | NodeJS.Timeout | null = null;
+  let lastMuteState: boolean | null = null;
+
+  function detectMuteState(): boolean | null {
+    const button = queryFirst(MUTE_BUTTON_SELECTORS);
+    if (!button) return null;
+    return parseMuteState({
+      dataIsMuted: button.getAttribute("data-is-muted"),
+      ariaLabel: button.getAttribute("aria-label"),
+    });
+  }
+
+  async function publishMuteState() {
+    const muted = detectMuteState();
+    if (muted === null || muted === lastMuteState) return;
+
+    lastMuteState = muted;
+    try {
+      await chrome.runtime.sendMessage({ type: "MIC_MUTE_STATE", muted });
+    } catch {
+      // Service worker idle
+    }
+  }
+
+  function scheduleMuteCheck() {
+    if (muteCheckTimer) return;
+    muteCheckTimer = setTimeout(() => {
+      muteCheckTimer = null;
+      void publishMuteState();
+    }, 150);
+  }
+
+  function startMuteSync() {
+    if (muteObserver) return;
+
+    muteObserver = new MutationObserver(() => scheduleMuteCheck());
+    muteObserver.observe(document.body, {
+      attributes: true,
+      attributeFilter: ["data-is-muted", "aria-label"],
+      childList: true,
+      subtree: true,
+    });
+
+    void publishMuteState();
+  }
+
+  function stopMuteSync() {
+    if (muteObserver) {
+      muteObserver.disconnect();
+      muteObserver = null;
+    }
+    if (muteCheckTimer) {
+      clearTimeout(muteCheckTimer);
+      muteCheckTimer = null;
+    }
+    lastMuteState = null;
+  }
+
   function injectFloatingButton() {
     const existing = document.getElementById("mc-float-btn");
     if (existing) return;
@@ -610,6 +672,8 @@ void initTheme().catch((err) => console.error(err));
       activeSpeakerObserver.disconnect();
       activeSpeakerObserver = null;
     }
+
+    stopMuteSync();
   }
 
   function destroyAll() {
@@ -641,6 +705,7 @@ void initTheme().catch((err) => console.error(err));
       // Re-initialize observation when resuming visibility
       startParticipantPolling();
       startActiveSpeakerDetection();
+      startMuteSync();
       if (globalThis.location.pathname.length > 5 && !globalThis.location.pathname.includes("/_")) {
         injectFloatingButton();
       } else {
@@ -678,10 +743,12 @@ void initTheme().catch((err) => console.error(err));
       if (!isActive) {
         stopParticipantPolling();
         stopActiveSpeakerDetection();
+        stopMuteSync();
       } else {
         // Restart polling/detection if a new session begins
         startParticipantPolling();
         startActiveSpeakerDetection();
+        startMuteSync();
       }
 
       sendResponse({ success: true });
@@ -698,6 +765,7 @@ void initTheme().catch((err) => console.error(err));
 
   startParticipantPolling();
   startActiveSpeakerDetection();
+  startMuteSync();
   if (globalThis.location.pathname.length > 5 && !globalThis.location.pathname.includes("/_")) {
     injectFloatingButton();
   }

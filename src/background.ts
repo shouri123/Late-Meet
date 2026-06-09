@@ -2073,6 +2073,31 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return;
       }
 
+      case "MIC_MUTE_STATE": {
+        if (
+          !isMessageFromActiveMeeting({
+            senderTabId: sender?.tab?.id,
+            senderUrl: sender?.tab?.url || sender?.url,
+            targetTabId: state.targetTabId,
+            meetingId: state.meetingId,
+          })
+        ) {
+          sendResponse({ success: true, ignored: true });
+          return;
+        }
+
+        // Mirror Meet's local mute onto the offscreen recorder so a muted mic
+        // isn't captured/transcribed (#631). Only relevant while capturing.
+        const muted = message.muted === true;
+        if (state.audioActive) {
+          await chrome.runtime
+            .sendMessage({ type: "OFFSCREEN_SET_MIC_MUTED", muted })
+            .catch(() => {});
+        }
+        sendResponse({ success: true, muted });
+        return;
+      }
+
       case "SAVE_SESSION": {
         await persistSession();
         await broadcastStateUpdate(true);

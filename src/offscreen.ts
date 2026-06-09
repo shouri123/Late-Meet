@@ -342,6 +342,24 @@ async function getMicrophoneStream() {
   }
 }
 
+// Mirrors Meet's local mute onto the captured mic track: disabling the track
+// makes it emit silence (instead of the user's local audio) while keeping it
+// live so it can be re-enabled on unmute. Returns whether a track was updated.
+function setMicrophoneMuted(muted: boolean): boolean {
+  if (!microphoneStream) return false;
+
+  let applied = false;
+  for (const track of microphoneStream.getAudioTracks()) {
+    track.enabled = !muted;
+    applied = true;
+  }
+
+  if (applied) {
+    relay(`microphone ${muted ? "muted" : "unmuted"} via Meet sync`);
+  }
+  return applied;
+}
+
 function connectSourceToRecorder(
   stream: MediaStream,
   destination: MediaStreamAudioDestinationNode,
@@ -660,6 +678,12 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   (async () => {
     if (message.type === "OFFSCREEN_PING") {
       sendResponse({ success: true });
+      return;
+    }
+
+    if (message.type === "OFFSCREEN_SET_MIC_MUTED") {
+      const applied = setMicrophoneMuted(message.muted === true);
+      sendResponse({ success: true, applied });
       return;
     }
 
