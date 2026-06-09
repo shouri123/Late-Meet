@@ -15,6 +15,7 @@ import { renderStorageDashboard } from "./storageDashboard";
 interface KnownSettings {
   summarizationInterval?: number;
   vadThreshold?: number;
+  vadFrameSize?: number;
   aiModel?: string;
   lateJoinerBriefing?: boolean;
   publicLateJoinerChat?: boolean;
@@ -85,6 +86,17 @@ document.addEventListener("DOMContentLoaded", async () => {
     vadValue.textContent = vadSlider.value;
     vadSlider.addEventListener("input", () => {
       vadValue.textContent = vadSlider.value;
+    });
+  }
+
+  // VAD frame size slider
+  const vadFrameSizeSlider = document.getElementById("vad-frame-size") as HTMLInputElement | null;
+  const vadFrameValue = document.getElementById("vad-frame-value");
+  if (vadFrameSizeSlider && vadFrameValue) {
+    vadFrameSizeSlider.value = String(settings.vadFrameSize || 250);
+    vadFrameValue.textContent = `${vadFrameSizeSlider.value}ms`;
+    vadFrameSizeSlider.addEventListener("input", () => {
+      vadFrameValue.textContent = `${vadFrameSizeSlider.value}ms`;
     });
   }
 
@@ -326,10 +338,19 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (validatedVadThreshold < 0.001) validatedVadThreshold = 0.001;
       if (validatedVadThreshold > 1.0) validatedVadThreshold = 1.0;
 
+      const parsedVadFrameSize = vadFrameSizeSlider ? parseInt(vadFrameSizeSlider.value, 10) : 250;
+      let validatedVadFrameSize =
+        Number.isNaN(parsedVadFrameSize) || !Number.isFinite(parsedVadFrameSize)
+          ? 250
+          : parsedVadFrameSize;
+      if (validatedVadFrameSize < 100) validatedVadFrameSize = 100;
+      if (validatedVadFrameSize > 1000) validatedVadFrameSize = 1000;
+
       const newSettings: Settings = {
         ...settings, // Retain existing unmapped fields
         summarizationInterval: validatedInterval,
         vadThreshold: validatedVadThreshold,
+        vadFrameSize: validatedVadFrameSize,
         aiModel: (document.getElementById("ai-model") as HTMLSelectElement)?.value,
         lateJoinerBriefing: (document.getElementById("late-joiner-toggle") as HTMLInputElement)
           ?.checked,

@@ -348,6 +348,25 @@
         </div>
 
         <div class="form-group">
+          <label class="form-label">VAD Frame Size</label>
+          <p class="form-hint">
+            Interval between VAD evaluations (in milliseconds). Larger values reduce browser lag on lower-end CPUs.
+          </p>
+          <div class="slider-row">
+            <input
+              type="range"
+              id="vad-frame-size"
+              class="form-range"
+              min="100"
+              max="1000"
+              step="50"
+              value="250"
+            />
+            <span id="vad-frame-value" class="range-value">250ms</span>
+          </div>
+        </div>
+
+        <div class="form-group">
           <label class="form-label">AI Model</label>
           <select id="ai-model" class="form-select">
             <option value="gpt-4o-mini">GPT-4o Mini (Fast, Affordable)</option>
