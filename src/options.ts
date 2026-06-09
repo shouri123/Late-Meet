@@ -6,6 +6,7 @@ import {
 } from "./utils/credentials";
 import { validateOpenAIKey, validateElevenLabsKey } from "./utils/api.js";
 import { renderStorageDashboard } from "./storageDashboard";
+import { SUPPORTED_TRANSLATION_LANGUAGES } from "./translation";
 
 /**
  * Strongly-typed map of all recognized extension settings keys and their
@@ -23,6 +24,7 @@ interface KnownSettings {
   actionExtraction?: boolean;
   sentimentAnalysis?: boolean;
   transcriptRefinement?: boolean;
+  translationLanguage?: string;
   theme?: "system" | "light" | "dark";
   accent?: string;
 }
@@ -149,6 +151,23 @@ document.addEventListener("DOMContentLoaded", async () => {
   const aiModelSelect = document.getElementById("ai-model") as HTMLSelectElement | null;
   if (aiModelSelect && settings.aiModel) {
     aiModelSelect.value = settings.aiModel;
+  }
+
+  // Transcript translation language (#635). Options are populated from the
+  // shared SUPPORTED_TRANSLATION_LANGUAGES list so the menu never drifts.
+  const translationSelect = document.getElementById(
+    "translation-language",
+  ) as HTMLSelectElement | null;
+  if (translationSelect) {
+    for (const lang of SUPPORTED_TRANSLATION_LANGUAGES) {
+      const option = document.createElement("option");
+      option.value = lang.code;
+      option.textContent = lang.label;
+      translationSelect.appendChild(option);
+    }
+    if (typeof settings.translationLanguage === "string") {
+      translationSelect.value = settings.translationLanguage;
+    }
   }
 
   // Feature toggles
@@ -331,6 +350,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         summarizationInterval: validatedInterval,
         vadThreshold: validatedVadThreshold,
         aiModel: (document.getElementById("ai-model") as HTMLSelectElement)?.value,
+        translationLanguage:
+          (document.getElementById("translation-language") as HTMLSelectElement | null)?.value ??
+          "",
         lateJoinerBriefing: (document.getElementById("late-joiner-toggle") as HTMLInputElement)
           ?.checked,
         publicLateJoinerChat: (
