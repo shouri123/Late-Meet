@@ -1127,6 +1127,26 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   }
 
+  // ——— Transcript Copy Listener ———
+  if (transcriptContainer) {
+    transcriptContainer.addEventListener("click", (e) => {
+      const btn = (e.target as Element).closest(".copy-transcript-btn") as HTMLButtonElement | null;
+      if (!btn) return;
+      const speaker = btn.dataset.speaker || "Unknown";
+      const time = btn.dataset.time || "00:00";
+      const message = btn.dataset.message || "";
+      const copyText = `[${time}] ${speaker}: ${message}`;
+      
+      navigator.clipboard
+        .writeText(copyText)
+        .then(() => showToast("Copied to clipboard!", "success"))
+        .catch((err) => {
+          console.error("Failed to copy transcript:", err);
+          showToast("Failed to copy!", "error");
+        });
+    });
+  }
+
   // ——— Unified Export Helper (Handles both Live & History) ———
   function generateMarkdown(state: State): string {
     const dateVal = state.savedAt || state.startTime || Date.now();
