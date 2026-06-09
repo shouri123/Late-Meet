@@ -16,7 +16,7 @@ const ALLOWED_DOMAINS = [
  */
 export function validateApiUrl(
   url: string,
-  options: { requireAllowlist?: boolean } = {}
+  options: { requireAllowlist?: boolean } = {},
 ): { valid: boolean; error?: string } {
   let parsed: URL;
 
@@ -35,7 +35,7 @@ export function validateApiUrl(
 
   if (options.requireAllowlist) {
     const isAllowed = ALLOWED_DOMAINS.some(
-      (domain) => parsed.hostname === domain || parsed.hostname.endsWith(`.${domain}`)
+      (domain) => parsed.hostname === domain || parsed.hostname.endsWith(`.${domain}`),
     );
     if (!isAllowed) {
       return {

@@ -59,6 +59,7 @@ function installChromeMock() {
       },
       onInstalled: { addListener: () => {} },
       onStartup: { addListener: () => {} },
+      onSuspend: { addListener: () => {} },
     },
     alarms: {
       onAlarm: { addListener: () => {} },

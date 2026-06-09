@@ -14,4 +14,4 @@ export const WHISPER_MODEL = "whisper-1";
  * Vite replaces `import.meta.env.DEV` at build time, ensuring production builds
  * never accidentally enable debug output by flipping this constant.
  */
-export const DEBUG = import.meta.env.DEV === true;
+export const DEBUG = import.meta.env?.DEV === true;

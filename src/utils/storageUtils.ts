@@ -120,5 +120,9 @@ export async function getStorageStats(): Promise<StorageStats> {
   };
 }
 
-// Reuse the existing deleteSavedMeetingSession from sessionStorage.ts
-export { deleteSavedMeetingSession } from "../sessionStorage";
+// Reuse the existing delete helpers from sessionStorage.ts
+export {
+  deleteSavedMeetingSession,
+  deleteMultipleSavedMeetingSessions,
+  deleteAllSavedMeetingSessions,
+} from "../sessionStorage";

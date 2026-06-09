@@ -217,10 +217,9 @@ export async function getApiCredentials(): Promise<ApiCredentials> {
 
   for (const key of CREDENTIAL_KEYS) {
     const sessionValue = normalizedCredential(sessionCredentials[key]);
-    const resolvedValue = sessionValue;
 
-    if (resolvedValue) {
-      credentials[key] = resolvedValue;
+    if (sessionValue) {
+      credentials[key] = sessionValue;
     }
   }
 
