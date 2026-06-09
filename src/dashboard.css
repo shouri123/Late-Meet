@@ -914,10 +914,55 @@ body::-webkit-scrollbar-thumb,
 
 .transcript-entry {
   display: flex;
+  align-items: flex-start;
   gap: 10px;
   padding: 10px 0;
   border-bottom: 1px solid var(--border-main);
   animation: fadeIn 0.3s ease;
+}
+
+.copy-transcript-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  transition:
+    all 0.2s ease,
+    opacity 0.2s ease;
+  flex-shrink: 0;
+  margin-top: -2px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.transcript-entry:hover .copy-transcript-btn {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.copy-transcript-btn:focus-within,
+.copy-transcript-btn:focus {
+  opacity: 1;
+  pointer-events: auto;
+  background: var(--bg-card);
+  border-color: var(--border-sub);
+  color: var(--text-main);
+}
+
+.copy-transcript-btn:hover {
+  background: var(--bg-card);
+  border-color: var(--border-sub);
+  color: var(--text-main);
+}
+
+.copy-transcript-btn svg {
+  width: 14px;
+  height: 14px;
 }
 
 .transcript-entry:last-child {
@@ -1069,6 +1114,307 @@ body::-webkit-scrollbar-thumb,
 .export-toast.error {
   border-color: rgba(239, 68, 68, 0.4);
   color: #fca5a5;
+}
+
+/* =====================================================
+   RESPONSIVE BREAKPOINTS — Issue #648
+   Fix: text overlap, button clipping, header overflow,
+   tabs overflow, stats card squeezing, horizontal scroll
+   ===================================================== */
+
+/* ——— Tablet: max-width 768px ——— */
+@media (max-width: 768px) {
+  /* Header: allow wrapping so controls don't clip */
+  .dash-header {
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 12px 16px;
+  }
+
+  .dash-header-left {
+    /* Prevent title from overflowing into controls */
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  .dash-title {
+    font-size: 14px;
+    /* Truncate very long titles gracefully */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 160px;
+  }
+
+  /* Right controls: wrap so they don't clip off screen */
+  .dash-header-right {
+    flex-wrap: wrap;
+    gap: 8px;
+    width: 100%;
+  }
+
+  /* Export controls group: allow wrapping */
+  .export-controls {
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+    margin-right: 0 !important;
+  }
+
+  /* Timer: keep it readable but don't let it push buttons off */
+  .dash-timer {
+    font-size: 18px;
+    order: -1; /* Move timer before buttons for better flow */
+  }
+
+  /* Tabs: already overflow-x:auto but ensure proper wrapping */
+  .dash-tabs {
+    padding: 8px 12px;
+    gap: 4px;
+    flex-wrap: wrap; /* Wrap onto multiple rows at tablet */
+    overflow-x: visible;
+  }
+
+  .dash-tab {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+
+  /* Stats grid: 2 columns at tablet */
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+
+  /* Content padding reduction */
+  .dash-content {
+    padding: 12px;
+    padding-bottom: 80px;
+  }
+
+  /* Session item actions: wrap on tablet to avoid overflow */
+  .session-item-actions {
+    flex-wrap: wrap;
+  }
+
+  /* Transcript time column: tighten on smaller panels */
+  .transcript-time {
+    min-width: 48px;
+    font-size: 9px;
+  }
+}
+
+/* ——— Mobile: max-width 480px ——— */
+@media (max-width: 480px) {
+  /* Header: tighter padding */
+  .dash-header {
+    padding: 10px 12px;
+    gap: 8px;
+  }
+
+  .dash-header-left {
+    gap: 8px;
+  }
+
+  .dash-logo svg {
+    width: 22px;
+    height: 22px;
+  }
+
+  .dash-title {
+    font-size: 13px;
+    max-width: 120px;
+  }
+
+  .dash-status {
+    font-size: 10px;
+  }
+
+  /* Right controls: stack vertically, full width */
+  .dash-header-right {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+  }
+
+  /* Export controls: full width, stacked */
+  .export-controls {
+    flex-direction: column !important;
+    width: 100%;
+    margin-right: 0 !important;
+  }
+
+  /* Each export button: full width */
+  .export-controls .btn-glass {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+
+  /* Audio button: full width */
+  .dash-audio-btn {
+    width: 100%;
+    justify-content: center;
+    padding: 10px 14px;
+    font-size: 13px;
+  }
+
+  /* Timer: centered, slightly smaller */
+  .dash-timer {
+    font-size: 16px;
+    text-align: center;
+    order: 0;
+  }
+
+  /* Tabs: wrap and fill available width */
+  .dash-tabs {
+    padding: 8px 10px;
+    gap: 4px;
+    flex-wrap: wrap;
+    overflow-x: visible;
+  }
+
+  .dash-tab {
+    padding: 6px 10px;
+    font-size: 11px;
+    flex-grow: 1; /* Tabs share width evenly in each row */
+    text-align: center;
+  }
+
+  /* Stats grid: single column on mobile */
+  .stats-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  /* Stat card: horizontal layout in single column is nicer */
+  .stat-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    text-align: left;
+    padding: 14px 16px;
+  }
+
+  .stat-card-icon {
+    margin-bottom: 0;
+    flex-shrink: 0;
+  }
+
+  .stat-card-value {
+    font-size: 18px;
+  }
+
+  .stat-card-label {
+    margin-top: 2px;
+  }
+
+  /* Content padding: tightest at mobile */
+  .dash-content {
+    padding: 10px;
+    padding-bottom: 80px;
+  }
+
+  /* Cards: reduce internal padding */
+  .dash-card,
+  .stat-card,
+  .session-item {
+    padding: 12px;
+  }
+
+  /* Current topic / decision / action boxes */
+  .current-topic-box,
+  .decision-item,
+  .action-item {
+    padding: 10px 12px;
+    font-size: 13px;
+  }
+
+  /* Transcript: compress the timestamp column */
+  .transcript-time {
+    min-width: 40px;
+    font-size: 9px;
+  }
+
+  .transcript-avatar {
+    width: 24px;
+    height: 24px;
+    font-size: 9px;
+  }
+
+  .transcript-text {
+    font-size: 12px;
+  }
+
+  /* Session item stats: wrap pill tags */
+  .session-item-stats {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  /* Session export/delete buttons: full width */
+  .session-item-actions {
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .session-export-btn,
+  .session-delete-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Modal: fits narrow panels */
+  .modal-content {
+    margin: 12px;
+    padding: 16px;
+  }
+
+  .modal-actions {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .modal-actions button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Footer export button already full-width; ensure dropdown fits */
+  .export-dropdown {
+    left: 0;
+    right: 0;
+    min-width: unset;
+  }
+
+  /* Toast: prevent overflow on narrow panels */
+  .export-toast {
+    white-space: normal;
+    text-align: center;
+    left: 12px;
+    right: 12px;
+    transform: translateY(20px);
+    width: auto;
+  }
+
+  .export-toast.show {
+    transform: translateY(0);
+  }
+
+  /* Timeline: tighten spacing */
+  .timeline-item {
+    gap: 10px;
+  }
+
+  .timeline-marker {
+    width: 28px;
+    height: 28px;
+  }
+
+  /* People tab: tighten avatar */
+  .participant-avatar {
+    width: 28px;
+    height: 28px;
+    font-size: 10px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
