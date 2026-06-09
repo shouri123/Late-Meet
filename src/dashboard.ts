@@ -12,6 +12,7 @@ import { resolveManualMeetTab } from "./meetingTabs";
 import { startDashboardAudioCapture } from "./dashboardCapture";
 import { escapeHtml, formatDuration, sanitizeTopicStatus } from "./utils/domHelpers";
 import { sanitizeDataAttr } from "./utils/sanitize";
+import { signBackup, verifyBackup } from "./utils/backupSignature.js";
 
 initTheme();
 
@@ -1488,7 +1489,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     try {
       const state = await chrome.runtime.sendMessage({ type: "GET_STATE" });
       if (!state) throw new Error("No meeting data available");
-      const sessionData = {
+      const payload = {
         exportedAt: new Date().toISOString(),
         meetingId: state.meetingId || "unknown",
         duration: (state as State & { duration?: number }).duration || 0,
@@ -1502,15 +1503,50 @@ document.addEventListener("DOMContentLoaded", async () => {
         timeline: state.timeline || [],
         transcript: state.transcript || [],
       };
+      const __signature = await signBackup(payload);
+      const sessionData = { ...payload, __signature };
       const filename = `meeting-backup-${new Date().toISOString().slice(0, 10)}.json`;
       downloadFile(JSON.stringify(sessionData, null, 2), filename, "application/json");
-      showToast("Downloaded as .json backup", "success");
     } catch (err) {
       const e = err as Error;
       showToast("Failed to export: " + (e.message || String(e)), "error");
     } finally {
       exportDropdown?.setAttribute("hidden", "");
       exportBtn?.setAttribute("aria-expanded", "false");
+    }
+  });
+
+  // ——— Import Backup ———
+  document.getElementById("import-backup-btn")?.addEventListener("click", () => {
+    (document.getElementById("import-backup-input") as HTMLInputElement).click();
+  });
+
+  document.getElementById("import-backup-input")?.addEventListener("change", async (e) => {
+    const file = (e.target as HTMLInputElement).files?.[0];
+    if (!file) return;
+    try {
+      const json = JSON.parse(await file.text()) as Record<string, unknown>;
+      const valid = await verifyBackup(json);
+      if (!valid) {
+        showToast("Invalid or tampered backup file — import rejected", "error");
+        return;
+      }
+      const payload = { ...json };
+      delete (payload as Record<string, unknown>).__signature;
+      const response = await chrome.runtime.sendMessage({
+        type: "IMPORT_SESSION",
+        session: payload,
+      });
+      if (response?.success) {
+        showToast("Backup imported successfully", "success");
+        await loadMeetingHistory();
+      } else {
+        showToast("Import failed: " + (response?.error || "Unknown error"), "error");
+      }
+    } catch (err) {
+      showToast("Failed to import: " + (err as Error).message, "error");
+    } finally {
+      (e.target as HTMLInputElement).value = ""; // reset so same file can be re-imported
     }
   });
 

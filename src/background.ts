@@ -2108,6 +2108,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return;
       }
 
+      case "IMPORT_SESSION": {
+        const raw = message.session as Partial<StoredSession>;
+        if (!raw || typeof raw.id !== "string" || !raw.id) {
+          sendResponse({ success: false, error: "Invalid session: missing id" });
+          return;
+        }
+        await persistMeetingSession(chrome.storage.local, raw as StoredSession);
+        sendResponse({ success: true });
+        return;
+      }
+
       default: {
         sendResponse({ success: false, error: "Unknown message type" });
       }
