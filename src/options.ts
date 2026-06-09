@@ -23,6 +23,7 @@ interface KnownSettings {
   actionExtraction?: boolean;
   sentimentAnalysis?: boolean;
   transcriptRefinement?: boolean;
+  customVocabulary?: string;
   theme?: "system" | "light" | "dark";
   accent?: string;
 }
@@ -156,6 +157,12 @@ document.addEventListener("DOMContentLoaded", async () => {
   const aiModelSelect = document.getElementById("ai-model") as HTMLSelectElement | null;
   if (aiModelSelect && settings.aiModel) {
     aiModelSelect.value = settings.aiModel;
+  }
+
+  // Custom Vocabulary
+  const customVocabInput = document.getElementById("custom-vocabulary") as HTMLTextAreaElement | null;
+  if (customVocabInput && settings.customVocabulary) {
+    customVocabInput.value = settings.customVocabulary;
   }
 
   // Feature toggles
@@ -351,6 +358,8 @@ document.addEventListener("DOMContentLoaded", async () => {
           ?.checked,
         transcriptRefinement: (document.getElementById("refinement-toggle") as HTMLInputElement)
           ?.checked,
+        customVocabulary: (document.getElementById("custom-vocabulary") as HTMLTextAreaElement)
+          ?.value,
 
         // Save theme selections into the global config tree bundle block
         theme: (themeSelect?.value as Settings["theme"]) || "system",
