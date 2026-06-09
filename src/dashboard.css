@@ -914,10 +914,55 @@ body::-webkit-scrollbar-thumb,
 
 .transcript-entry {
   display: flex;
+  align-items: flex-start;
   gap: 10px;
   padding: 10px 0;
   border-bottom: 1px solid var(--border-main);
   animation: fadeIn 0.3s ease;
+}
+
+.copy-transcript-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  transition:
+    all 0.2s ease,
+    opacity 0.2s ease;
+  flex-shrink: 0;
+  margin-top: -2px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.transcript-entry:hover .copy-transcript-btn {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.copy-transcript-btn:focus-within,
+.copy-transcript-btn:focus {
+  opacity: 1;
+  pointer-events: auto;
+  background: var(--bg-card);
+  border-color: var(--border-sub);
+  color: var(--text-main);
+}
+
+.copy-transcript-btn:hover {
+  background: var(--bg-card);
+  border-color: var(--border-sub);
+  color: var(--text-main);
+}
+
+.copy-transcript-btn svg {
+  width: 14px;
+  height: 14px;
 }
 
 .transcript-entry:last-child {

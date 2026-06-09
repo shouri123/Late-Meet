@@ -16,7 +16,6 @@
     "browserslist",
     "codeql",
     "semgrep",
-    "snyk",
     "trufflehog",
     "actionlint",
     "cspell",
@@ -87,7 +86,12 @@
     "spricht",
     "falando",
     "говорит",
-    "backgrounded"
+    "backgrounded",
+    "ciphertext",
+    "somegarbage",
+    "generativelanguage",
+    "defg",
+    "upserted"
   ],
   "ignorePaths": [
     "node_modules",
