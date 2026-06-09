@@ -6,6 +6,7 @@ let recorderStream: MediaStream | null = null;
 let mediaRecorder: MediaRecorder | null = null;
 let audioContext: AudioContext | null = null;
 let analyserNode: AnalyserNode | null = null;
+let compressorNode: DynamicsCompressorNode | null = null;
 let vadTimer: ReturnType<typeof setInterval> | null = null;
 let waveformTimer: ReturnType<typeof setInterval> | null = null;
 let audioSources: MediaStreamAudioSourceNode[] = [];
@@ -301,6 +302,7 @@ async function cleanupResources() {
 
   mediaRecorder = null;
   analyserNode = null;
+  compressorNode = null;
   audioSources = [];
   pendingChunks = [];
   isStopping = false;
@@ -344,14 +346,12 @@ async function getMicrophoneStream() {
 
 function connectSourceToRecorder(
   stream: MediaStream,
-  destination: MediaStreamAudioDestinationNode,
 ) {
-  if (!audioContext || !analyserNode) return;
+  if (!audioContext || !analyserNode || !compressorNode) return;
 
   const source = audioContext.createMediaStreamSource(stream);
 
-  source.connect(destination);
-  source.connect(analyserNode);
+  source.connect(compressorNode);
 
   audioSources.push(source);
 }
@@ -533,14 +533,22 @@ async function startCapture(
 
   const destination = audioContext.createMediaStreamDestination();
 
+  compressorNode = audioContext.createDynamicsCompressor();
+  compressorNode.threshold.value = -3;
+  compressorNode.knee.value = 0;
+  compressorNode.ratio.value = 20;
+  compressorNode.attack.value = 0.005;
+  compressorNode.release.value = 0.1;
+
   analyserNode = audioContext.createAnalyser();
   analyserNode.fftSize = 1024;
 
   const tabSource = audioContext.createMediaStreamSource(mediaStream);
 
-  tabSource.connect(destination);
-  tabSource.connect(analyserNode);
-  tabSource.connect(audioContext.destination);
+  tabSource.connect(compressorNode);
+  compressorNode.connect(destination);
+  compressorNode.connect(analyserNode);
+  compressorNode.connect(audioContext.destination);
 
   audioSources.push(tabSource);
 
@@ -548,7 +556,7 @@ async function startCapture(
     microphoneStream = await getMicrophoneStream();
 
     if (microphoneStream) {
-      connectSourceToRecorder(microphoneStream, destination);
+      connectSourceToRecorder(microphoneStream);
 
       microphoneStream.getTracks().forEach((track) => {
         track.onended = () => {
