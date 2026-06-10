@@ -70,7 +70,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     chrome.storage.local.get("settings") as Promise<{ settings?: Settings }>,
   ]);
 
-  let rawSettings = config.settings;
+  const rawSettings = config.settings;
   const isPlainObject =
     typeof rawSettings === "object" &&
     rawSettings !== null &&

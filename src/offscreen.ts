@@ -548,7 +548,7 @@ async function startCapture(
   tabSource.connect(compressorNode);
   compressorNode.connect(destination);
   compressorNode.connect(analyserNode);
-  compressorNode.connect(audioContext.destination);
+  // Do not monitor mixed capture in the offscreen document.
 
   audioSources.push(tabSource);
 
