@@ -239,7 +239,7 @@ stopRecorderAndAwaitData()
 which waits for the final `dataavailable` event before continuing processing.
 
 
-## Queue Management and Backpressure
+## Queue Management and Back-pressure
 Finalized audio chunks are temporarily stored inside:
 
 ```ts
@@ -252,7 +252,7 @@ When `dataavailable` fires, valid audio blobs are added to the queue through:
 handleRecorderDataAvailable()
 ```
 
-To avoid excessive memory usage, Late Meet applies **backpressure control**.
+To avoid excessive memory usage, Late Meet applies **back-pressure control**.
 
 If queued chunks reach:
 
