@@ -87,7 +87,11 @@
     "spricht",
     "falando",
     "говорит",
-    "backgrounded"
+    "backgrounded",
+    "analyser",
+"back-pressure",
+"dataavailable",
+"headerless"
   ],
   "ignorePaths": [
     "node_modules",
