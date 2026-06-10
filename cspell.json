@@ -16,7 +16,6 @@
     "browserslist",
     "codeql",
     "semgrep",
-    "snyk",
     "trufflehog",
     "actionlint",
     "cspell",
@@ -88,10 +87,15 @@
     "falando",
     "говорит",
     "backgrounded",
-    "analyser",
+"analyser",
 "back-pressure",
 "dataavailable",
-"headerless"
+"headerless",
+"ciphertext",
+"somegarbage",
+"generativelanguage",
+"defg",
+"upserted"
   ],
   "ignorePaths": [
     "node_modules",
