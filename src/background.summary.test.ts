@@ -49,12 +49,20 @@ function installChromeMock() {
     (globalThis as any).addEventListener = () => {};
   }
   (globalThis as any).self = globalThis;
+  Object.defineProperty(globalThis, "navigator", {
+    value: { onLine: true },
+    configurable: true,
+    writable: true,
+  });
 
   (globalThis as any).chrome = {
     runtime: {
       getURL: (p: string) => `chrome-extension://ext/${p}`,
-      sendMessage: async () => {},
-      getContexts: async () => [],
+      sendMessage: async (msg: any) => {
+        if (msg?.type === "GET_REMAINING_CHUNKS") return { pending: 0 };
+        return {};
+      },
+      getContexts: async () => [{}],
       onMessage: {
         addListener: (cb: MessageHandler) => {
           onMessageListeners.push(cb);
@@ -62,6 +70,7 @@ function installChromeMock() {
       },
       onInstalled: { addListener: () => {} },
       onStartup: { addListener: () => {} },
+      onSuspend: { addListener: () => {} },
     },
     alarms: {
       onAlarm: {
@@ -91,10 +100,22 @@ function installChromeMock() {
       create: () => {},
     },
     sidePanel: { open: async () => {} },
+    offscreen: { hasDocument: async () => true, closeDocument: async () => {} },
     storage: {
       local: {
-        get: async (key: string) => {
-          if (key === "settings") return mockStorage;
+        get: async (keys: string | string[]) => {
+          if (Array.isArray(keys)) {
+            const result: any = {};
+            for (const k of keys) {
+              if (k === "settings") result[k] = mockStorage.settings;
+              else if (k === "credentials")
+                result.credentials = { OPENAI_API_KEY: { key: "foo", isEncrypted: false } };
+              else result[k] = mockStorage[k];
+            }
+            return result;
+          }
+          const key = keys as string;
+          if (key === "settings") return { settings: mockStorage.settings };
           if (key === "credentials")
             return { credentials: { OPENAI_API_KEY: { key: "foo", isEncrypted: false } } };
           return { [key]: mockStorage[key] };
@@ -107,9 +128,9 @@ function installChromeMock() {
         },
       },
       session: {
-        get: async (key: string) => ({ openai_api_key: "foo" }),
-        set: async (items: any) => {},
-        remove: async (key: string) => {},
+        get: async (_key: string) => ({ openai_api_key: "foo" }),
+        set: async (_items: any) => {},
+        remove: async (_key: string) => {},
       },
     },
   };
@@ -146,7 +167,7 @@ test("Interval guard schedules an alarm if elapsed time is less than interval", 
   });
 
   // Wait for it to process
-  await sleep(200);
+  await sleep(1500);
 
   // Now state.lastSummarizedAt is recent. Send second chunk to hit the interval guard.
   await sendMessage({
@@ -156,7 +177,7 @@ test("Interval guard schedules an alarm if elapsed time is less than interval", 
   });
 
   // Wait for the queue to process it
-  await sleep(100);
+  await sleep(1500);
 
   // We expect SUMMARY_RETRY_ALARM to be created because it's been less than 30s since the first summary
   assert.ok(createdAlarms["summarize-retry"], "Alarm should be scheduled");
@@ -171,7 +192,7 @@ test("Manual stop audio forces final summary flush", async () => {
 
   // Trigger manual stop
   await sendMessage({ type: "MANUAL_STOP_AUDIO" });
-  await sleep(500);
+  await sleep(1500);
 
   // The final flush clears the retry alarm
   assert.ok(
