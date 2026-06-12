@@ -2,8 +2,10 @@ import { CURRENT_PBKDF2_ITERATIONS, resolveKdfIterations } from "./kdf";
 
 const ENCRYPTED_MARKER = "enc:";
 
+/** Union of all credential key names managed by this module. */
 export type CredentialKey = "openai_api_key" | "elevenlabs_api_key";
 
+/** Bag of optional API credential strings. */
 export interface ApiCredentials {
   openai_api_key?: string;
   elevenlabs_api_key?: string;
@@ -61,7 +63,7 @@ async function deriveKeyFromPassphrase(
 }
 
 // ---------------------------------------------------------------------------
-// Public API: passphrase management
+// Auto-lock
 // ---------------------------------------------------------------------------
 
 /** Auto-lock timeout: clear the derived key after 30 minutes of inactivity. */
@@ -75,10 +77,42 @@ function resetAutoLockTimer() {
   }, AUTO_LOCK_TIMEOUT_MS);
 }
 
+// ---------------------------------------------------------------------------
+// Public API: passphrase management
+// ---------------------------------------------------------------------------
+
+/**
+ * Returns whether the credential vault is currently unlocked.
+ *
+ * A vault is unlocked when a derived `CryptoKey` is held in memory (i.e.
+ * after a successful {@link unlockCredentials} call and before
+ * {@link lockCredentials} is called or the auto-lock timer fires).
+ *
+ * @returns `true` if the vault is unlocked and encryption/decryption are
+ *   available; `false` if locked.
+ */
 export function isUnlocked(): boolean {
   return derivedKey !== null;
 }
 
+/**
+ * Unlocks the credential vault with a user-supplied passphrase.
+ *
+ * **First-time unlock** (no salt stored yet): generates a fresh random 16-byte
+ * salt, derives a new AES-256-GCM key, and persists the salt to
+ * `chrome.storage.local`. Always returns `true`.
+ *
+ * **Subsequent unlocks**: reads the persisted salt, derives the same key, then
+ * attempts to decrypt a sample credential to verify the passphrase is correct.
+ * Returns `false` if decryption fails (wrong passphrase).
+ *
+ * On success the derived key is cached in memory and the auto-lock timer is
+ * (re-)started.
+ *
+ * @param passphrase - The user's plaintext passphrase.
+ * @returns `true` if the vault was successfully unlocked; `false` if the
+ *   passphrase is incorrect.
+ */
 export async function unlockCredentials(passphrase: string): Promise<boolean> {
   const { [SALT_STORAGE_KEY]: storedSalt, [ITERATIONS_STORAGE_KEY]: storedIterations } =
     await chrome.storage.local.get([SALT_STORAGE_KEY, ITERATIONS_STORAGE_KEY]);
@@ -120,6 +154,17 @@ export async function unlockCredentials(passphrase: string): Promise<boolean> {
   return true;
 }
 
+/**
+ * Locks the credential vault immediately.
+ *
+ * Clears the in-memory derived key and cancels the auto-lock timer.
+ * Also purges the plaintext credential cache from `chrome.storage.session`
+ * to prevent stale decrypted keys from being read after lock — see the inline
+ * comment for the security rationale.
+ *
+ * This function is synchronous with respect to the key wipe; the session
+ * storage removal is async and failures are logged as warnings only.
+ */
 export function lockCredentials(): void {
   derivedKey = null;
   if (autoLockTimer) {
@@ -220,6 +265,24 @@ function unmarkEncrypted(data: Record<string, unknown>): ApiCredentials {
 // Public API
 // ---------------------------------------------------------------------------
 
+/**
+ * Retrieves all stored API credentials, decrypting from local storage if
+ * necessary and caching the plaintext in session storage for fast subsequent
+ * reads.
+ *
+ * Read priority:
+ * 1. **`chrome.storage.session`** – fastest; already-decrypted values written
+ *    by a previous call or {@link saveApiCredentials}.
+ * 2. **`chrome.storage.local`** (encrypted) – decrypted on-the-fly using the
+ *    in-memory derived key. The decrypted values are then synced back to
+ *    session storage to avoid re-decryption on the next call.
+ *
+ * Also resets the auto-lock timer when the vault is unlocked, extending the
+ * idle timeout on each credential access.
+ *
+ * @returns An {@link ApiCredentials} object. Keys absent from both storage
+ *   areas are simply omitted (not set to `undefined` or `null`).
+ */
 export async function getApiCredentials(): Promise<ApiCredentials> {
   // Reset auto-lock timer on credential access (extends timeout on activity)
   if (derivedKey) resetAutoLockTimer();
@@ -234,7 +297,6 @@ export async function getApiCredentials(): Promise<ApiCredentials> {
 
   for (const key of CREDENTIAL_KEYS) {
     const sessionValue = normalizedCredential(sessionCredentials[key]);
-
     if (sessionValue) {
       credentials[key] = sessionValue;
     }
@@ -259,16 +321,68 @@ export async function getApiCredentials(): Promise<ApiCredentials> {
   return credentials;
 }
 
+/**
+ * Retrieves the stored OpenAI API key.
+ *
+ * Convenience wrapper around {@link getApiCredentials} for callers that only
+ * need the OpenAI key.
+ *
+ * @returns The OpenAI API key string, or `null` if none is stored.
+ *
+ * @example
+ * const key = await getOpenAiApiKey();
+ * if (!key) throw new Error("OpenAI key not configured — open extension options");
+ */
 export async function getOpenAiApiKey(): Promise<string | null> {
   const credentials = await getApiCredentials();
   return credentials.openai_api_key || null;
 }
 
+/**
+ * Retrieves the stored ElevenLabs API key.
+ *
+ * Convenience wrapper around {@link getApiCredentials} for callers that only
+ * need the ElevenLabs key.
+ *
+ * @returns The ElevenLabs API key string, or `null` if none is stored.
+ *
+ * @example
+ * const key = await getElevenLabsApiKey();
+ * if (key) {
+ *   // Use ElevenLabs for higher-quality transcription
+ * }
+ */
 export async function getElevenLabsApiKey(): Promise<string | null> {
   const credentials = await getApiCredentials();
   return credentials.elevenlabs_api_key || null;
 }
 
+/**
+ * Persists API credentials to both `chrome.storage.local` (encrypted) and
+ * `chrome.storage.session` (plaintext cache).
+ *
+ * Only keys explicitly present in the `credentials` object are processed —
+ * omitted keys are left untouched. This allows callers to update a single key
+ * without affecting the other.
+ *
+ * - Non-empty string values are **encrypted and saved** to local storage and
+ *   written in plaintext to the session cache.
+ * - Empty / whitespace-only strings signal intent to **delete** the key from
+ *   both storage areas.
+ *
+ * @param credentials - A partial {@link ApiCredentials} object. Only include
+ *   the keys you want to update or delete.
+ * @returns A Promise that resolves when all storage operations are complete.
+ * @throws If the vault is locked and a non-empty credential value is provided
+ *   (encryption requires an unlocked vault).
+ *
+ * @example
+ * // Save a new OpenAI key without touching the ElevenLabs key:
+ * await saveApiCredentials({ openai_api_key: "sk-..." });
+ *
+ * // Clear the ElevenLabs key:
+ * await saveApiCredentials({ elevenlabs_api_key: "" });
+ */
 export async function saveApiCredentials(credentials: ApiCredentials): Promise<void> {
   const saveData: ApiCredentials = {};
   const removeKeys: CredentialKey[] = [];
