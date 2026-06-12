@@ -84,10 +84,11 @@ body {
   margin-bottom: 32px;
   padding: 24px;
   background: var(--bg-surface);
-  border: 1px solid var(--border-main);
+  border: 1.5px solid hsl(var(--accent-color));
   border-radius: 12px;
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
+  height: 100%;
   transition:
     background-color 0.3s cubic-bezier(0.25, 1, 0.5, 1),
     border-color 0.3s cubic-bezier(0.25, 1, 0.5, 1),
@@ -97,7 +98,7 @@ body {
 
 .options-section:hover {
   background: var(--bg-card);
-  border-color: var(--border-element);
+  border-color: hsl(var(--accent-color));
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
   transform: translateY(-2px);
 }
@@ -151,7 +152,7 @@ body {
   width: 100%;
   padding: 12px 16px;
   background: var(--bg-card);
-  border: 1px solid var(--border-sub);
+  border: 1.5px solid hsl(var(--accent-color));
   border-radius: 8px;
   color: var(--text-main);
   font-family: inherit;
@@ -164,6 +165,11 @@ body {
 .form-select:focus {
   border-color: hsl(var(--accent-color));
   background: var(--bg-element);
+}
+
+.form-select:focus-visible {
+  outline: 2px solid hsl(var(--accent-color, 210, 100%, 50%));
+  outline-offset: 2px;
 }
 
 .form-input::placeholder {
@@ -213,6 +219,11 @@ body {
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+.form-range:focus-visible {
+  outline: 2px solid hsl(var(--accent-color, 210, 100%, 50%));
+  outline-offset: 2px;
 }
 
 .form-range {
@@ -299,6 +310,7 @@ body {
   cursor: pointer;
   inset: 0;
   background: var(--border-element);
+  border: 1.5px solid hsl(var(--accent-color));
   border-radius: 24px;
   transition: 0.3s cubic-bezier(0.25, 1, 0.5, 1);
 }
@@ -392,7 +404,6 @@ body {
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  border: 2px solid transparent;
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -401,10 +412,38 @@ body {
   transform: scale(1.15);
 }
 
-/* Draw a clear white/dark focus border frame ring around the chosen color ring bubble option */
 .color-dot.active {
   box-shadow:
     0 0 0 2px var(--bg-app),
     0 0 0 4px hsl(var(--accent-color));
   transform: scale(1.05);
+}
+
+/* Individual dot colors */
+.color-dot[data-color="210, 100%, 50%"] {
+  background: hsl(210, 100%, 50%);
+}
+.color-dot[data-color="145, 65%, 45%"] {
+  background: hsl(145, 65%, 45%);
+}
+.color-dot[data-color="280, 75%, 60%"] {
+  background: hsl(280, 75%, 60%);
+}
+.color-dot[data-color="15, 95%, 55%"] {
+  background: hsl(15, 95%, 55%);
+}
+.color-dot[data-color="340, 85%, 55%"] {
+  background: hsl(340, 85%, 55%);
+}
+/* CSS GRID(UPDATE) */
+
+.options-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+@media (min-width: 640px) {
+  .options-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
