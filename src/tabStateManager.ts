@@ -21,8 +21,15 @@ const defaultState = (): Omit<TabState, "tabId"> => ({
 /** Get state for a specific tab */
 export async function getTabState(tabId: number): Promise<TabState> {
   const key = `tab_state_${tabId}`;
-  const result = (await chrome.storage.session.get(key)) as any;
-  return result[key] ?? { tabId, ...defaultState() };
+  const result = await chrome.storage.session.get(key);
+  const stored = result[key];
+
+  return {
+    tabId,
+    ...defaultState(),
+    ...(stored && typeof stored === "object" ? stored : {}),
+  } as TabState;
+}
 }
 
 /** Update state for a specific tab */
