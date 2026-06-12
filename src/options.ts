@@ -14,6 +14,7 @@ import {
   resolveSaveStatus,
   shouldSaveCredentials,
 } from "./optionsSettings";
+import { getSettings } from "./settings";
 
 /**
  * Strongly-typed map of all recognized extension settings keys and their
@@ -72,12 +73,11 @@ function applyThemePreview(theme: "system" | "light" | "dark", accent: string) {
 
 document.addEventListener("DOMContentLoaded", async () => {
   // ——— Load saved settings ———
-  const [credentials, config] = await Promise.all([
-    getApiCredentials(),
-    chrome.storage.local.get("settings") as Promise<{ settings?: Settings }>,
-  ]);
+  // Uses the shared getSettings() helper instead of re-fetching/parsing the
+  // config object inline (#666).
+  const [credentials, loadedSettings] = await Promise.all([getApiCredentials(), getSettings()]);
 
-  const settings: Settings = config.settings || {};
+  const settings: Settings = loadedSettings;
 
   // ——— Populate Existing UI Elements ———
   const versionDisplay = document.getElementById("version-display");

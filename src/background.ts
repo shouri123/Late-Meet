@@ -14,7 +14,7 @@ import {
   StoredSession,
 } from "./sessionStorage";
 import { AudioChunkQueue, AudioChunkQueueItem } from "./audioChunkQueue";
-import { getSettings } from "./theme.js";
+import { getSettings } from "./settings";
 import { createAudioCaptureStopPlan } from "./audioCaptureLifecycle";
 import { normalizeActiveSpeakerName, resolveTranscriptSpeaker } from "./speakerAttribution";
 import { getMeetingIdFromUrl } from "./meetingTabs";
@@ -691,7 +691,7 @@ async function executeBroadcast() {
     selfParticipantName,
   };
 
-  truncateOverflow(fullSnapshot as unknown as Record<string, unknown>, "storage");
+  truncateOverflow(fullSnapshot, "storage");
   truncateOverflow(uiData as unknown as Record<string, unknown>, "message");
 
   try {
