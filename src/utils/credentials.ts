@@ -10,6 +10,8 @@
  * and auto-expires after 30 minutes of inactivity.
  */
 
+import { evaluatePassphraseStrength } from "../passphraseStrength";
+
 const ENCRYPTED_MARKER = "enc:";
 
 /** Union of all credential key names managed by this module. */
@@ -100,6 +102,18 @@ export function isUnlocked(): boolean {
 }
 
 /**
+ * Returns whether the credential vault has already been set up.
+ *
+ * The vault is considered initialized once its passphrase salt has been
+ * persisted. This lets UI callers enforce first-time passphrase rules without
+ * blocking unlock attempts for existing vaults.
+ */
+export async function isVaultInitialized(): Promise<boolean> {
+  const { [SALT_STORAGE_KEY]: storedSalt } = await chrome.storage.local.get([SALT_STORAGE_KEY]);
+  return typeof storedSalt === "string" && storedSalt.length > 0;
+}
+
+/**
  * Unlocks the credential vault with a user-supplied passphrase.
  *
  * **First-time unlock** (no salt stored yet): generates a fresh random 16-byte
@@ -140,6 +154,13 @@ export async function unlockCredentials(passphrase: string): Promise<boolean> {
     derivedKey = key;
     resetAutoLockTimer();
     return true;
+  }
+
+  // First-time setup: enforce the minimum passphrase strength at the boundary so
+  // every caller (options, popup, onboarding) is covered, not just the UI (#655).
+  // Only applies to setup — unlocking an existing vault above is never gated.
+  if (!evaluatePassphraseStrength(passphrase).meetsMinimum) {
+    return false;
   }
 
   const salt = crypto.getRandomValues(new Uint8Array(SALT_LENGTH));
