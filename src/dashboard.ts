@@ -15,6 +15,24 @@ import { sanitizeDataAttr } from "./utils/sanitize";
 
 initTheme();
 
+interface PinnedMoment {
+  meetingId: string;
+  entryId: string;
+  speaker: string;
+  text: string;
+  timestamp: number;
+  timestampLabel: string;
+  pinnedAt: number;
+}
+
+function getElapsedSeconds(timestamp: number, startTime: number | null): number {
+  if (timestamp > 1000000000) {
+    const start = startTime || timestamp;
+    return Math.max(0, Math.round((timestamp - start) / 1000));
+  }
+  return timestamp;
+}
+
 /** Securely checks whether a URL belongs to meet.google.com using URL parsing (not substring matching). */
 function isMeetHostname(url: string | null | undefined): boolean {
   if (!url) return false;
@@ -124,6 +142,18 @@ document.addEventListener("DOMContentLoaded", async () => {
   ) as HTMLDivElement | null;
 
   await loadActionStatuses();
+
+  const pinnedIds = new Set<string>();
+  try {
+    const res = await chrome.storage.local.get("pinnedMoments");
+    if (Array.isArray(res.pinnedMoments)) {
+      res.pinnedMoments.forEach((m: PinnedMoment) => {
+        pinnedIds.add(`${m.meetingId}::${m.entryId}`);
+      });
+    }
+  } catch (err) {
+    console.error("[Dashboard] Failed to load pinned moments:", err);
+  }
   // ——— Waveform Visualizer ———
   const WAVEFORM_N = 32;
   const WAVEFORM_H = 48;
@@ -197,13 +227,19 @@ document.addEventListener("DOMContentLoaded", async () => {
       timeline: "dash-timeline",
       transcript: "dash-transcript-list",
       sessions: "dash-sessions-list",
+      pinned: "dash-pinned-list",
     };
     const containerId = containerMap[tabId];
     if (!containerId) return;
     const container = document.getElementById(containerId);
     if (!container) return;
 
-    if (tabId === "people" || tabId === "transcript" || tabId === "timeline") {
+    if (
+      tabId === "people" ||
+      tabId === "transcript" ||
+      tabId === "timeline" ||
+      tabId === "pinned"
+    ) {
       container.innerHTML = Array(4)
         .fill(0)
         .map(
@@ -265,6 +301,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             );
           else if (tabId === "timeline") updateTimeline(lastState?.timeline || []);
           else if (tabId === "transcript") updateTranscript(lastState?.transcript || []);
+          else if (tabId === "pinned") updatePinnedTabUI();
           else if (tabId === "history" || tabId === "sessions") loadMeetingHistory();
         }, 150);
       }
@@ -545,6 +582,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // Transcript Tab
     if (loadedTabs.has("transcript")) updateTranscript(state.transcript);
+
+    // Pinned Tab
+    if (loadedTabs.has("pinned")) updatePinnedTabUI();
     attachTimestampLinkListeners();
   }
 
@@ -1029,6 +1069,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     const text = escapeHtml(entry.text || "");
     const chunkId = entry.id ? `transcript-${escapeHtml(entry.id)}` : "";
 
+    const entryKey = `${currentMeetingId}::${entry.id}`;
+    const isPinned = pinnedIds.has(entryKey);
+
     return `
       <div id="${chunkId}" class="transcript-entry ${isAudio ? "audio-source" : ""}">
         <div class="transcript-time">${timeStr}</div>
@@ -1037,6 +1080,10 @@ document.addEventListener("DOMContentLoaded", async () => {
           <div class="transcript-speaker">${speaker}</div>
           <div class="transcript-text">${text}</div>
         </div>
+        <button type="button" class="pin-entry-btn ${isPinned ? "pinned" : ""}" data-entry-id="${escapeHtml(entry.id || "")}" title="${isPinned ? "Unpin transcript" : "Pin transcript"}">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="${isPinned ? "currentColor" : "none"}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon">
+            <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/>
+          </svg>
         <button type="button" class="copy-transcript-btn" 
                 data-speaker="${speaker}" 
                 data-time="${timeStr}" 
@@ -1098,10 +1145,16 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   function navigateToTranscriptChunk(chunkId: string) {
-    const transcriptEl = document.getElementById(`transcript-${chunkId}`);
-    if (!transcriptEl) return;
-    transcriptEl.scrollIntoView({ behavior: "smooth", block: "center" });
-    highlightTranscriptChunk(transcriptEl);
+    const transcriptTab = document.getElementById("tab-btn-transcript") as HTMLElement | null;
+    if (transcriptTab) {
+      transcriptTab.click();
+    }
+    setTimeout(() => {
+      const transcriptEl = document.getElementById(`transcript-${chunkId}`);
+      if (!transcriptEl) return;
+      transcriptEl.scrollIntoView({ behavior: "smooth", block: "center" });
+      highlightTranscriptChunk(transcriptEl);
+    }, 100);
   }
 
   function highlightTranscriptChunk(element: HTMLElement) {
@@ -1126,6 +1179,174 @@ document.addEventListener("DOMContentLoaded", async () => {
       button.dataset.hasListener = "true";
     });
   }
+
+  async function togglePinState(entry: TranscriptEntry, button: HTMLButtonElement) {
+    const entryKey = `${currentMeetingId}::${entry.id}`;
+    const isPinned = pinnedIds.has(entryKey);
+
+    try {
+      const res = await chrome.storage.local.get("pinnedMoments");
+      let currentMoments: PinnedMoment[] = Array.isArray(res.pinnedMoments)
+        ? res.pinnedMoments
+        : [];
+
+      if (isPinned) {
+        // Unpin
+        pinnedIds.delete(entryKey);
+        currentMoments = currentMoments.filter(
+          (m) => !(m.meetingId === currentMeetingId && m.entryId === entry.id),
+        );
+        button.classList.remove("pinned");
+        button.title = "Pin transcript";
+        const svg = button.querySelector("svg");
+        if (svg) {
+          svg.setAttribute("fill", "none");
+        }
+        showToast("Unpinned moment", "success");
+      } else {
+        // Pin
+        pinnedIds.add(entryKey);
+        const newMoment: PinnedMoment = {
+          meetingId: currentMeetingId,
+          entryId: entry.id || "",
+          speaker: entry.speaker,
+          text: entry.text,
+          timestamp: entry.timestamp,
+          timestampLabel: entry.timestampLabel || formatDuration(entry.timestamp || 0),
+          pinnedAt: Date.now(),
+        };
+        currentMoments.push(newMoment);
+        button.classList.add("pinned");
+        button.title = "Unpin transcript";
+        const svg = button.querySelector("svg");
+        if (svg) {
+          svg.setAttribute("fill", "currentColor");
+        }
+        showToast("Pinned moment!", "success");
+      }
+
+      await chrome.storage.local.set({ pinnedMoments: currentMoments });
+
+      await chrome.runtime.sendMessage({
+        type: "TOGGLE_PIN",
+        entryId: entry.id,
+        isPinned: !isPinned,
+      });
+
+      if (loadedTabs.has("pinned")) {
+        updatePinnedTabUI();
+      }
+    } catch (err) {
+      console.error("[Dashboard] Failed to toggle pin state:", err);
+      showToast("Error updating pin", "error");
+    }
+  }
+
+  async function updatePinnedTabUI() {
+    const container = document.getElementById("dash-pinned-list");
+    if (!container) return;
+
+    try {
+      const res = await chrome.storage.local.get("pinnedMoments");
+      const currentMoments: PinnedMoment[] = Array.isArray(res.pinnedMoments)
+        ? res.pinnedMoments
+        : [];
+      const meetingMoments = currentMoments.filter((m) => m.meetingId === currentMeetingId);
+
+      if (meetingMoments.length === 0) {
+        container.innerHTML = `<div class="empty-msg">No pinned moments yet. Click the bookmark icon next to a transcript entry to pin it.</div>`;
+        return;
+      }
+
+      meetingMoments.sort((a, b) => a.timestamp - b.timestamp);
+
+      container.innerHTML = meetingMoments
+        .map((m) => {
+          const initials = m.speaker
+            .split(" ")
+            .filter(Boolean)
+            .map((w) => w[0])
+            .join("")
+            .toUpperCase()
+            .slice(0, 2);
+          const isAudio = m.speaker === "Audio";
+
+          return `
+          <div class="transcript-entry pinned-moment-entry" id="pinned-moment-${m.entryId}">
+            <div class="transcript-time">
+              <button type="button" class="timestamp-link" data-chunk-id="${escapeHtml(m.entryId)}" aria-label="Jump to transcript at ${m.timestampLabel}">${m.timestampLabel}</button>
+            </div>
+            <div class="transcript-avatar">${isAudio ? "🎙" : initials}</div>
+            <div class="transcript-body">
+              <div class="transcript-speaker">${escapeHtml(m.speaker)}</div>
+              <div class="transcript-text">${escapeHtml(m.text)}</div>
+            </div>
+            <button type="button" class="pin-entry-btn pinned" data-entry-id="${escapeHtml(m.entryId)}" title="Unpin transcript">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon">
+                <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/>
+              </svg>
+            </button>
+          </div>
+        `;
+        })
+        .join("");
+
+      container.querySelectorAll<HTMLButtonElement>(".timestamp-link").forEach((button) => {
+        const chunkId = button.dataset.chunkId;
+        if (chunkId) {
+          button.addEventListener("click", () => navigateToTranscriptChunk(chunkId));
+        }
+      });
+
+      container.querySelectorAll<HTMLButtonElement>(".pin-entry-btn").forEach((button) => {
+        button.addEventListener("click", async () => {
+          const entryId = button.dataset.entryId;
+          if (!entryId) return;
+
+          const entry = lastState?.transcript?.find((t) => t.id === entryId) || {
+            id: entryId,
+            speaker:
+              button.closest(".transcript-entry")?.querySelector(".transcript-speaker")
+                ?.textContent || "Unknown",
+            text:
+              button.closest(".transcript-entry")?.querySelector(".transcript-text")?.textContent ||
+              "",
+            timestamp: 0,
+          };
+
+          await togglePinState(entry, button);
+
+          const mainButton = document.querySelector(
+            `#dash-transcript-list [data-entry-id="${entryId}"]`,
+          ) as HTMLButtonElement | null;
+          if (mainButton) {
+            mainButton.classList.remove("pinned");
+            mainButton.title = "Pin transcript";
+            const svg = mainButton.querySelector("svg");
+            if (svg) {
+              svg.setAttribute("fill", "none");
+            }
+          }
+        });
+      });
+    } catch (err) {
+      console.error("[Dashboard] Failed to render pinned moments list:", err);
+      container.innerHTML = `<div class="empty-msg">Error loading pinned moments.</div>`;
+    }
+  }
+
+  // Wire up event delegation for transcript pin buttons
+  transcriptContainer?.addEventListener("click", async (e) => {
+    const button = (e.target as HTMLElement).closest(".pin-entry-btn") as HTMLButtonElement | null;
+    if (!button) return;
+    const entryId = button.dataset.entryId;
+    if (!entryId) return;
+
+    const entry = lastState?.transcript?.find((t) => t.id === entryId);
+    if (!entry) return;
+
+    await togglePinState(entry, button);
+  });
 
   // ——— Unified Export Helper (Handles both Live & History) ———
   function generateMarkdown(state: State): string {
@@ -1153,6 +1374,16 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     md += `## Summary\n`;
     md += `${state.summary || "_No summary available_"}\n\n`;
+
+    const pinnedEntries = state.transcript?.filter((t) => t.pinned) || [];
+    if (pinnedEntries.length > 0) {
+      md += `## Pinned Moments\n`;
+      pinnedEntries.forEach((t) => {
+        const elapsed = getElapsedSeconds(t.timestamp, state.startTime);
+        md += `- **[${formatDuration(elapsed)}] ${t.speaker}:** ${t.text}\n`;
+      });
+      md += "\n";
+    }
 
     md += `## Action Items\n`;
     if (state.actionItems?.length) {
@@ -1256,6 +1487,16 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     txt += `Summary\n`;
     txt += `  ${state.summary || "(No summary available)"}\n\n`;
+
+    const pinnedEntries2 = state.transcript?.filter((t) => t.pinned) || [];
+    if (pinnedEntries2.length > 0) {
+      txt += `Pinned Moments\n`;
+      pinnedEntries2.forEach((t) => {
+        const elapsed = getElapsedSeconds(t.timestamp, state.startTime);
+        txt += `  • [${formatDuration(elapsed)}] ${t.speaker}: ${t.text}\n`;
+      });
+      txt += "\n";
+    }
 
     txt += `Action Items\n`;
     if (state.actionItems?.length) {
@@ -1959,6 +2200,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   document.querySelector('[data-tab="sessions"]')?.addEventListener("click", loadMeetingHistory);
   // Load history on tab switch
   document.querySelector('[data-tab="history"]')?.addEventListener("click", loadMeetingHistory);
+  // Load pinned moments on tab switch
+  document.querySelector('[data-tab="pinned"]')?.addEventListener("click", updatePinnedTabUI);
 
   // ——— Copy Transcript Message (Event Delegation) ———
   transcriptContainer?.addEventListener("click", (e) => {

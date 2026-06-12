@@ -15,6 +15,7 @@ export interface TranscriptEntry {
   text: string;
   timestamp: number;
   timestampLabel?: string;
+  pinned?: boolean;
 }
 
 /** A timestamped event recorded on the meeting timeline. */
@@ -150,6 +151,7 @@ export interface TranscriptEntry {
   text: string;
   timestamp: number; // Offset from meeting start in ms
   confidence?: number; // 0.0 to 1.0
+  pinned?: boolean;
 }
 
 /** Root schema for chrome.storage.local */

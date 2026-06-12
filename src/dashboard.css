@@ -1116,7 +1116,52 @@ body::-webkit-scrollbar-thumb,
   color: #fca5a5;
 }
 
+/* ——— Pinned moments styling ——— */
+.pin-entry-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  margin-top: -2px;
+  opacity: 0.3;
+}
+
+.transcript-entry:hover .pin-entry-btn,
+.pin-entry-btn.pinned {
+  opacity: 1;
+}
+
+.pin-entry-btn:hover {
+  background: var(--bg-card);
+  border-color: var(--border-sub);
+  color: var(--text-main);
+}
+
+.pin-entry-btn.pinned {
+  color: #fbbf24; /* Elegant gold/amber accent for pinned moments */
+}
+
+.pinned-moment-entry {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-main);
+  border-radius: 8px;
+  margin-bottom: 8px;
+  padding: 12px;
+}
+
+.pinned-moment-entry:hover {
+  border-color: var(--border-sub);
+}
 /* =====================================================
+   RESPONSIVE BREAKPOINTS — Issue `#648`
+   Fix: text overlap, button clipping, header overflow,
    RESPONSIVE BREAKPOINTS — Issue #648
    Fix: text overlap, button clipping, header overflow,
    tabs overflow, stats card squeezing, horizontal scroll

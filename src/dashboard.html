@@ -175,6 +175,17 @@
       </button>
       <button
         class="dash-tab"
+        data-tab="pinned"
+        role="tab"
+        id="tab-btn-pinned"
+        aria-controls="tab-pinned"
+        aria-selected="false"
+        tabindex="-1"
+      >
+        Pinned
+      </button>
+      <button
+        class="dash-tab"
         data-tab="topics"
         role="tab"
         id="tab-btn-topics"
@@ -943,6 +954,40 @@
           </div>
           <div id="dash-transcript-list" class="transcript-list">
             <div class="empty-msg">No transcript yet. Start audio to begin capturing speech.</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- PINNED TAB -->
+      <section id="tab-pinned" class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-pinned">
+        <div class="dash-card glow-card">
+          <div class="dash-card-head">
+            <span class="dash-card-icon">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="icon"
+                aria-hidden="true"
+              >
+                <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z" />
+              </svg>
+            </span>
+            <span class="dash-card-title">Pinned Moments</span>
+          </div>
+          <div class="transcript-info">
+            View saved and important moments bookmarked from this meeting.
+          </div>
+          <div id="dash-pinned-list" class="transcript-list">
+            <div class="empty-msg">
+              No pinned moments yet. Click the bookmark icon next to a transcript entry to pin it.
+            </div>
           </div>
         </div>
       </section>

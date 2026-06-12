@@ -1868,6 +1868,23 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return;
       }
 
+      case "TOGGLE_PIN": {
+        if (typeof message.entryId !== "string" || !message.entryId) {
+          sendResponse({ success: false, error: "Invalid entryId" });
+          return;
+        }
+        const entry = state.transcript.find((t) => t.id === message.entryId);
+        if (!entry) {
+          sendResponse({ success: false, error: "Transcript entry not found" });
+          return;
+        }
+        entry.pinned = message.isPinned === true;
+        await broadcastStateUpdate(true);
+        sendResponse({ success: true });
+        return;
+      }
+      }
+
       case "OPEN_SIDE_PANEL": {
         const callerTabId = sender?.tab?.id;
         if (callerTabId) {
