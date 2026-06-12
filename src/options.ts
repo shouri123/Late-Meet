@@ -321,11 +321,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     saveBtn.disabled = true;
     try {
       const validatedInterval = clampSummarizationInterval(
-        intervalSlider ? parseInt(intervalSlider.value, 10) : SUMMARIZATION_INTERVAL_DEFAULT,
+        intervalSlider ? Number.parseInt(intervalSlider.value, 10) : SUMMARIZATION_INTERVAL_DEFAULT,
       );
 
       const validatedVadThreshold = clampVadThreshold(
-        vadSlider ? parseFloat(vadSlider.value) : VAD_THRESHOLD_DEFAULT,
+        vadSlider ? Number.parseFloat(vadSlider.value) : VAD_THRESHOLD_DEFAULT,
       );
 
       const newSettings: Settings = {
@@ -367,26 +367,27 @@ document.addEventListener("DOMContentLoaded", async () => {
           elevenlabsKey ? validateElevenLabsKey(elevenlabsKey) : Promise.resolve(true),
         ]);
 
-        if (!isOpenAIValid || !isElevenLabsValid) {
-          invalidKey = !isOpenAIValid ? "openai" : "elevenlabs";
-        } else {
+        if (isOpenAIValid && isElevenLabsValid) {
           await saveApiCredentials({
             openai_api_key: openaiKey,
             elevenlabs_api_key: elevenlabsKey,
           });
           credentialsSaved = true;
+        } else {
+          invalidKey = isOpenAIValid ? "elevenlabs" : "openai";
         }
       }
 
       // Settings are always persisted; the message reflects the credential outcome.
       if (status) {
         const saveStatus = resolveSaveStatus({ unlocked, credentialsSaved, invalidKey });
-        status.style.color =
-          saveStatus.tone === "error"
-            ? "red"
-            : saveStatus.tone === "info"
-              ? "var(--accent-color, #22C55E)"
-              : "";
+        let statusColor = "";
+        if (saveStatus.tone === "error") {
+          statusColor = "red";
+        } else if (saveStatus.tone === "info") {
+          statusColor = "var(--accent-color, #22C55E)";
+        }
+        status.style.color = statusColor;
         status.textContent = saveStatus.message;
         status.classList.add("visible");
 

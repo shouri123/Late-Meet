@@ -1,6 +1,6 @@
 // Pure helpers for the Options "Save" flow.
 //
-// These encode the behaviour required by issue #526: non-secret settings are
+// These encode the behavior required by issue #526: non-secret settings are
 // always validated and persisted regardless of credential-unlock state, and the
 // passphrase is only relevant when saving encrypted API keys. Keeping this logic
 // out of the DOM click handler makes it unit-testable.
@@ -11,7 +11,7 @@ export const SUMMARIZATION_INTERVAL_MAX = 300;
 
 export const VAD_THRESHOLD_DEFAULT = 0.012;
 export const VAD_THRESHOLD_MIN = 0.001;
-export const VAD_THRESHOLD_MAX = 1.0;
+export const VAD_THRESHOLD_MAX = 1;
 
 /**
  * Clamps the summarization interval (minutes) into the supported range, falling

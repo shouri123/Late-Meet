@@ -24,7 +24,7 @@ test("summarization interval is clamped into the supported range", () => {
 
 test("summarization interval truncates fractions and defaults on non-finite input", () => {
   assert.equal(clampSummarizationInterval(45.9), 45);
-  assert.equal(clampSummarizationInterval(NaN), SUMMARIZATION_INTERVAL_DEFAULT);
+  assert.equal(clampSummarizationInterval(Number.NaN), SUMMARIZATION_INTERVAL_DEFAULT);
   assert.equal(clampSummarizationInterval(Infinity), SUMMARIZATION_INTERVAL_DEFAULT);
 });
 
@@ -37,11 +37,11 @@ test("VAD threshold is clamped into the supported range", () => {
 });
 
 test("VAD threshold defaults on non-finite input", () => {
-  assert.equal(clampVadThreshold(NaN), VAD_THRESHOLD_DEFAULT);
+  assert.equal(clampVadThreshold(Number.NaN), VAD_THRESHOLD_DEFAULT);
   assert.equal(clampVadThreshold(-Infinity), VAD_THRESHOLD_DEFAULT);
 });
 
-// ─── resolveSaveStatus (issue #526 behaviour) ──────────────────────────────────
+// ─── resolveSaveStatus (issue #526 behavior) ───────────────────────────────────
 
 test("locked save reports settings saved without touching credentials", () => {
   const status = resolveSaveStatus({ unlocked: false, credentialsSaved: false });
