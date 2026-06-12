@@ -3,7 +3,6 @@ import { buildMicrophoneConstraints } from "./microphoneDevices";
 import {
   connectMicrophoneToOffscreenAudioGraph,
   createOffscreenAudioGraph,
-  MICROPHONE_AUDIO_CONSTRAINTS,
 } from "./offscreenAudioGraph";
 
 let mediaStream: MediaStream | null = null;
@@ -354,11 +353,6 @@ async function getMicrophoneStream(deviceId?: string) {
       }
     }
 
-    return await navigator.mediaDevices.getUserMedia({
-      audio: MICROPHONE_AUDIO_CONSTRAINTS,
-      video: false,
-    });
-  } catch (err) {
     console.warn("[LateMeet][offscreen] Microphone capture unavailable:", err);
     return null;
   }
