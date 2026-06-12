@@ -9,6 +9,14 @@ import { validateOpenAIKey, validateElevenLabsKey } from "./utils/api.js";
 import { renderStorageDashboard } from "./storageDashboard";
 import { MIN_PASSPHRASE_LENGTH, evaluatePassphraseStrength } from "./passphraseStrength";
 import { getSettings } from "./settings";
+import {
+  SUMMARIZATION_INTERVAL_DEFAULT,
+  VAD_THRESHOLD_DEFAULT,
+  clampSummarizationInterval,
+  clampVadThreshold,
+  resolveSaveStatus,
+  shouldSaveCredentials,
+} from "./optionsSettings";
 
 /**
  * Strongly-typed map of all recognized extension settings keys and their

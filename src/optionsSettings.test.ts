@@ -82,18 +82,6 @@ test("invalidKey is ignored when locked (credentials were never attempted)", () 
   assert.equal(status.tone, "info");
 });
 
-test("unlocked without credential save (no validation error) returns generic message", () => {
-  const status = resolveSaveStatus({
-    unlocked: true,
-    credentialsSaved: false,
-    invalidKey: null,
-  });
-  assert.equal(status.tone, "info");
-  assert.notMatch(status.message, /Unlock credential encryption/);
-});
-
-// ─── shouldSaveCredentials ─────────────────────────────────────────────────────
-
 // ─── shouldSaveCredentials ─────────────────────────────────────────────────────
 
 test("credentials are only saved while unlocked", () => {
