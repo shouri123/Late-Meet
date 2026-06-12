@@ -1,14 +1,33 @@
 /* Options Page Styles — AI Meeting Copilot */
 
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap");
-
 /* --- THEME TOKENS --- */
 @import "./theme.css";
+
+/* --- Status & Feedback Utilities --- */
+.passphrase-status {
+  font-size: 12px;
+  margin: 4px 0 12px;
+  text-align: left;
+}
+
+.status-success {
+  color: var(--text-success);
+}
+
+.status-danger {
+  color: var(--text-danger);
+}
 
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+}
+
+/* Prevent transition flicker on initial load */
+.no-transitions,
+.no-transitions * {
+  transition: none !important;
 }
 
 body {
@@ -20,6 +39,9 @@ body {
   background: var(--bg-app);
   color: var(--text-main);
   min-height: 100vh;
+  transition:
+    background-color 0.3s cubic-bezier(0.25, 1, 0.5, 1),
+    color 0.3s cubic-bezier(0.25, 1, 0.5, 1);
 }
 
 .options-container {
@@ -66,6 +88,18 @@ body {
   border-radius: 12px;
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
+  transition:
+    background-color 0.3s cubic-bezier(0.25, 1, 0.5, 1),
+    border-color 0.3s cubic-bezier(0.25, 1, 0.5, 1),
+    transform 0.3s cubic-bezier(0.25, 1, 0.5, 1),
+    box-shadow 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.options-section:hover {
+  background: var(--bg-card);
+  border-color: var(--border-element);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px);
 }
 
 .section-title {
@@ -132,6 +166,11 @@ body {
   background: var(--bg-element);
 }
 
+.form-select:focus-visible {
+  outline: 2px solid hsl(var(--accent-color, 210, 100%, 50%));
+  outline-offset: 2px;
+}
+
 .form-input::placeholder {
   color: var(--text-muted);
 }
@@ -179,6 +218,11 @@ body {
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+.form-range:focus-visible {
+  outline: 2px solid hsl(var(--accent-color, 210, 100%, 50%));
+  outline-offset: 2px;
 }
 
 .form-range {

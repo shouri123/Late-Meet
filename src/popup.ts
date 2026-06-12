@@ -1,8 +1,15 @@
 import { State } from "./types";
 import { initTheme } from "./theme.js";
-import { getApiCredentials, saveApiCredentials } from "./utils/credentials";
+import {
+  getApiCredentials,
+  saveApiCredentials,
+  unlockCredentials,
+  isUnlocked,
+} from "./utils/credentials";
+import { escapeHtml, formatDuration, sanitizeTopicStatus } from "./utils/domHelpers";
 import { validateOpenAIKey } from "./utils/api.js";
 import { resolveManualMeetTab } from "./meetingTabs";
+import { startPopupAudioCapture } from "./popupCapture";
 
 initTheme();
 
@@ -18,6 +25,53 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   let lastState: State | null = null;
 
+  // ——— Passphrase management ———
+  const passphraseInput = document.getElementById("passphrase-input") as HTMLInputElement | null;
+  const passphraseStatus = document.getElementById("passphrase-status");
+  let pendingUnlock: Promise<boolean> | null = null;
+
+  function updatePassphraseStatus() {
+    if (!passphraseStatus) return;
+    if (isUnlocked()) {
+      passphraseStatus.className = "status-text status-success";
+      passphraseStatus.textContent = "Unlocked — encryption key is active";
+    } else {
+      passphraseStatus.className = "status-text status-danger";
+      passphraseStatus.textContent = "Locked — enter passphrase to unlock encryption";
+    }
+  }
+
+  async function handlePassphraseUnlock(): Promise<boolean> {
+    if (isUnlocked()) return true;
+    const passphrase = passphraseInput?.value ?? "";
+    if (!passphrase) {
+      if (passphraseStatus) passphraseStatus.textContent = "Please enter a passphrase";
+      return false;
+    }
+    const success = await unlockCredentials(passphrase);
+    if (success) {
+      updatePassphraseStatus();
+      const creds = await getApiCredentials();
+      if (creds.openai_api_key || creds.elevenlabs_api_key) {
+        setupView.style.display = "none";
+        mainView.style.display = "block";
+      }
+      return true;
+    }
+    if (passphraseStatus) {
+      passphraseStatus.className = "status-text status-danger";
+      passphraseStatus.textContent = "Wrong passphrase — could not decrypt stored credentials";
+    }
+    return false;
+  }
+
+  passphraseInput?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") pendingUnlock = handlePassphraseUnlock();
+  });
+  passphraseInput?.addEventListener("blur", () => {
+    pendingUnlock = handlePassphraseUnlock();
+  });
+
   // ——— Check if API key is configured ———
   const config = await getApiCredentials();
 
@@ -29,11 +83,21 @@ document.addEventListener("DOMContentLoaded", async () => {
     mainView.style.display = "block";
   }
 
+  updatePassphraseStatus();
+
   // ——— Setup: Save Key ———
   document.getElementById("save-keys")?.addEventListener("click", async () => {
     const apiKeyInput = document.getElementById("api-key-input") as HTMLInputElement;
     const apiKey = apiKeyInput.value.trim();
     const saveBtn = document.getElementById("save-keys") as HTMLButtonElement;
+
+    if (!isUnlocked()) {
+      if (pendingUnlock) await pendingUnlock;
+      if (!isUnlocked()) {
+        const unlocked = await handlePassphraseUnlock();
+        if (!unlocked) return;
+      }
+    }
 
     if (!apiKey) {
       shakeElement(apiKeyInput);
@@ -54,7 +118,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (!errorEl) {
         errorEl = document.createElement("div");
         errorEl.id = "api-key-error";
-        errorEl.style.color = "#EF4444";
+        errorEl.className = "status-text status-danger";
         errorEl.style.fontSize = "11px";
         errorEl.style.marginTop = "6px";
         errorEl.style.textAlign = "left";
@@ -90,16 +154,35 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // ——— Open Dashboard ———
   document.getElementById("open-dashboard")?.addEventListener("click", () => {
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      const tabId = tabs[0]?.id;
-      if (tabId !== undefined) {
-        chrome.sidePanel.open({ tabId });
-      }
-    });
+    chrome.sidePanel.open({ windowId: chrome.windows.WINDOW_ID_CURRENT });
   });
 
   // ——— Start Copilot (Audio Capture with User Gesture) ———
   const copilotBtn = document.getElementById("start-copilot-btn") as HTMLButtonElement | null;
+
+  function getPopupMediaStreamId(tabId: number): Promise<string> {
+    return new Promise((resolve, reject) => {
+      chrome.tabCapture.getMediaStreamId({ targetTabId: tabId }, (streamId) => {
+        if (chrome.runtime.lastError) {
+          reject(new Error(chrome.runtime.lastError.message || "Unknown tab capture error"));
+          return;
+        }
+
+        resolve(streamId || "");
+      });
+    });
+  }
+
+  async function requestPopupMicrophonePermission(): Promise<boolean> {
+    try {
+      const micStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      micStream.getTracks().forEach((track) => track.stop());
+      return true;
+    } catch {
+      console.warn("[LateMeet] Microphone permission not granted — recording tab audio only");
+      return false;
+    }
+  }
 
   async function handleStopAudio(btn?: HTMLButtonElement | null) {
     if (!lastState?.audioActive) return;
@@ -118,10 +201,31 @@ document.addEventListener("DOMContentLoaded", async () => {
     const textEl = btn.querySelector(".copilot-btn-text");
     const originalText = textEl?.textContent || "Start";
 
+    // --- Pre-flight Check for API Keys ---
+    const keys = await getApiCredentials();
+    if (!keys.openai_api_key) {
+      alert("Please configure your OpenAI API Key in the Settings before starting.");
+      chrome.runtime.openOptionsPage();
+      return;
+    }
+
     if (lastState?.audioActive) {
       console.log("[LateMeet] Audio already active, skipping capture request.");
       return;
     }
+
+    // Check if ElevenLabs API key exists before starting
+    const creds = await getApiCredentials();
+    if (!creds.elevenlabs_api_key) {
+      if (textEl) {
+        textEl.textContent = "⚠️ Missing ElevenLabs Key";
+        setTimeout(() => {
+          if (textEl) textEl.textContent = originalText;
+        }, 2000);
+      }
+      return; // Stop here - don't start recording
+    }
+    // ========== END OF ADDED CODE ==========
 
     try {
       // Show loading state
@@ -129,75 +233,45 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (textEl) textEl.textContent = "Starting...";
       btn.classList.add("loading");
 
-      resolveManualMeetTab()
-        .then(({ tab: meetTab, meetingId, meetingUrl }) => {
-          // --- Get Media Stream ID in foreground (popup) to ensure user gesture propagation ---
-          chrome.tabCapture.getMediaStreamId({ targetTabId: meetTab.id }, async (streamId) => {
-            if (chrome.runtime.lastError) {
-              const err = chrome.runtime.lastError.message || "Unknown error";
-              console.error("[LateMeet] Popup getMediaStreamId error:", err);
-              // If already capturing, we can treat it as success or inform the background
-              if (err.includes("active stream")) {
-                setCopilotActive(true);
-                return;
-              } else {
-                handleStartAudioError(
-                  new Error(
-                    "Capture permission denied. Try clicking the extension icon again on the Meet tab.",
-                  ),
-                );
-                return;
-              }
-            }
+      const { meetingId, microphoneEnabled } = await startPopupAudioCapture({
+        resolveMeetTab: resolveManualMeetTab,
+        getMediaStreamId: getPopupMediaStreamId,
+        requestMicrophonePermission: requestPopupMicrophonePermission,
+        startAudioCapture: (payload) =>
+          chrome.runtime.sendMessage({
+            type: "MANUAL_START_AUDIO",
+            ...payload,
+          }),
+      });
 
-            if (!streamId) {
-              handleStartAudioError(
-                new Error(
-                  "Capture permission denied. Try clicking the extension icon again on the Meet tab.",
-                ),
-              );
-              return;
-            }
+      if (!microphoneEnabled) {
+        console.warn("[LateMeet] Started without microphone input — tab audio only");
+      }
 
-            try {
-              const response = await chrome.runtime.sendMessage({
-                type: "MANUAL_START_AUDIO",
-                tabId: meetTab.id,
-                meetingId: meetingId,
-                meetingUrl: meetingUrl || meetTab.url || null,
-                streamId: streamId,
-                includeMicrophone: true,
-              });
-
-              if (response && response.success) {
-                // Clear loading state before setting active state
-                btn.disabled = false;
-                btn.classList.remove("loading");
-                setCopilotActive(true);
-                // Immediately show meeting section and start timer
-                if (meetingSection) meetingSection.style.display = "block";
-                if (noMeetingSection) noMeetingSection.style.display = "none";
-                if (meetingId) {
-                  const meetingIdEl = document.getElementById("meeting-id");
-                  if (meetingIdEl) meetingIdEl.textContent = meetingId;
-                }
-                const badge = document.getElementById("status-badge");
-                if (badge) {
-                  badge.className = "status-badge active";
-                  const statusText = badge.querySelector(".status-text");
-                  if (statusText) statusText.textContent = "Recording...";
-                }
-                startDurationTimer(Date.now());
-              } else {
-                throw new Error(response?.error || "Failed to start audio capture");
-              }
-            } catch (err: any) {
-              handleStartAudioError(err);
-            }
-          });
-        })
-        .catch(handleStartAudioError);
+      // Clear loading state before setting active state
+      btn.disabled = false;
+      btn.classList.remove("loading");
+      setCopilotActive(true);
+      // Immediately show meeting section and start timer
+      if (meetingSection) meetingSection.style.display = "block";
+      if (noMeetingSection) noMeetingSection.style.display = "none";
+      if (meetingId) {
+        const meetingIdEl = document.getElementById("meeting-id");
+        if (meetingIdEl) meetingIdEl.textContent = meetingId;
+      }
+      const badge = document.getElementById("status-badge");
+      if (badge) {
+        badge.className = "status-badge active";
+        const statusText = badge.querySelector(".status-text");
+        if (statusText) statusText.textContent = "Recording...";
+      }
+      startDurationTimer(Date.now());
     } catch (err: any) {
+      if ((err.message || "").includes("active stream")) {
+        setCopilotActive(true);
+        return;
+      }
+
       handleStartAudioError(err);
     }
 
@@ -274,6 +348,37 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   // ——— Session Save/Discard Modal ———
+  let previouslyFocusedElement: HTMLElement | null = null;
+
+  function trapFocus(e: KeyboardEvent) {
+    if (e.key !== "Tab") return;
+    const focusableEls = sessionModal.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+    );
+    if (focusableEls.length === 0) return;
+    const firstEl = focusableEls[0];
+    const lastEl = focusableEls[focusableEls.length - 1];
+    if (e.shiftKey) {
+      if (document.activeElement === firstEl) {
+        e.preventDefault();
+        lastEl.focus();
+      }
+    } else {
+      if (document.activeElement === lastEl) {
+        e.preventDefault();
+        firstEl.focus();
+      }
+    }
+  }
+
+  function handleModalKeydown(e: KeyboardEvent) {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      hideSessionModal();
+    }
+    trapFocus(e);
+  }
+
   function showSessionModal() {
     const saveBtn = document.getElementById("save-session-btn") as HTMLButtonElement | null;
     const discardBtn = document.getElementById("discard-session-btn") as HTMLButtonElement | null;
@@ -291,16 +396,31 @@ document.addEventListener("DOMContentLoaded", async () => {
       discardBtn.textContent = "Discard";
       discardBtn.classList.remove("loading");
     }
+    previouslyFocusedElement = document.activeElement as HTMLElement | null;
     sessionModal.style.display = "flex";
-    requestAnimationFrame(() => sessionModal.classList.add("visible"));
+    requestAnimationFrame(() => {
+      sessionModal.classList.add("visible");
+      // Move focus into the modal
+      (saveBtn || discardBtn)?.focus();
+    });
+    sessionModal.addEventListener("keydown", handleModalKeydown);
   }
 
   function hideSessionModal() {
     sessionModal.classList.remove("visible");
+    sessionModal.removeEventListener("keydown", handleModalKeydown);
     setTimeout(() => {
       sessionModal.style.display = "none";
+      // Return focus to the previously focused element
+      previouslyFocusedElement?.focus();
+      previouslyFocusedElement = null;
     }, 300);
   }
+
+  // Backdrop click to dismiss
+  sessionModal.querySelector(".session-modal-backdrop")?.addEventListener("click", () => {
+    hideSessionModal();
+  });
 
   document.getElementById("save-session-btn")?.addEventListener("click", async (e) => {
     const btn = e.currentTarget as HTMLButtonElement;
@@ -344,6 +464,13 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
 
   document.getElementById("discard-session-btn")?.addEventListener("click", async (e) => {
+    if (
+      !confirm(
+        "Are you sure you want to discard this session? All meeting intelligence will be permanently lost.",
+      )
+    ) {
+      return;
+    }
     const btn = e.currentTarget as HTMLButtonElement;
     const saveBtn = document.getElementById("save-session-btn") as HTMLButtonElement | null;
     const originalText = btn.textContent || "Discard";
@@ -483,7 +610,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             <div class="late-joiner-item">
               <span class="joiner-icon">🚪</span>
               <span class="joiner-name">${escapeHtml(name || "")}</span>
-              <span style="color: #64748B; font-size: 10px;">briefed ✓</span>
+              <span style="color: var(--text-muted); font-size: 10px;">briefed ✓</span>
             </div>
           `,
             )
@@ -512,13 +639,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   // ——— Helpers ———
-  function formatDuration(seconds: number) {
-    const h = Math.floor(seconds / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
-    const s = Math.floor(seconds % 60);
-    return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-  }
-
   function getSentimentEmoji(sentiment: string) {
     const map: Record<string, string> = {
       positive: "😊",
@@ -529,23 +649,19 @@ document.addEventListener("DOMContentLoaded", async () => {
     return map[sentiment] || "—";
   }
 
-  function sanitizeTopicStatus(status: string) {
-    return status === "completed" ? "completed" : "active";
-  }
-
-  function escapeHtml(value: string | null | undefined) {
-    const div = document.createElement("div");
-    div.textContent = String(value || "");
-    return div.innerHTML;
-  }
-
   function shakeElement(el: HTMLElement | null) {
     if (!el) return;
-    el.style.borderColor = "#EF4444";
-    el.style.animation = "shake 0.4s ease";
+    el.classList.add("shake", "border-danger");
     setTimeout(() => {
-      el.style.borderColor = "";
-      el.style.animation = "";
+      el.classList.remove("shake", "border-danger");
     }, 400);
   }
+
+  // ——— Cleanup on popup close ———
+  window.addEventListener("unload", () => {
+    if (durationInterval) {
+      clearInterval(durationInterval as number);
+      durationInterval = null;
+    }
+  });
 });

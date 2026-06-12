@@ -4,13 +4,20 @@ This guide explains how to test Late Meet changes before opening a pull request.
 
 ## Testing Stack
 
-Late Meet is built with a Vite-based TypeScript setup, so Vitest is the recommended unit testing framework for project utilities and isolated logic.
+Late Meet is built with a Vite-based TypeScript setup. The current unit test suite uses Node's built-in test runner with `tsx` so TypeScript test files can run directly.
 
-Vitest works well with Vite projects because it can reuse Vite-style TypeScript and module resolution settings. If the repository does not yet have a test runner fully configured, contributors should align new tests with Vitest so the setup can grow consistently.
+The active test command is defined in `package.json`:
+
+```json
+{
+  "scripts": {
+    "test": "tsx --test src/audioProcessing.test.ts src/audioChunkQueue.test.ts src/participantDetection.test.ts src/meetingTabs.test.ts src/sessionStorage.test.ts src/dashboardCapture.test.ts src/popupCapture.test.ts src/speakerAttribution.test.ts src/utils/credentials.test.ts"
+  }
+}
+```
 
 Common test-related files may include:
 
-- `vitest.config.ts` for Vitest configuration
 - `src/**/*.test.ts` for unit tests
 - `src/test/` or `test/` for shared mocks and setup helpers
 
@@ -22,22 +29,13 @@ Install dependencies first:
 npm install
 ```
 
-If configured, run the test suite:
+Run the current test suite:
 
 ```bash
 npm run test
 ```
 
-If `npm run test` is not available yet, check `package.json` for the current scripts. A future Vitest script would usually look like this:
-
-```json
-{
-  "scripts": {
-    "test": "vitest",
-    "test:run": "vitest run"
-  }
-}
-```
+The script runs the listed `.test.ts` files through `tsx --test`. If you add a new test file, also add it to the `test` script unless the project later switches to a glob-based test command.
 
 Before opening a pull request, also run the existing project checks:
 
@@ -72,13 +70,13 @@ src/utils/audioProcessing.test.ts
 A simple utility test might look like this:
 
 ```ts
-import { describe, expect, it } from "vitest";
+import test from "node:test";
+import assert from "node:assert/strict";
+
 import { formatDuration } from "./formatDuration";
 
-describe("formatDuration", () => {
-  it("formats seconds as minutes and seconds", () => {
-    expect(formatDuration(95)).toBe("1:35");
-  });
+test("formatDuration formats seconds as minutes and seconds", () => {
+  assert.equal(formatDuration(95), "1:35");
 });
 ```
 
@@ -91,18 +89,22 @@ For utility files, keep tests small and table-driven when there are multiple inp
 Example:
 
 ```ts
-import { describe, expect, it } from "vitest";
+import test from "node:test";
+import assert from "node:assert/strict";
+
 import { normalizeTranscriptText } from "./normalizeTranscriptText";
 
-describe("normalizeTranscriptText", () => {
-  it.each([
-    [" hello  world ", "hello world"],
-    ["hello\nworld", "hello world"],
-    ["", ""],
-  ])("normalizes %j", (input, expected) => {
-    expect(normalizeTranscriptText(input)).toBe(expected);
+const cases: Array<[string, string]> = [
+  [" hello  world ", "hello world"],
+  ["hello\nworld", "hello world"],
+  ["", ""],
+];
+
+for (const [input, expected] of cases) {
+  test(`normalizeTranscriptText normalizes ${JSON.stringify(input)}`, () => {
+    assert.equal(normalizeTranscriptText(input), expected);
   });
-});
+}
 ```
 
 For files such as `audioProcessing.ts`, useful unit tests may cover:
@@ -117,35 +119,33 @@ Avoid requiring a real microphone, real Google Meet tab, or real API key in unit
 
 ## Mocking Chrome Extension APIs
 
-Chrome Extension APIs such as `chrome.runtime`, `chrome.storage`, and `chrome.tabCapture` are not available in a normal Node.js test environment. Tests that touch these APIs must mock them.
+Chrome Extension APIs such as `chrome.runtime`, `chrome.storage`, and `chrome.tabCapture` are not available in a normal Node.js test environment. Tests that touch these APIs must mock the minimum Chrome API surface they need.
 
-Use Vitest mocks to define the minimum API surface needed by the code under test:
+Use plain functions, in-memory objects, or small helper factories:
 
 ```ts
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import test from "node:test";
+import assert from "node:assert/strict";
 
-beforeEach(() => {
-  vi.clearAllMocks();
+test("example with mocked chrome.runtime", async () => {
+  const sentMessages: unknown[] = [];
 
   globalThis.chrome = {
     runtime: {
-      sendMessage: vi.fn(),
+      async sendMessage(message: unknown) {
+        sentMessages.push(message);
+        return { success: true };
+      },
       onMessage: {
-        addListener: vi.fn(),
-        removeListener: vi.fn(),
+        addListener() {},
+        removeListener() {},
       },
-    },
-    storage: {
-      local: {
-        get: vi.fn(),
-        set: vi.fn(),
-        remove: vi.fn(),
-      },
-    },
-    tabCapture: {
-      capture: vi.fn(),
     },
   } as unknown as typeof chrome;
+
+  await chrome.runtime.sendMessage({ type: "TRANSCRIPTION_STARTED" });
+
+  assert.deepEqual(sentMessages, [{ type: "TRANSCRIPTION_STARTED" }]);
 });
 ```
 
@@ -158,13 +158,19 @@ For storage-heavy tests, use an in-memory object:
 ```ts
 const store: Record<string, unknown> = {};
 
-globalThis.chrome.storage.local.get = vi.fn(async (key: string) => ({
-  [key]: store[key],
-}));
+globalThis.chrome = {
+  storage: {
+    local: {
+      async get(key: string) {
+        return { [key]: store[key] };
+      },
 
-globalThis.chrome.storage.local.set = vi.fn(async (items: Record<string, unknown>) => {
-  Object.assign(store, items);
-});
+      async set(items: Record<string, unknown>) {
+        Object.assign(store, items);
+      },
+    },
+  },
+} as unknown as typeof chrome;
 ```
 
 Use this pattern to verify that the extension reads and writes the expected local state without touching the real browser profile.
@@ -174,9 +180,20 @@ Use this pattern to verify that the extension reads and writes the expected loca
 Use `chrome.runtime.sendMessage` mocks to verify that a module sends the correct message shape:
 
 ```ts
-expect(chrome.runtime.sendMessage).toHaveBeenCalledWith({
-  type: "TRANSCRIPTION_STARTED",
-});
+const sentMessages: unknown[] = [];
+
+globalThis.chrome = {
+  runtime: {
+    async sendMessage(message: unknown) {
+      sentMessages.push(message);
+      return { success: true };
+    },
+  },
+} as unknown as typeof chrome;
+
+await chrome.runtime.sendMessage({ type: "TRANSCRIPTION_STARTED" });
+
+assert.deepEqual(sentMessages, [{ type: "TRANSCRIPTION_STARTED" }]);
 ```
 
 For message listeners, keep the listener callback in a variable so the test can call it directly.
@@ -188,17 +205,17 @@ For message listeners, keep the listener callback in a variable so the test can 
 For success cases, return a fake `MediaStream` or the smallest object needed by the code under test:
 
 ```ts
-chrome.tabCapture.capture = vi.fn((options, callback) => {
+chrome.tabCapture.capture = (_options, callback) => {
   callback({} as MediaStream);
-});
+};
 ```
 
 For failure cases, return `null` and verify that the code handles the error path correctly:
 
 ```ts
-chrome.tabCapture.capture = vi.fn((options, callback) => {
+chrome.tabCapture.capture = (_options, callback) => {
   callback(null);
-});
+};
 ```
 
 ## Testing the Audio Pipeline

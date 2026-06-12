@@ -1,31 +1,50 @@
-name: Lint & Format Check
+name: Code Quality and Linting
 
 on:
-  pull_request_target:
+  pull_request:
+    branches: [main, develop]
   push:
-    branches: [main]
+    branches: [main, develop]
+
+permissions:
+  contents: read
 
 jobs:
-  lint:
+  format-check:
+    name: Format Check
     runs-on: ubuntu-latest
-
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v4
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v4
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
+          node-version: 22
           cache: "npm"
-
       - run: npm ci
-
-      - name: Run Format Check
+      - name: Check Code Formatting
         run: npm run format:check
 
-      - name: Run Lint Check
+  lint-check:
+    name: Lint Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v4
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v4
+        with:
+          node-version: 22
+          cache: "npm"
+      - run: npm ci
+      - name: Run ESLint
         run: npm run lint
 
-      - name: Run Type Check
+  type-check:
+    name: Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v4
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v4
+        with:
+          node-version: 22
+          cache: "npm"
+      - run: npm ci
+      - name: TypeScript Type Check
         run: npm run type-check
