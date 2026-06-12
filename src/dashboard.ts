@@ -122,6 +122,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   const transcriptContainer = document.getElementById(
     "dash-transcript-list",
   ) as HTMLDivElement | null;
+  const speakerFilter = document.getElementById(
+    "transcript-speaker-filter",
+  ) as HTMLSelectElement | null;
 
   await loadActionStatuses();
   // ——— Waveform Visualizer ———
@@ -1030,7 +1033,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const chunkId = entry.id ? `transcript-${escapeHtml(entry.id)}` : "";
 
     return `
-      <div id="${chunkId}" class="transcript-entry ${isAudio ? "audio-source" : ""}">
+      <div id="${chunkId}" class="transcript-entry ${isAudio ? "audio-source" : ""}" data-speaker="${speaker}">
         <div class="transcript-time">${timeStr}</div>
         <div class="transcript-avatar">${isAudio ? "🎙" : initials}</div>
         <div class="transcript-body">
@@ -1049,6 +1052,42 @@ document.addEventListener("DOMContentLoaded", async () => {
     `;
   }
 
+  function updateSpeakerDropdown(transcript: TranscriptEntry[]) {
+    if (!speakerFilter) return;
+    const uniqueSpeakers = Array.from(
+      new Set(transcript.map((e) => e.speaker || "Unknown")),
+    ).filter(Boolean);
+    const currentValue = speakerFilter.value || "";
+
+    speakerFilter.innerHTML = '<option value="">All Speakers</option>';
+    uniqueSpeakers.sort().forEach((speaker) => {
+      const option = document.createElement("option");
+      option.value = speaker;
+      option.textContent = speaker;
+      if (speaker === currentValue) {
+        option.selected = true;
+      }
+      speakerFilter.appendChild(option);
+    });
+  }
+
+  function applySpeakerFilter() {
+    if (!transcriptContainer || !speakerFilter) return;
+    const selectedSpeaker = speakerFilter.value;
+    const entries = transcriptContainer.querySelectorAll<HTMLElement>(".transcript-entry");
+
+    entries.forEach((entryEl) => {
+      const entrySpeaker = entryEl.dataset.speaker || "";
+      if (!selectedSpeaker || entrySpeaker === selectedSpeaker) {
+        entryEl.classList.remove("filtered-out");
+      } else {
+        entryEl.classList.add("filtered-out");
+      }
+    });
+
+    executeTranscriptSearch(false);
+  }
+
   function updateTranscript(transcript: TranscriptEntry[]) {
     if (!transcriptContainer) return;
 
@@ -1056,9 +1095,12 @@ document.addEventListener("DOMContentLoaded", async () => {
       transcriptContainer.innerHTML =
         '<div class="empty-msg">No transcript yet. Start audio to begin capturing speech.</div>';
       renderedTranscriptCount = 0;
+      updateSpeakerDropdown([]);
       resetTranscriptSearchState();
       return;
     }
+
+    updateSpeakerDropdown(transcript);
 
     // If the transcript shrunk (e.g., session reset), do a full re-render
     if (transcript.length < renderedTranscriptCount) {
@@ -1076,6 +1118,18 @@ document.addEventListener("DOMContentLoaded", async () => {
       const fragment = document.createDocumentFragment();
       const wrapper = document.createElement("div");
       wrapper.innerHTML = newEntries.map((e) => createTranscriptEntryHTML(e)).join("");
+
+      // Immediately apply active speaker filter to new entries
+      const currentFilter = speakerFilter?.value || "";
+      if (currentFilter) {
+        wrapper.querySelectorAll<HTMLElement>(".transcript-entry").forEach((entryEl) => {
+          const entrySpeaker = entryEl.dataset.speaker || "";
+          if (entrySpeaker !== currentFilter) {
+            entryEl.classList.add("filtered-out");
+          }
+        });
+      }
+
       while (wrapper.firstChild) {
         fragment.appendChild(wrapper.firstChild);
       }
@@ -1811,6 +1865,10 @@ document.addEventListener("DOMContentLoaded", async () => {
           return NodeFilter.FILTER_REJECT;
         }
 
+        if (parentElement.closest(".transcript-entry.filtered-out")) {
+          return NodeFilter.FILTER_REJECT;
+        }
+
         if (!parentElement.closest(".transcript-text")) {
           return NodeFilter.FILTER_REJECT;
         }
@@ -1928,6 +1986,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
 
   searchClearBtn?.addEventListener("click", clearTranscriptSearch);
+
+  speakerFilter?.addEventListener("change", applySpeakerFilter);
 
   searchPrevBtn?.addEventListener("click", () => {
     navigateTranscriptMatch(-1);
