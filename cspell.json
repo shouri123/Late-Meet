@@ -87,11 +87,15 @@
     "falando",
     "говорит",
     "backgrounded",
-    "ciphertext",
-    "somegarbage",
-    "generativelanguage",
-    "defg",
-    "upserted"
+"analyser",
+"back-pressure",
+"dataavailable",
+"headerless",
+"ciphertext",
+"somegarbage",
+"generativelanguage",
+"defg",
+"upserted"
   ],
   "ignorePaths": [
     "node_modules",
