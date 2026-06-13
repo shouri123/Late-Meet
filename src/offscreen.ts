@@ -342,6 +342,24 @@ async function getMicrophoneStream() {
   }
 }
 
+function setMicrophoneMuted(muted: boolean): boolean {
+  if (!microphoneStream) return false;
+
+  let applied = false;
+  microphoneStream.getAudioTracks().forEach((track) => {
+    if (track.enabled === muted) {
+      track.enabled = !muted;
+      applied = true;
+    }
+  });
+
+  if (applied) {
+    relay(`microphone track ${muted ? "muted" : "unmuted"}`);
+  }
+
+  return applied;
+}
+
 async function stopMediaRecorder() {
   if (mediaRecorder && mediaRecorder.state !== "inactive") {
     const recorder = mediaRecorder;
