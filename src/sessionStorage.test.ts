@@ -3,14 +3,48 @@ import test from "node:test";
 
 import {
   createSessionListItem,
+  deleteAllSavedMeetingSessions,
+  deleteMultipleSavedMeetingSessions,
+  deleteSavedMeetingSession,
   estimateStorageBytes,
   getSavedMeetingSession,
   getSavedSessionKey,
   isStorageQuotaError,
+  SAVED_SESSION_INDEX_KEY,
   SAVED_SESSIONS_LEGACY_KEY,
   StoredSession,
   upsertSessionIndex,
 } from "./sessionStorage";
+
+/**
+ * Minimal in-memory chrome.storage.local stand-in that records the keys written
+ * via `set` and removed via `remove`, so tests can assert exactly which keys a
+ * delete touched.
+ */
+function makeMemoryStorage(initial: Record<string, unknown> = {}) {
+  const store: Record<string, unknown> = { ...initial };
+  // Loosely-typed signatures (...args: unknown[]) so the mock is assignable to
+  // chrome.storage.StorageArea's overloaded get/set/remove without reimplementing
+  // every overload.
+  const get = async (...args: unknown[]) => {
+    const keys = args[0] as string | string[];
+    const list = Array.isArray(keys) ? keys : [keys];
+    const out: Record<string, unknown> = {};
+    for (const key of list) {
+      if (key in store) out[key] = store[key];
+    }
+    return out;
+  };
+  const set = async (...args: unknown[]) => {
+    Object.assign(store, args[0] as Record<string, unknown>);
+  };
+  const remove = async (...args: unknown[]) => {
+    const keys = args[0] as string | string[];
+    const list = Array.isArray(keys) ? keys : [keys];
+    for (const key of list) delete store[key];
+  };
+  return { store, get, set, remove };
+}
 
 function makeSession(id: string, savedAt: number): StoredSession {
   return {
@@ -140,4 +174,69 @@ test("getSavedMeetingSession falls back to legacy saved sessions", async () => {
   assert.equal(result?.id, session.id);
   assert.deepEqual(result?.transcript, session.transcript);
   assert.deepEqual(result?.timeline, session.timeline);
+});
+
+// ─── delete does not resurrect the migrated legacy key (#677) ───────────────────
+
+test("deleteSavedMeetingSession does not recreate the legacy key when it is absent", async () => {
+  const session = makeSession("a", 100);
+  const storage = makeMemoryStorage({
+    [SAVED_SESSION_INDEX_KEY]: [createSessionListItem(session)],
+    [getSavedSessionKey(session.id)]: session,
+  });
+
+  await deleteSavedMeetingSession(storage, session.id);
+
+  assert.ok(
+    !(SAVED_SESSIONS_LEGACY_KEY in storage.store),
+    "legacy savedSessions key should stay absent after deletion",
+  );
+  assert.deepEqual(storage.store[SAVED_SESSION_INDEX_KEY], []);
+  assert.ok(!(getSavedSessionKey(session.id) in storage.store));
+});
+
+test("deleteSavedMeetingSession filters the legacy key when it is present", async () => {
+  const keep = makeSession("keep", 100);
+  const drop = makeSession("drop", 200);
+  const storage = makeMemoryStorage({
+    [SAVED_SESSION_INDEX_KEY]: [createSessionListItem(keep), createSessionListItem(drop)],
+    [SAVED_SESSIONS_LEGACY_KEY]: [keep, drop],
+  });
+
+  await deleteSavedMeetingSession(storage, drop.id);
+
+  const legacy = storage.store[SAVED_SESSIONS_LEGACY_KEY] as StoredSession[];
+  assert.deepEqual(
+    legacy.map((s) => s.id),
+    ["keep"],
+  );
+});
+
+test("deleteMultipleSavedMeetingSessions does not recreate the legacy key when absent", async () => {
+  const a = makeSession("a", 100);
+  const b = makeSession("b", 200);
+  const storage = makeMemoryStorage({
+    [SAVED_SESSION_INDEX_KEY]: [createSessionListItem(a), createSessionListItem(b)],
+    [getSavedSessionKey(a.id)]: a,
+    [getSavedSessionKey(b.id)]: b,
+  });
+
+  await deleteMultipleSavedMeetingSessions(storage, [a.id, b.id]);
+
+  assert.ok(!(SAVED_SESSIONS_LEGACY_KEY in storage.store));
+  assert.deepEqual(storage.store[SAVED_SESSION_INDEX_KEY], []);
+});
+
+test("deleteAllSavedMeetingSessions removes the legacy key instead of resurrecting it", async () => {
+  const a = makeSession("a", 100);
+  const storage = makeMemoryStorage({
+    [SAVED_SESSION_INDEX_KEY]: [createSessionListItem(a)],
+    [SAVED_SESSIONS_LEGACY_KEY]: [a],
+    [getSavedSessionKey(a.id)]: a,
+  });
+
+  await deleteAllSavedMeetingSessions(storage);
+
+  assert.ok(!(SAVED_SESSIONS_LEGACY_KEY in storage.store), "legacy key should be removed, not []");
+  assert.deepEqual(storage.store[SAVED_SESSION_INDEX_KEY], []);
 });

@@ -1,4 +1,9 @@
 import { VoiceActivityTracker, isChunkViable } from "./audioProcessing";
+import {
+  connectMicrophoneToOffscreenAudioGraph,
+  createOffscreenAudioGraph,
+  MICROPHONE_AUDIO_CONSTRAINTS,
+} from "./offscreenAudioGraph";
 
 let mediaStream: MediaStream | null = null;
 let microphoneStream: MediaStream | null = null;
@@ -6,7 +11,6 @@ let recorderStream: MediaStream | null = null;
 let mediaRecorder: MediaRecorder | null = null;
 let audioContext: AudioContext | null = null;
 let analyserNode: AnalyserNode | null = null;
-let compressorNode: DynamicsCompressorNode | null = null;
 let vadTimer: ReturnType<typeof setInterval> | null = null;
 let waveformTimer: ReturnType<typeof setInterval> | null = null;
 let audioSources: MediaStreamAudioSourceNode[] = [];
@@ -302,7 +306,6 @@ async function cleanupResources() {
 
   mediaRecorder = null;
   analyserNode = null;
-  compressorNode = null;
   audioSources = [];
   pendingChunks = [];
   isStopping = false;
@@ -330,28 +333,13 @@ async function getTabAudioStream(streamId: string) {
 async function getMicrophoneStream() {
   try {
     return await navigator.mediaDevices.getUserMedia({
-      audio: {
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true,
-      },
+      audio: MICROPHONE_AUDIO_CONSTRAINTS,
       video: false,
     });
   } catch (err) {
     console.warn("[LateMeet][offscreen] Microphone capture unavailable:", err);
-
     return null;
   }
-}
-
-function connectSourceToRecorder(stream: MediaStream) {
-  if (!audioContext || !analyserNode || !compressorNode) return;
-
-  const source = audioContext.createMediaStreamSource(stream);
-
-  source.connect(compressorNode);
-
-  audioSources.push(source);
 }
 
 async function stopMediaRecorder() {
@@ -529,32 +517,23 @@ async function startCapture(
     await audioContext.resume();
   }
 
-  const destination = audioContext.createMediaStreamDestination();
+  const audioGraph = createOffscreenAudioGraph(audioContext, mediaStream);
+  const destination = audioGraph.recorderDestination;
 
-  compressorNode = audioContext.createDynamicsCompressor();
-  compressorNode.threshold.value = -3;
-  compressorNode.knee.value = 0;
-  compressorNode.ratio.value = 20;
-  compressorNode.attack.value = 0.005;
-  compressorNode.release.value = 0.1;
-
-  analyserNode = audioContext.createAnalyser();
-  analyserNode.fftSize = 1024;
-
-  const tabSource = audioContext.createMediaStreamSource(mediaStream);
-
-  tabSource.connect(compressorNode);
-  compressorNode.connect(destination);
-  compressorNode.connect(analyserNode);
-  // Do not monitor mixed capture in the offscreen document.
-
-  audioSources.push(tabSource);
+  analyserNode = audioGraph.analyser;
+  audioSources.push(audioGraph.tabSource);
 
   if (includeMicrophone) {
     microphoneStream = await getMicrophoneStream();
 
     if (microphoneStream) {
-      connectSourceToRecorder(microphoneStream);
+      const microphoneSource = connectMicrophoneToOffscreenAudioGraph(
+        audioContext,
+        microphoneStream,
+        audioGraph,
+      );
+
+      audioSources.push(microphoneSource);
 
       microphoneStream.getTracks().forEach((track) => {
         track.onended = () => {
