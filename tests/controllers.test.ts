@@ -1,19 +1,20 @@
-import { describe, it, expect } from "@jest/globals";
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
 
 describe("Core Controllers Integration Tests", () => {
   it("should return valid status and latency below threshold", () => {
     const latency = 35; // ms
-    expect(latency).toBeLessThan(200);
+    assert.ok(latency < 200);
   });
 
   it("should validate default data configuration object structure", () => {
     const config = { enabled: true, mode: "production" };
-    expect(config).toHaveProperty("enabled", true);
-    expect(config).toHaveProperty("mode", "production");
+    assert.equal(config.enabled, true);
+    assert.equal(config.mode, "production");
   });
 
   it("should gracefully handle invalid requests without crashing", () => {
     const response = { status: 400, message: "Invalid request parameter" };
-    expect(response.status).toBe(400);
+    assert.equal(response.status, 400);
   });
 });
