@@ -75,7 +75,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     typeof rawSettings === "object" &&
     rawSettings !== null &&
     !Array.isArray(rawSettings) &&
-    (Object.getPrototypeOf(rawSettings) === Object.prototype || Object.getPrototypeOf(rawSettings) === null);
+    (Object.getPrototypeOf(rawSettings) === Object.prototype ||
+      Object.getPrototypeOf(rawSettings) === null);
 
   const settings: Settings = (isPlainObject ? rawSettings : {}) as Settings;
 
@@ -160,7 +161,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   // Custom Vocabulary
-  const customVocabInput = document.getElementById("custom-vocabulary") as HTMLTextAreaElement | null;
+  const customVocabInput = document.getElementById(
+    "custom-vocabulary",
+  ) as HTMLTextAreaElement | null;
   if (customVocabInput && settings.customVocabulary) {
     customVocabInput.value = settings.customVocabulary;
   }

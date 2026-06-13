@@ -758,13 +758,23 @@ async function closeOffscreenDocumentIfPresent() {
   }
 }
 
+const MAX_CUSTOM_VOCAB_LENGTH = 200;
+
 function getTranscriptionPrompt(settings: Settings) {
-  const customVocab = settings.customVocabulary ? settings.customVocabulary.trim() : "";
+  let customVocab = settings.customVocabulary ? String(settings.customVocabulary).trim() : "";
+  if (customVocab) {
+    customVocab = customVocab
+      .replace(/\s+/g, " ")
+      .replace(/[\u0000-\u001F\u007F]/g, "")
+      .slice(0, MAX_CUSTOM_VOCAB_LENGTH)
+      .trim();
+  }
+
   const recentTexts = state.transcript
     .slice(-3)
     .map((e) => e.text)
     .join(" ");
-  
+
   let prompt = recentTexts ? recentTexts.slice(-200) : "";
   if (customVocab) {
     prompt = customVocab + (prompt ? ", " + prompt : "");

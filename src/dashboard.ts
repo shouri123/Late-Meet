@@ -1136,7 +1136,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       const time = btn.dataset.time || "00:00";
       const message = btn.dataset.message || "";
       const copyText = `[${time}] ${speaker}: ${message}`;
-      
+
       navigator.clipboard
         .writeText(copyText)
         .then(() => showToast("Copied to clipboard!", "success"))
@@ -1979,28 +1979,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   document.querySelector('[data-tab="sessions"]')?.addEventListener("click", loadMeetingHistory);
   // Load history on tab switch
   document.querySelector('[data-tab="history"]')?.addEventListener("click", loadMeetingHistory);
-
-  // ——— Copy Transcript Message (Event Delegation) ———
-  transcriptContainer?.addEventListener("click", (e) => {
-    const target = e.target as HTMLElement;
-    const btn = target.closest(".copy-transcript-btn") as HTMLButtonElement | null;
-    if (!btn) return;
-
-    e.stopPropagation();
-    const speaker = btn.dataset.speaker || "Unknown";
-    const time = btn.dataset.time || "";
-    const message = btn.dataset.message || "";
-
-    const copyText = `Speaker: ${speaker}\nTime: ${time}\nMessage: ${message}`;
-
-    navigator.clipboard
-      .writeText(copyText)
-      .then(() => showToast("Copied to clipboard!", "success"))
-      .catch((err) => {
-        console.error("Failed to copy transcript message:", err);
-        showToast("Failed to copy!", "error");
-      });
-  });
 
   // ——— Copy Summary Button ———
   document.getElementById("copy-summary-btn")?.addEventListener("click", async () => {
