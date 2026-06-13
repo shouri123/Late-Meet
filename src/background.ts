@@ -14,7 +14,7 @@ import {
   StoredSession,
 } from "./sessionStorage";
 import { AudioChunkQueue, AudioChunkQueueItem } from "./audioChunkQueue";
-import { getSettings } from "./theme.js";
+import { getSettings } from "./settings";
 import { createAudioCaptureStopPlan } from "./audioCaptureLifecycle";
 import { normalizeActiveSpeakerName, resolveTranscriptSpeaker } from "./speakerAttribution";
 import { getMeetingIdFromUrl } from "./meetingTabs";
