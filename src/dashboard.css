@@ -211,14 +211,14 @@ body::-webkit-scrollbar-thumb,
 
 .tab-panel {
   display: none;
-  animation: fadeSlide 0.3s ease;
+  animation: fade-slide 0.3s ease;
 }
 
 .tab-panel.active {
   display: block;
 }
 
-@keyframes fadeSlide {
+@keyframes fade-slide {
   from {
     opacity: 0;
     transform: translateY(4px);
@@ -483,6 +483,13 @@ body::-webkit-scrollbar-thumb,
 /* ——— Decisions List ——— */
 .decision-item {
   border-left: 3px solid var(--text-main);
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.decision-content {
+  flex: 1;
 }
 
 .decision-text {
@@ -495,6 +502,32 @@ body::-webkit-scrollbar-thumb,
 .decision-meta {
   font-size: 11px;
   color: var(--text-muted);
+}
+
+.copy-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  margin-top: -2px;
+}
+
+.copy-btn:hover {
+  background: var(--bg-card);
+  border-color: var(--border-sub);
+  color: var(--text-main);
+}
+
+.copy-btn svg {
+  width: 14px;
+  height: 14px;
 }
 
 /* ——— Action Items List ——— */
@@ -706,6 +739,15 @@ body::-webkit-scrollbar-thumb,
   color: var(--text-muted);
 }
 
+/* ——— Truncation Notice ——— */
+.truncated-notice {
+  text-align: center;
+  padding: 8px 16px;
+  font-size: 11px;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border-color, rgba(255, 255, 255, 0.06));
+}
+
 /* ——— Footer ——— */
 .dash-footer {
   position: fixed;
@@ -881,10 +923,55 @@ body::-webkit-scrollbar-thumb,
 
 .transcript-entry {
   display: flex;
+  align-items: flex-start;
   gap: 10px;
   padding: 10px 0;
   border-bottom: 1px solid var(--border-main);
   animation: fadeIn 0.3s ease;
+}
+
+.copy-transcript-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  transition:
+    all 0.2s ease,
+    opacity 0.2s ease;
+  flex-shrink: 0;
+  margin-top: -2px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.transcript-entry:hover .copy-transcript-btn {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.copy-transcript-btn:focus-within,
+.copy-transcript-btn:focus {
+  opacity: 1;
+  pointer-events: auto;
+  background: var(--bg-card);
+  border-color: var(--border-sub);
+  color: var(--text-main);
+}
+
+.copy-transcript-btn:hover {
+  background: var(--bg-card);
+  border-color: var(--border-sub);
+  color: var(--text-main);
+}
+
+.copy-transcript-btn svg {
+  width: 14px;
+  height: 14px;
 }
 
 .transcript-entry:last-child {
@@ -1038,122 +1125,313 @@ body::-webkit-scrollbar-thumb,
   color: #fca5a5;
 }
 
-/* ——— History Modal & UI ——— */
-.session-item.expanded .session-item-summary {
-  display: block;
-  -webkit-line-clamp: unset;
-  line-clamp: unset;
-}
+/* =====================================================
+   RESPONSIVE BREAKPOINTS — Issue #648
+   Fix: text overlap, button clipping, header overflow,
+   tabs overflow, stats card squeezing, horizontal scroll
+   ===================================================== */
 
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(4px);
-  z-index: 1000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  opacity: 1;
-  transition: opacity 0.2s ease;
-}
-
-.modal-overlay.hidden {
-  display: none;
-  opacity: 0;
-}
-
-.modal-content {
-  width: 90%;
-  max-width: 360px;
-  background: var(--bg-app);
-  margin-bottom: 0;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
-}
-
-.modal-body {
-  font-size: 13px;
-  color: var(--text-sub);
-  line-height: 1.5;
-  margin-bottom: 24px;
-}
-
-.modal-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-}
-/* ——— Skeleton Loader ——— */
-@keyframes shimmer {
-  0% {
-    background-position: 200% 0;
+/* ——— Tablet: max-width 768px ——— */
+@media (max-width: 768px) {
+  /* Header: allow wrapping so controls don't clip */
+  .dash-header {
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 12px 16px;
   }
-  100% {
-    background-position: -200% 0;
+
+  .dash-header-left {
+    /* Prevent title from overflowing into controls */
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  .dash-title {
+    font-size: 14px;
+    /* Truncate very long titles gracefully */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 160px;
+  }
+
+  /* Right controls: wrap so they don't clip off screen */
+  .dash-header-right {
+    flex-wrap: wrap;
+    gap: 8px;
+    width: 100%;
+  }
+
+  /* Export controls group: allow wrapping */
+  .export-controls {
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+    margin-right: 0 !important;
+  }
+
+  /* Timer: keep it readable but don't let it push buttons off */
+  .dash-timer {
+    font-size: 18px;
+    order: -1; /* Move timer before buttons for better flow */
+  }
+
+  /* Tabs: already overflow-x:auto but ensure proper wrapping */
+  .dash-tabs {
+    padding: 8px 12px;
+    gap: 4px;
+    flex-wrap: wrap; /* Wrap onto multiple rows at tablet */
+    overflow-x: visible;
+  }
+
+  .dash-tab {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+
+  /* Stats grid: 2 columns at tablet */
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+
+  /* Content padding reduction */
+  .dash-content {
+    padding: 12px;
+    padding-bottom: 80px;
+  }
+
+  /* Session item actions: wrap on tablet to avoid overflow */
+  .session-item-actions {
+    flex-wrap: wrap;
+  }
+
+  /* Transcript time column: tighten on smaller panels */
+  .transcript-time {
+    min-width: 48px;
+    font-size: 9px;
   }
 }
 
-.skeleton-item {
-  background: linear-gradient(
-    90deg,
-    var(--bg-card) 25%,
-    var(--border-main) 50%,
-    var(--bg-card) 75%
-  );
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite linear;
-  border-radius: 8px;
-  height: 40px;
-  margin-bottom: 8px;
+/* ——— Mobile: max-width 480px ——— */
+@media (max-width: 480px) {
+  /* Header: tighter padding */
+  .dash-header {
+    padding: 10px 12px;
+    gap: 8px;
+  }
+
+  .dash-header-left {
+    gap: 8px;
+  }
+
+  .dash-logo svg {
+    width: 22px;
+    height: 22px;
+  }
+
+  .dash-title {
+    font-size: 13px;
+    max-width: 120px;
+  }
+
+  .dash-status {
+    font-size: 10px;
+  }
+
+  /* Right controls: stack vertically, full width */
+  .dash-header-right {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+  }
+
+  /* Export controls: full width, stacked */
+  .export-controls {
+    flex-direction: column !important;
+    width: 100%;
+    margin-right: 0 !important;
+  }
+
+  /* Each export button: full width */
+  .export-controls .btn-glass {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+
+  /* Audio button: full width */
+  .dash-audio-btn {
+    width: 100%;
+    justify-content: center;
+    padding: 10px 14px;
+    font-size: 13px;
+  }
+
+  /* Timer: centered, slightly smaller */
+  .dash-timer {
+    font-size: 16px;
+    text-align: center;
+    order: 0;
+  }
+
+  /* Tabs: wrap and fill available width */
+  .dash-tabs {
+    padding: 8px 10px;
+    gap: 4px;
+    flex-wrap: wrap;
+    overflow-x: visible;
+  }
+
+  .dash-tab {
+    padding: 6px 10px;
+    font-size: 11px;
+    flex-grow: 1; /* Tabs share width evenly in each row */
+    text-align: center;
+  }
+
+  /* Stats grid: single column on mobile */
+  .stats-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  /* Stat card: horizontal layout in single column is nicer */
+  .stat-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    text-align: left;
+    padding: 14px 16px;
+  }
+
+  .stat-card-icon {
+    margin-bottom: 0;
+    flex-shrink: 0;
+  }
+
+  .stat-card-value {
+    font-size: 18px;
+  }
+
+  .stat-card-label {
+    margin-top: 2px;
+  }
+
+  /* Content padding: tightest at mobile */
+  .dash-content {
+    padding: 10px;
+    padding-bottom: 80px;
+  }
+
+  /* Cards: reduce internal padding */
+  .dash-card,
+  .stat-card,
+  .session-item {
+    padding: 12px;
+  }
+
+  /* Current topic / decision / action boxes */
+  .current-topic-box,
+  .decision-item,
+  .action-item {
+    padding: 10px 12px;
+    font-size: 13px;
+  }
+
+  /* Transcript: compress the timestamp column */
+  .transcript-time {
+    min-width: 40px;
+    font-size: 9px;
+  }
+
+  .transcript-avatar {
+    width: 24px;
+    height: 24px;
+    font-size: 9px;
+  }
+
+  .transcript-text {
+    font-size: 12px;
+  }
+
+  /* Session item stats: wrap pill tags */
+  .session-item-stats {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  /* Session export/delete buttons: full width */
+  .session-item-actions {
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .session-export-btn,
+  .session-delete-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Modal: fits narrow panels */
+  .modal-content {
+    margin: 12px;
+    padding: 16px;
+  }
+
+  .modal-actions {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .modal-actions button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Footer export button already full-width; ensure dropdown fits */
+  .export-dropdown {
+    left: 0;
+    right: 0;
+    min-width: unset;
+  }
+
+  /* Toast: prevent overflow on narrow panels */
+  .export-toast {
+    white-space: normal;
+    text-align: center;
+    left: 12px;
+    right: 12px;
+    transform: translateY(20px);
+    width: auto;
+  }
+
+  .export-toast.show {
+    transform: translateY(0);
+  }
+
+  /* Timeline: tighten spacing */
+  .timeline-item {
+    gap: 10px;
+  }
+
+  .timeline-marker {
+    width: 28px;
+    height: 28px;
+  }
+
+  /* People tab: tighten avatar */
+  .participant-avatar {
+    width: 28px;
+    height: 28px;
+    font-size: 10px;
+  }
 }
 
-.skeleton-avatar {
-  background: linear-gradient(
-    90deg,
-    var(--bg-card) 25%,
-    var(--border-main) 50%,
-    var(--bg-card) 75%
-  );
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite linear;
-  border-radius: 8px;
-  height: 32px;
-  width: 32px;
-  flex-shrink: 0;
-}
-
-.skeleton-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 0;
-  border-bottom: 1px solid var(--border-main);
-}
-.skeleton-row:last-child {
-  border-bottom: none;
-}
-.skeleton-text-block {
-  flex: 1;
-}
-.skeleton-text {
-  background: linear-gradient(
-    90deg,
-    var(--bg-card) 25%,
-    var(--border-main) 50%,
-    var(--bg-card) 75%
-  );
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite linear;
-  border-radius: 4px;
-  height: 14px;
-  margin-bottom: 6px;
-  width: 80%;
-}
-.skeleton-text.short {
-  width: 40%;
-  height: 10px;
-  margin-bottom: 0;
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
 }

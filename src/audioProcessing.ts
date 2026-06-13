@@ -67,3 +67,13 @@ export function audioFileExtensionForMimeType(mimeType: string) {
 export function isChunkViable(blob: Blob, minBytes = 5000): boolean {
   return !!blob && blob.size >= minBytes;
 }
+
+// Microphone permission handlers
+export async function getMicrophoneStream() {
+  try {
+    return await navigator.mediaDevices.getUserMedia({ audio: true });
+  } catch (e) {
+    console.warn("Microphone access denied gracefully catching:", e);
+    return null;
+  }
+}

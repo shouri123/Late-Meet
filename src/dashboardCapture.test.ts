@@ -38,6 +38,7 @@ test("dashboard capture gets tab stream id before microphone permission", async 
   });
 
   assert.equal(result.meetingId, "abc-defg-hij");
+  assert.equal(result.microphoneEnabled, true);
   assert.deepEqual(calls, [
     "resolve-meet-tab",
     "get-stream-id:42",
@@ -48,21 +49,59 @@ test("dashboard capture gets tab stream id before microphone permission", async 
 
 test("dashboard capture still starts tab audio when microphone permission fails", async () => {
   const calls: string[] = [];
+  let includeMicrophone: boolean | undefined;
 
-  await startDashboardAudioCapture({
+  const result = await startDashboardAudioCapture({
     resolveMeetTab: async () => meetSelection(),
     getMediaStreamId: async () => "stream-id",
     requestMicrophonePermission: async () => {
       calls.push("request-microphone");
       throw new Error("Permission denied");
     },
-    startAudioCapture: async () => {
+    startAudioCapture: async (payload) => {
       calls.push("start-audio");
+      includeMicrophone = payload.includeMicrophone;
       return { success: true };
     },
   });
 
+  assert.equal(result.microphoneEnabled, false);
+  assert.equal(includeMicrophone, false);
   assert.deepEqual(calls, ["request-microphone", "start-audio"]);
+});
+
+test("dashboard capture disables microphone when permission is denied", async () => {
+  let includeMicrophone: boolean | undefined;
+
+  const result = await startDashboardAudioCapture({
+    resolveMeetTab: async () => meetSelection(),
+    getMediaStreamId: async () => "stream-id",
+    requestMicrophonePermission: async () => false,
+    startAudioCapture: async (payload) => {
+      includeMicrophone = payload.includeMicrophone;
+      return { success: true };
+    },
+  });
+
+  assert.equal(result.microphoneEnabled, false);
+  assert.equal(includeMicrophone, false);
+});
+
+test("dashboard capture includes microphone when permission is granted", async () => {
+  let includeMicrophone: boolean | undefined;
+
+  const result = await startDashboardAudioCapture({
+    resolveMeetTab: async () => meetSelection(),
+    getMediaStreamId: async () => "stream-id",
+    requestMicrophonePermission: async () => true,
+    startAudioCapture: async (payload) => {
+      includeMicrophone = payload.includeMicrophone;
+      return { success: true };
+    },
+  });
+
+  assert.equal(result.microphoneEnabled, true);
+  assert.equal(includeMicrophone, true);
 });
 
 test("dashboard capture does not request microphone when tab capture is denied", async () => {

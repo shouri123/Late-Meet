@@ -1,11 +1,19 @@
 import { State } from "./types";
 import { initTheme } from "./theme.js";
-import { getApiCredentials, saveApiCredentials } from "./utils/credentials";
+import {
+  getApiCredentials,
+  saveApiCredentials,
+  unlockCredentials,
+  isUnlocked,
+} from "./utils/credentials";
+import { escapeHtml, formatDuration, sanitizeTopicStatus } from "./utils/domHelpers";
 import { validateOpenAIKey } from "./utils/api.js";
 import { resolveManualMeetTab } from "./meetingTabs";
 import { startPopupAudioCapture } from "./popupCapture";
 
 initTheme();
+
+const POPUP_ONBOARDING_TOUR_KEY = "popupOnboardingTourCompleted";
 
 document.addEventListener("DOMContentLoaded", async () => {
   const setupView = document.getElementById("setup-view") as HTMLDivElement;
@@ -19,6 +27,53 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   let lastState: State | null = null;
 
+  // ——— Passphrase management ———
+  const passphraseInput = document.getElementById("passphrase-input") as HTMLInputElement | null;
+  const passphraseStatus = document.getElementById("passphrase-status");
+  let pendingUnlock: Promise<boolean> | null = null;
+
+  function updatePassphraseStatus() {
+    if (!passphraseStatus) return;
+    if (isUnlocked()) {
+      passphraseStatus.className = "status-text status-success";
+      passphraseStatus.textContent = "Unlocked — encryption key is active";
+    } else {
+      passphraseStatus.className = "status-text status-danger";
+      passphraseStatus.textContent = "Locked — enter passphrase to unlock encryption";
+    }
+  }
+
+  async function handlePassphraseUnlock(): Promise<boolean> {
+    if (isUnlocked()) return true;
+    const passphrase = passphraseInput?.value ?? "";
+    if (!passphrase) {
+      if (passphraseStatus) passphraseStatus.textContent = "Please enter a passphrase";
+      return false;
+    }
+    const success = await unlockCredentials(passphrase);
+    if (success) {
+      updatePassphraseStatus();
+      const creds = await getApiCredentials();
+      if (creds.openai_api_key || creds.elevenlabs_api_key) {
+        setupView.style.display = "none";
+        mainView.style.display = "block";
+      }
+      return true;
+    }
+    if (passphraseStatus) {
+      passphraseStatus.className = "status-text status-danger";
+      passphraseStatus.textContent = "Wrong passphrase — could not decrypt stored credentials";
+    }
+    return false;
+  }
+
+  passphraseInput?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") pendingUnlock = handlePassphraseUnlock();
+  });
+  passphraseInput?.addEventListener("blur", () => {
+    pendingUnlock = handlePassphraseUnlock();
+  });
+
   // ——— Check if API key is configured ———
   const config = await getApiCredentials();
 
@@ -30,11 +85,23 @@ document.addEventListener("DOMContentLoaded", async () => {
     mainView.style.display = "block";
   }
 
+  void maybeStartPopupTour();
+
+  updatePassphraseStatus();
+
   // ——— Setup: Save Key ———
   document.getElementById("save-keys")?.addEventListener("click", async () => {
     const apiKeyInput = document.getElementById("api-key-input") as HTMLInputElement;
     const apiKey = apiKeyInput.value.trim();
     const saveBtn = document.getElementById("save-keys") as HTMLButtonElement;
+
+    if (!isUnlocked()) {
+      if (pendingUnlock) await pendingUnlock;
+      if (!isUnlocked()) {
+        const unlocked = await handlePassphraseUnlock();
+        if (!unlocked) return;
+      }
+    }
 
     if (!apiKey) {
       shakeElement(apiKeyInput);
@@ -55,7 +122,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (!errorEl) {
         errorEl = document.createElement("div");
         errorEl.id = "api-key-error";
-        errorEl.style.color = "#EF4444";
+        errorEl.className = "status-text status-danger";
         errorEl.style.fontSize = "11px";
         errorEl.style.marginTop = "6px";
         errorEl.style.textAlign = "left";
@@ -76,6 +143,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     await saveApiCredentials({ openai_api_key: apiKey });
     setupView.style.display = "none";
     mainView.style.display = "block";
+    void maybeStartPopupTour();
   });
 
   // ——— Toggle API Key Visibility ———
@@ -91,16 +159,91 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // ——— Open Dashboard ———
   document.getElementById("open-dashboard")?.addEventListener("click", () => {
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      const tabId = tabs[0]?.id;
-      if (tabId !== undefined) {
-        chrome.sidePanel.open({ tabId });
-      }
-    });
+    chrome.sidePanel.open({ windowId: chrome.windows.WINDOW_ID_CURRENT });
   });
 
   // ——— Start Copilot (Audio Capture with User Gesture) ———
   const copilotBtn = document.getElementById("start-copilot-btn") as HTMLButtonElement | null;
+
+  async function maybeStartPopupTour() {
+    const stored = await chrome.storage.local.get(POPUP_ONBOARDING_TOUR_KEY);
+    if (stored[POPUP_ONBOARDING_TOUR_KEY] || mainView.style.display === "none") return;
+    globalThis.setTimeout(() => showPopupTourStep(0), 150);
+  }
+
+  async function completePopupTour() {
+    clearPopupTour();
+    await chrome.storage.local.set({ [POPUP_ONBOARDING_TOUR_KEY]: true });
+  }
+
+  function clearPopupTour() {
+    document.querySelector(".tour-highlight")?.classList.remove("tour-highlight");
+    document.getElementById("popup-tour-card")?.remove();
+  }
+
+  function showPopupTourStep(stepIndex: number) {
+    const steps = [
+      {
+        selector: "#settings-btn",
+        title: "Configure API keys",
+        body: "Open Settings to add or update API keys before your first meeting.",
+        placement: "top",
+      },
+      {
+        selector: "#start-copilot-btn",
+        title: "Start Copilot",
+        body: "Join a Google Meet, then use Start Copilot to begin audio capture and live summaries.",
+        placement: "bottom",
+      },
+    ];
+    const step = steps[stepIndex];
+    if (!step) {
+      void completePopupTour();
+      return;
+    }
+
+    clearPopupTour();
+    const target = document.querySelector(step.selector) as HTMLElement | null;
+    if (target?.offsetParent == null) {
+      showPopupTourStep(stepIndex + 1);
+      return;
+    }
+
+    target.classList.add("tour-highlight");
+    const card = document.createElement("div");
+    card.id = "popup-tour-card";
+    card.className = `popup-tour-card popup-tour-card--${step.placement}`;
+    card.innerHTML = `
+      <div class="popup-tour-kicker">Quick guide ${stepIndex + 1}/${steps.length}</div>
+      <h3>${escapeHtml(step.title)}</h3>
+      <p>${escapeHtml(step.body)}</p>
+      <div class="popup-tour-actions">
+        <button type="button" class="popup-tour-skip">Skip</button>
+        <button type="button" class="popup-tour-next">${stepIndex === steps.length - 1 ? "Done" : "Next"}</button>
+      </div>
+    `;
+    document.body.appendChild(card);
+
+    const targetRect = target.getBoundingClientRect();
+    const cardRect = card.getBoundingClientRect();
+    const top =
+      step.placement === "top"
+        ? Math.max(12, targetRect.bottom + 10)
+        : Math.max(12, targetRect.top - cardRect.height - 10);
+    const left = Math.min(
+      Math.max(12, targetRect.left + targetRect.width / 2 - cardRect.width / 2),
+      globalThis.innerWidth - cardRect.width - 12,
+    );
+    card.style.top = `${top}px`;
+    card.style.left = `${left}px`;
+
+    card
+      .querySelector(".popup-tour-skip")
+      ?.addEventListener("click", () => void completePopupTour());
+    card
+      .querySelector(".popup-tour-next")
+      ?.addEventListener("click", () => showPopupTourStep(stepIndex + 1));
+  }
 
   function getPopupMediaStreamId(tabId: number): Promise<string> {
     return new Promise((resolve, reject) => {
@@ -143,10 +286,31 @@ document.addEventListener("DOMContentLoaded", async () => {
     const textEl = btn.querySelector(".copilot-btn-text");
     const originalText = textEl?.textContent || "Start";
 
+    // --- Pre-flight Check for API Keys ---
+    const keys = await getApiCredentials();
+    if (!keys.openai_api_key) {
+      alert("Please configure your OpenAI API Key in the Settings before starting.");
+      chrome.runtime.openOptionsPage();
+      return;
+    }
+
     if (lastState?.audioActive) {
       console.log("[LateMeet] Audio already active, skipping capture request.");
       return;
     }
+
+    // Check if ElevenLabs API key exists before starting
+    const creds = await getApiCredentials();
+    if (!creds.elevenlabs_api_key) {
+      if (textEl) {
+        textEl.textContent = "⚠️ Missing ElevenLabs Key";
+        setTimeout(() => {
+          if (textEl) textEl.textContent = originalText;
+        }, 2000);
+      }
+      return; // Stop here - don't start recording
+    }
+    // ========== END OF ADDED CODE ==========
 
     try {
       // Show loading state
@@ -269,6 +433,37 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   // ——— Session Save/Discard Modal ———
+  let previouslyFocusedElement: HTMLElement | null = null;
+
+  function trapFocus(e: KeyboardEvent) {
+    if (e.key !== "Tab") return;
+    const focusableEls = sessionModal.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+    );
+    if (focusableEls.length === 0) return;
+    const firstEl = focusableEls[0];
+    const lastEl = focusableEls[focusableEls.length - 1];
+    if (e.shiftKey) {
+      if (document.activeElement === firstEl) {
+        e.preventDefault();
+        lastEl.focus();
+      }
+    } else {
+      if (document.activeElement === lastEl) {
+        e.preventDefault();
+        firstEl.focus();
+      }
+    }
+  }
+
+  function handleModalKeydown(e: KeyboardEvent) {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      hideSessionModal();
+    }
+    trapFocus(e);
+  }
+
   function showSessionModal() {
     const saveBtn = document.getElementById("save-session-btn") as HTMLButtonElement | null;
     const discardBtn = document.getElementById("discard-session-btn") as HTMLButtonElement | null;
@@ -286,16 +481,31 @@ document.addEventListener("DOMContentLoaded", async () => {
       discardBtn.textContent = "Discard";
       discardBtn.classList.remove("loading");
     }
+    previouslyFocusedElement = document.activeElement as HTMLElement | null;
     sessionModal.style.display = "flex";
-    requestAnimationFrame(() => sessionModal.classList.add("visible"));
+    requestAnimationFrame(() => {
+      sessionModal.classList.add("visible");
+      // Move focus into the modal
+      (saveBtn || discardBtn)?.focus();
+    });
+    sessionModal.addEventListener("keydown", handleModalKeydown);
   }
 
   function hideSessionModal() {
     sessionModal.classList.remove("visible");
+    sessionModal.removeEventListener("keydown", handleModalKeydown);
     setTimeout(() => {
       sessionModal.style.display = "none";
+      // Return focus to the previously focused element
+      previouslyFocusedElement?.focus();
+      previouslyFocusedElement = null;
     }, 300);
   }
+
+  // Backdrop click to dismiss
+  sessionModal.querySelector(".session-modal-backdrop")?.addEventListener("click", () => {
+    hideSessionModal();
+  });
 
   document.getElementById("save-session-btn")?.addEventListener("click", async (e) => {
     const btn = e.currentTarget as HTMLButtonElement;
@@ -339,6 +549,13 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
 
   document.getElementById("discard-session-btn")?.addEventListener("click", async (e) => {
+    if (
+      !confirm(
+        "Are you sure you want to discard this session? All meeting intelligence will be permanently lost.",
+      )
+    ) {
+      return;
+    }
     const btn = e.currentTarget as HTMLButtonElement;
     const saveBtn = document.getElementById("save-session-btn") as HTMLButtonElement | null;
     const originalText = btn.textContent || "Discard";
@@ -478,7 +695,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             <div class="late-joiner-item">
               <span class="joiner-icon">🚪</span>
               <span class="joiner-name">${escapeHtml(name || "")}</span>
-              <span style="color: #64748B; font-size: 10px;">briefed ✓</span>
+              <span style="color: var(--text-muted); font-size: 10px;">briefed ✓</span>
             </div>
           `,
             )
@@ -507,13 +724,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   // ——— Helpers ———
-  function formatDuration(seconds: number) {
-    const h = Math.floor(seconds / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
-    const s = Math.floor(seconds % 60);
-    return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-  }
-
   function getSentimentEmoji(sentiment: string) {
     const map: Record<string, string> = {
       positive: "😊",
@@ -524,23 +734,19 @@ document.addEventListener("DOMContentLoaded", async () => {
     return map[sentiment] || "—";
   }
 
-  function sanitizeTopicStatus(status: string) {
-    return status === "completed" ? "completed" : "active";
-  }
-
-  function escapeHtml(value: string | null | undefined) {
-    const div = document.createElement("div");
-    div.textContent = String(value || "");
-    return div.innerHTML;
-  }
-
   function shakeElement(el: HTMLElement | null) {
     if (!el) return;
-    el.style.borderColor = "#EF4444";
-    el.style.animation = "shake 0.4s ease";
+    el.classList.add("shake", "border-danger");
     setTimeout(() => {
-      el.style.borderColor = "";
-      el.style.animation = "";
+      el.classList.remove("shake", "border-danger");
     }, 400);
   }
+
+  // ——— Cleanup on popup close ———
+  globalThis.addEventListener("unload", () => {
+    if (durationInterval) {
+      clearInterval(durationInterval as number);
+      durationInterval = null;
+    }
+  });
 });
