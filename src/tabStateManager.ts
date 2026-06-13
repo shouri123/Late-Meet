@@ -50,7 +50,8 @@ export async function getTabState(tabId: number): Promise<TabState> {
     typeof rawState === "object" &&
     rawState !== null &&
     !Array.isArray(rawState) &&
-    (Object.getPrototypeOf(rawState) === Object.prototype || Object.getPrototypeOf(rawState) === null);
+    (Object.getPrototypeOf(rawState) === Object.prototype ||
+      Object.getPrototypeOf(rawState) === null);
 
   return (isPlainObject ? rawState : undefined) ?? { tabId, ...defaultState() };
 }

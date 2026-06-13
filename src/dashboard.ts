@@ -1189,7 +1189,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       const time = btn.dataset.time || "00:00";
       const message = btn.dataset.message || "";
       const copyText = `[${time}] ${speaker}: ${message}`;
-      
+
       navigator.clipboard
         .writeText(copyText)
         .then(() => showToast("Copied to clipboard!", "success"))
