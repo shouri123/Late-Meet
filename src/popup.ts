@@ -13,6 +13,8 @@ import { startPopupAudioCapture } from "./popupCapture";
 
 initTheme();
 
+const POPUP_ONBOARDING_TOUR_KEY = "popupOnboardingTourCompleted";
+
 document.addEventListener("DOMContentLoaded", async () => {
   const setupView = document.getElementById("setup-view") as HTMLDivElement;
   const mainView = document.getElementById("main-view") as HTMLDivElement;
@@ -83,6 +85,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     mainView.style.display = "block";
   }
 
+  void maybeStartPopupTour();
+
   updatePassphraseStatus();
 
   // ——— Setup: Save Key ———
@@ -139,6 +143,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     await saveApiCredentials({ openai_api_key: apiKey });
     setupView.style.display = "none";
     mainView.style.display = "block";
+    void maybeStartPopupTour();
   });
 
   // ——— Toggle API Key Visibility ———
@@ -159,6 +164,86 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // ——— Start Copilot (Audio Capture with User Gesture) ———
   const copilotBtn = document.getElementById("start-copilot-btn") as HTMLButtonElement | null;
+
+  async function maybeStartPopupTour() {
+    const stored = await chrome.storage.local.get(POPUP_ONBOARDING_TOUR_KEY);
+    if (stored[POPUP_ONBOARDING_TOUR_KEY] || mainView.style.display === "none") return;
+    globalThis.setTimeout(() => showPopupTourStep(0), 150);
+  }
+
+  async function completePopupTour() {
+    clearPopupTour();
+    await chrome.storage.local.set({ [POPUP_ONBOARDING_TOUR_KEY]: true });
+  }
+
+  function clearPopupTour() {
+    document.querySelector(".tour-highlight")?.classList.remove("tour-highlight");
+    document.getElementById("popup-tour-card")?.remove();
+  }
+
+  function showPopupTourStep(stepIndex: number) {
+    const steps = [
+      {
+        selector: "#settings-btn",
+        title: "Configure API keys",
+        body: "Open Settings to add or update API keys before your first meeting.",
+        placement: "top",
+      },
+      {
+        selector: "#start-copilot-btn",
+        title: "Start Copilot",
+        body: "Join a Google Meet, then use Start Copilot to begin audio capture and live summaries.",
+        placement: "bottom",
+      },
+    ];
+    const step = steps[stepIndex];
+    if (!step) {
+      void completePopupTour();
+      return;
+    }
+
+    clearPopupTour();
+    const target = document.querySelector(step.selector) as HTMLElement | null;
+    if (target?.offsetParent == null) {
+      showPopupTourStep(stepIndex + 1);
+      return;
+    }
+
+    target.classList.add("tour-highlight");
+    const card = document.createElement("div");
+    card.id = "popup-tour-card";
+    card.className = `popup-tour-card popup-tour-card--${step.placement}`;
+    card.innerHTML = `
+      <div class="popup-tour-kicker">Quick guide ${stepIndex + 1}/${steps.length}</div>
+      <h3>${escapeHtml(step.title)}</h3>
+      <p>${escapeHtml(step.body)}</p>
+      <div class="popup-tour-actions">
+        <button type="button" class="popup-tour-skip">Skip</button>
+        <button type="button" class="popup-tour-next">${stepIndex === steps.length - 1 ? "Done" : "Next"}</button>
+      </div>
+    `;
+    document.body.appendChild(card);
+
+    const targetRect = target.getBoundingClientRect();
+    const cardRect = card.getBoundingClientRect();
+    const top =
+      step.placement === "top"
+        ? Math.max(12, targetRect.bottom + 10)
+        : Math.max(12, targetRect.top - cardRect.height - 10);
+    const left = Math.min(
+      Math.max(12, targetRect.left + targetRect.width / 2 - cardRect.width / 2),
+      globalThis.innerWidth - cardRect.width - 12,
+    );
+    card.style.top = `${top}px`;
+    card.style.left = `${left}px`;
+
+    card
+      .querySelector(".popup-tour-skip")
+      ?.addEventListener("click", () => void completePopupTour());
+    card
+      .querySelector(".popup-tour-next")
+      ?.addEventListener("click", () => showPopupTourStep(stepIndex + 1));
+  }
 
   function getPopupMediaStreamId(tabId: number): Promise<string> {
     return new Promise((resolve, reject) => {
@@ -658,7 +743,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   // ——— Cleanup on popup close ———
-  window.addEventListener("unload", () => {
+  globalThis.addEventListener("unload", () => {
     if (durationInterval) {
       clearInterval(durationInterval as number);
       durationInterval = null;

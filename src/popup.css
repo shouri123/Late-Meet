@@ -47,6 +47,73 @@ body::-webkit-scrollbar-thumb {
   vertical-align: middle;
 }
 
+.tour-highlight {
+  position: relative;
+  z-index: 1001;
+  outline: 2px solid hsl(var(--accent-color));
+  box-shadow: 0 0 0 4px color-mix(in srgb, hsl(var(--accent-color)) 20%, transparent);
+}
+
+.popup-tour-card {
+  position: fixed;
+  z-index: 1002;
+  width: min(320px, calc(100vw - 24px));
+  padding: 14px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-main);
+  border-radius: 12px;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.24);
+}
+
+.popup-tour-kicker {
+  margin-bottom: 6px;
+  color: var(--text-sub);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.popup-tour-card h3 {
+  margin: 0 0 6px;
+  color: var(--text-main);
+  font-size: 14px;
+}
+
+.popup-tour-card p {
+  margin: 0;
+  color: var(--text-sub);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.popup-tour-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.popup-tour-actions button {
+  border: 0;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.popup-tour-skip {
+  background: var(--bg-surface);
+  color: var(--text-sub);
+}
+
+.popup-tour-next {
+  background: hsl(var(--accent-color));
+  color: var(--text-invert);
+}
+
 /* ——— Status & Feedback Utilities ——— */
 .status-text {
   font-size: 11px;
