@@ -344,9 +344,7 @@ async function getMicrophoneStream() {
   }
 }
 
-function connectSourceToRecorder(
-  stream: MediaStream,
-) {
+function connectSourceToRecorder(stream: MediaStream) {
   if (!audioContext || !analyserNode || !compressorNode) return;
 
   const source = audioContext.createMediaStreamSource(stream);
