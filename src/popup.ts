@@ -168,7 +168,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   async function maybeStartPopupTour() {
     const stored = await chrome.storage.local.get(POPUP_ONBOARDING_TOUR_KEY);
     if (stored[POPUP_ONBOARDING_TOUR_KEY] || mainView.style.display === "none") return;
-    window.setTimeout(() => showPopupTourStep(0), 150);
+    globalThis.setTimeout(() => showPopupTourStep(0), 150);
   }
 
   async function completePopupTour() {
@@ -204,7 +204,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     clearPopupTour();
     const target = document.querySelector(step.selector) as HTMLElement | null;
-    if (!target || target.offsetParent === null) {
+    if (target?.offsetParent == null) {
       showPopupTourStep(stepIndex + 1);
       return;
     }
@@ -232,7 +232,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         : Math.max(12, targetRect.top - cardRect.height - 10);
     const left = Math.min(
       Math.max(12, targetRect.left + targetRect.width / 2 - cardRect.width / 2),
-      window.innerWidth - cardRect.width - 12,
+      globalThis.innerWidth - cardRect.width - 12,
     );
     card.style.top = `${top}px`;
     card.style.left = `${left}px`;
@@ -743,7 +743,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   // ——— Cleanup on popup close ———
-  window.addEventListener("unload", () => {
+  globalThis.addEventListener("unload", () => {
     if (durationInterval) {
       clearInterval(durationInterval as number);
       durationInterval = null;

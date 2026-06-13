@@ -91,7 +91,17 @@
     "somegarbage",
     "generativelanguage",
     "defg",
-    "upserted"
+    "upserted",
+    "macrotask",
+    "macrotasks",
+    "downmixing",
+    "analysers",
+    "analysed",
+    "headerless",
+    "Brien",
+    "serialiser",
+    "callsites",
+    "josé"
   ],
   "ignorePaths": [
     "node_modules",
