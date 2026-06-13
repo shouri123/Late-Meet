@@ -34,9 +34,13 @@ function installChromeMock() {
       onSuspend: { addListener: () => {} },
     },
     alarms: {
-      get: (name: string, cb?: Function) => {
-        if (cb) cb({});
-        else return Promise.resolve({});
+      get: (_name: string, cb?: (alarm: object) => void) => {
+        if (cb) {
+          cb({});
+          return undefined;
+        } else {
+          return Promise.resolve({});
+        }
       },
       clear: async () => {},
       onAlarm: { addListener: () => {} },
@@ -74,7 +78,10 @@ function installChromeMock() {
       },
       session: {
         get: async (keys: any) => {
-          if (keys === "openai_api_key" || (Array.isArray(keys) && keys.includes("openai_api_key"))) {
+          if (
+            keys === "openai_api_key" ||
+            (Array.isArray(keys) && keys.includes("openai_api_key"))
+          ) {
             return { openai_api_key: MOCK_API_KEY };
           }
           return {};
@@ -108,20 +115,19 @@ const { refineTranscription } = await import("./background.ts");
 test("refineTranscription constructs correct system message and user prompt", async () => {
   capturedFetchRequests = [];
   const rawText = "um so like this is a test transcript";
-  
   const result = await refineTranscription(rawText);
-  
+
   assert.equal(result, "Refined transcript output");
   assert.equal(capturedFetchRequests.length, 1);
-  
+
   const req = capturedFetchRequests[0];
   assert.equal(req.url, "https://api.openai.com/v1/chat/completions");
-  
+
   const body = JSON.parse(req.options.body);
-  
+
   assert.equal(body.messages[0].role, "system");
   assert.ok(body.messages[0].content.includes("expert AI transcription editor"));
-  
+
   assert.equal(body.messages[1].role, "user");
   assert.equal(body.messages[1].content, '"""um so like this is a test transcript"""');
 });
@@ -129,13 +135,13 @@ test("refineTranscription constructs correct system message and user prompt", as
 test("refineTranscription sanitizes excessive quotes in input to prevent prompt injection", async () => {
   capturedFetchRequests = [];
   const rawText = 'they said """hello""" world';
-  
+
   await refineTranscription(rawText);
-  
+
   assert.equal(capturedFetchRequests.length, 1);
   const req = capturedFetchRequests[0];
   const body = JSON.parse(req.options.body);
-  
+
   assert.equal(body.messages[1].role, "user");
   // The sanitize function removes backticks and HTML tags, but replace/"""/ replaces excessive quotes
   // wait, the code does: sanitizePromptText(rawText).replace(/"{3,}/g, '"')
@@ -146,9 +152,9 @@ test("refineTranscription sanitizes excessive quotes in input to prevent prompt 
 test("refineTranscription bypasses refinement for short chunks", async () => {
   capturedFetchRequests = [];
   const rawText = "ok";
-  
+
   const result = await refineTranscription(rawText);
-  
+
   assert.equal(result, "ok");
   assert.equal(capturedFetchRequests.length, 0);
 });
