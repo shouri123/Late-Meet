@@ -18,6 +18,27 @@
   color: var(--text-danger);
 }
 
+/* Passphrase strength feedback (shown only during first-time vault setup). */
+.vault-strength {
+  font-size: 12px;
+  text-align: left;
+  min-height: 14px;
+}
+
+.vault-strength.strength-0,
+.vault-strength.strength-1 {
+  color: var(--text-danger);
+}
+
+.vault-strength.strength-2 {
+  color: #d97706; /* amber */
+}
+
+.vault-strength.strength-3,
+.vault-strength.strength-4 {
+  color: var(--text-success);
+}
+
 * {
   margin: 0;
   padding: 0;
