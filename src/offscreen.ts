@@ -1,4 +1,5 @@
 import { VoiceActivityTracker, isChunkViable } from "./audioProcessing";
+import { RuntimeMessage } from "./types";
 import {
   connectMicrophoneToOffscreenAudioGraph,
   createOffscreenAudioGraph,
@@ -47,7 +48,9 @@ let voiceActivity = new VoiceActivityTracker({
 // open than the offscreen DevTools.
 function relay(message: string) {
   console.log(`[LateMeet][offscreen] ${message}`);
-  chrome.runtime.sendMessage({ type: "OFFSCREEN_LOG", message }).catch(() => {});
+  chrome.runtime
+    .sendMessage({ action: "OFFSCREEN_LOG", message } satisfies RuntimeMessage)
+    .catch(() => {});
 }
 
 function blobToBase64(blob: Blob): Promise<string> {
@@ -130,7 +133,9 @@ function sampleAndSendWaveform() {
     buckets.push(Math.min(1, (sum / bucketSize) * WAVEFORM_GAIN));
   }
 
-  chrome.runtime.sendMessage({ type: "WAVEFORM_DATA", buckets }).catch(() => {});
+  chrome.runtime
+    .sendMessage({ action: "WAVEFORM_DATA", buckets } satisfies RuntimeMessage)
+    .catch(() => {});
 }
 
 async function flushAudioChunk(force = false) {
@@ -213,12 +218,19 @@ async function postChunk(blob: Blob) {
 
   try {
     const response = await chrome.runtime.sendMessage({
-      type: "OFFSCREEN_AUDIO_CHUNK",
+      action: "OFFSCREEN_AUDIO_CHUNK",
       audioBase64,
       mimeType,
-    });
+    } satisfies RuntimeMessage);
 
     if (!response?.success) {
+      if (response?.pauseRecorder && mediaRecorder?.state === "recording") {
+        try {
+          mediaRecorder.pause();
+        } catch (err) {
+          console.warn("[LateMeet][offscreen] Failed to pause recorder:", err);
+        }
+      }
       relay(`chunk rejected by background — ${response?.error || "unknown error"}`);
     }
   } catch (err) {
@@ -503,9 +515,9 @@ async function startCapture(
       } finally {
         await chrome.runtime
           .sendMessage({
-            type: "UNEXPECTED_TRACK_END",
+            action: "UNEXPECTED_TRACK_END",
             reason: "Track ended unexpectedly (tab closed or mic disconnected)",
-          })
+          } satisfies RuntimeMessage)
           .catch(() => {});
       }
     };
@@ -637,18 +649,27 @@ async function stopCapture() {
   }
 }
 
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-  if (!message?.type?.startsWith("OFFSCREEN_")) {
+chrome.runtime.onMessage.addListener((rawMessage, _sender, sendResponse) => {
+  const message = rawMessage as RuntimeMessage;
+  if (!message?.action?.startsWith("OFFSCREEN_") && message?.action !== "GET_REMAINING_CHUNKS") {
     return false;
   }
 
   (async () => {
-    if (message.type === "OFFSCREEN_PING") {
+    if (message.action === "OFFSCREEN_PING") {
       sendResponse({ success: true });
       return;
     }
 
-    if (message.type === "OFFSCREEN_START_CAPTURE") {
+    if (message.action === "GET_REMAINING_CHUNKS") {
+      sendResponse({
+        pending: pendingChunks.length,
+        isDrainingQueue: isDrainingQueue,
+      });
+      return;
+    }
+
+    if (message.action === "OFFSCREEN_START_CAPTURE") {
       try {
         const captureInfo = await startCapture(
           message.streamId,
@@ -673,7 +694,19 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       return;
     }
 
-    if (message.type === "OFFSCREEN_STOP_CAPTURE") {
+    if (message.action === "OFFSCREEN_RESUME_RECORDING") {
+      if (mediaRecorder?.state === "paused" && !isStopping) {
+        try {
+          mediaRecorder.resume();
+        } catch (err) {
+          console.warn("[LateMeet][offscreen] Failed to resume recorder:", err);
+        }
+      }
+      sendResponse({ success: true });
+      return;
+    }
+
+    if (message.action === "OFFSCREEN_STOP_CAPTURE") {
       if (isStopping) {
         sendResponse({ success: false, alreadyStopping: true });
         return;
@@ -683,8 +716,8 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         await stopCapture();
       } finally {
         await chrome.runtime.sendMessage({
-          type: "OFFSCREEN_CAPTURE_STOPPED",
-        });
+          action: "OFFSCREEN_CAPTURE_STOPPED",
+        } satisfies RuntimeMessage);
       }
 
       sendResponse({ success: true });

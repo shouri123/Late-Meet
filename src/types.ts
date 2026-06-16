@@ -13,8 +13,9 @@ export interface TranscriptEntry {
   id?: string;
   speaker: string;
   text: string;
-  timestamp: number;
+  timestamp: number; // Offset from meeting start in ms
   timestampLabel?: string;
+  confidence?: number; // 0.0 to 1.0
 }
 
 /** A timestamped event recorded on the meeting timeline. */
@@ -182,3 +183,44 @@ export interface ExtensionPreferences {
   summaryStyle: "brief" | "detailed" | "bullets";
   theme: "light" | "dark" | "system";
 }
+
+export type RuntimeMessage =
+  | { action: "GET_STATE" }
+  | { action: "OPEN_SIDE_PANEL" }
+  | {
+      action: "MANUAL_START_AUDIO";
+      tabId: number | "current";
+      meetingId?: string;
+      meetingUrl?: string | null;
+      streamId?: string;
+      includeMicrophone?: boolean;
+    }
+  | { action: "MANUAL_STOP_AUDIO" }
+  | { action: "UNEXPECTED_TRACK_END"; reason?: string }
+  | { action: "OFFSCREEN_LOG"; message: string }
+  | { action: "OFFSCREEN_CAPTURE_STOPPED" }
+  | { action: "OFFSCREEN_RESUME_RECORDING" }
+  | { action: "OFFSCREEN_AUDIO_CHUNK"; audioBase64: string; mimeType: string }
+  | { action: "PARTICIPANTS_UPDATED"; participants: string[]; selfName?: string }
+  | { action: "ACTIVE_SPEAKER_CHANGED"; name: string }
+  | { action: "SAVE_SESSION" }
+  | { action: "DISCARD_SESSION" }
+  | { action: "GET_SAVED_SESSIONS" }
+  | { action: "GET_SAVED_SESSION"; sessionId: string }
+  | { action: "DELETE_SAVED_SESSION"; sessionId: string }
+  | { action: "STATE_UPDATE"; state: State | { isActive: boolean; audioActive: boolean } }
+  | { action: "SESSION_ENDED" }
+  | { action: "WAVEFORM_DATA"; buckets: number[] }
+  | { action: "SEND_CHAT_MESSAGE"; text: string }
+  | { action: "SHOW_BRIEF"; briefContent: string; targetName: string }
+  | {
+      action: "OFFSCREEN_START_CAPTURE";
+      streamId: string;
+      tabId: number;
+      includeMicrophone?: boolean;
+      vadThreshold?: number;
+    }
+  | { action: "OFFSCREEN_STOP_CAPTURE" }
+  | { action: "PROCESS_AUDIO_CHUNK"; chunk: ArrayBuffer; tabId: number }
+  | { action: "OFFSCREEN_PING" }
+  | { action: "GET_REMAINING_CHUNKS" };

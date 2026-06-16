@@ -48,7 +48,7 @@ interface MockChromeOptions {
 }
 
 /** Captured STATE_UPDATE payloads sent via chrome.runtime.sendMessage */
-let sentMessages: Array<{ type: string; state?: Record<string, unknown> }> = [];
+let sentMessages: Array<{ action: string; state?: Record<string, unknown> }> = [];
 
 /** Captured listener callbacks registered by the background module */
 const listeners: CapturedListeners = {};
@@ -71,7 +71,7 @@ function installChromeMock(options: MockChromeOptions = {}) {
   (globalThis as Record<string, unknown>).chrome = {
     runtime: {
       getURL: (path: string) => `chrome-extension://fakeextid/${path}`,
-      sendMessage: async (msg: { type: string; state?: Record<string, unknown> }) => {
+      sendMessage: async (msg: { action: string; state?: Record<string, unknown> }) => {
         sentMessages.push(msg);
       },
       getContexts: async () => [],
@@ -156,7 +156,7 @@ async function ensureLoaded() {
  * was sent.
  */
 function lastStateUpdate(): Record<string, unknown> | null {
-  const updates = sentMessages.filter((m) => m.type === "STATE_UPDATE");
+  const updates = sentMessages.filter((m) => m.action === "STATE_UPDATE");
   return updates.at(-1)?.state ?? null;
 }
 

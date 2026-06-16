@@ -140,7 +140,6 @@ test("audio chunk queue processes 1000 chunks in FIFO order", async () => {
     const result = queue.enqueue(i);
     assert.equal(result.accepted, true);
   }
-
   while (queue.isProcessing) {
     await new Promise((resolve) => setTimeout(resolve, 0));
   }
@@ -165,7 +164,6 @@ test("audio chunk queue handles large backlog without rejection when capacity al
   for (let i = 0; i < 1000; i++) {
     assert.equal(queue.enqueue(i).accepted, true);
   }
-
   while (queue.isProcessing) {
     await new Promise((resolve) => setTimeout(resolve, 0));
   }

@@ -81,6 +81,9 @@ function resetAutoLockTimer() {
   autoLockTimer = setTimeout(() => {
     lockCredentials();
   }, AUTO_LOCK_TIMEOUT_MS);
+  if (autoLockTimer && typeof autoLockTimer.unref === "function") {
+    autoLockTimer.unref();
+  }
 }
 
 // ---------------------------------------------------------------------------

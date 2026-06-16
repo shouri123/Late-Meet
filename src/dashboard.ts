@@ -6,6 +6,7 @@ import {
   Decision,
   ActionItem,
   KeyInsight,
+  RuntimeMessage,
 } from "./types";
 import { initTheme } from "./theme.js";
 import { resolveManualMeetTab } from "./meetingTabs";
@@ -317,18 +318,19 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // ——— Initial State ———
   try {
-    lastState = await chrome.runtime.sendMessage({ type: "GET_STATE" });
+    lastState = await chrome.runtime.sendMessage({ action: "GET_STATE" } satisfies RuntimeMessage);
     if (lastState) updateDashboard(lastState);
   } catch {
     /* no meeting data yet */
   }
 
   // ——— Listen for State Updates ———
-  chrome.runtime.onMessage.addListener((message) => {
-    if (message.type === "STATE_UPDATE") {
-      lastState = message.state;
-      updateDashboard(message.state);
-      if (!message.state?.audioActive) {
+  chrome.runtime.onMessage.addListener((rawMessage) => {
+    const message = rawMessage as RuntimeMessage;
+    if (message.action === "STATE_UPDATE") {
+      lastState = message.state as State;
+      updateDashboard(message.state as State);
+      if (!(message.state as State)?.audioActive) {
         smoothed = new Array(WAVEFORM_N).fill(0);
         drawIdleWaveform();
         if (waveformStatusEl) {
@@ -337,12 +339,12 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
       }
     }
-    if (message.type === "SESSION_ENDED") {
+    if (message.action === "SESSION_ENDED") {
       // Dynamic load requested by human reviewer
       loadMeetingHistory();
       loadedTabs.delete("sessions");
     }
-    if (message.type === "WAVEFORM_DATA" && Array.isArray(message.buckets)) {
+    if (message.action === "WAVEFORM_DATA" && Array.isArray(message.buckets)) {
       drawWaveform(message.buckets);
       if (waveformStatusEl && !waveformStatusEl.classList.contains("active")) {
         waveformStatusEl.textContent = "LIVE";
@@ -382,7 +384,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (lastState?.audioActive) {
       try {
         audioBtn.disabled = true;
-        await chrome.runtime.sendMessage({ type: "MANUAL_STOP_AUDIO" });
+        await chrome.runtime.sendMessage({ action: "MANUAL_STOP_AUDIO" } satisfies RuntimeMessage);
       } catch (err) {
         console.error("[Dashboard] Failed to stop audio:", err);
       } finally {
@@ -401,9 +403,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         requestMicrophonePermission: requestDashboardMicrophonePermission,
         startAudioCapture: (payload) =>
           chrome.runtime.sendMessage({
-            type: "MANUAL_START_AUDIO",
+            action: "MANUAL_START_AUDIO",
             ...payload,
-          }),
+          } satisfies RuntimeMessage),
       });
 
       setAudioBtnActive(true);
@@ -1512,7 +1514,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   // --- MD EXPORT (LIVE DASHBOARD) ---
   document.getElementById("export-md-btn")?.addEventListener("click", async () => {
     try {
-      const state = await chrome.runtime.sendMessage({ type: "GET_STATE" });
+      const state = await chrome.runtime.sendMessage({
+        action: "GET_STATE",
+      } satisfies RuntimeMessage);
       if (!state) throw new Error("No meeting data available");
       const markdown = generateMarkdown(state);
       const filename = `meeting-summary-${new Date().toISOString().slice(0, 10)}.md`;
@@ -1530,7 +1534,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   // --- TXT EXPORT (LIVE DASHBOARD) ---
   document.getElementById("export-txt-btn")?.addEventListener("click", async () => {
     try {
-      const state = await chrome.runtime.sendMessage({ type: "GET_STATE" });
+      const state = await chrome.runtime.sendMessage({
+        action: "GET_STATE",
+      } satisfies RuntimeMessage);
       if (!state) throw new Error("No meeting data available");
       const textContent = generatePlainText(state);
       const filename = `meeting-summary-${new Date().toISOString().slice(0, 10)}.txt`;
@@ -1547,7 +1553,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   document.getElementById("export-clipboard-btn")?.addEventListener("click", async () => {
     try {
-      const state = await chrome.runtime.sendMessage({ type: "GET_STATE" });
+      const state = await chrome.runtime.sendMessage({
+        action: "GET_STATE",
+      } satisfies RuntimeMessage);
       if (!state) {
         showToast("No meeting data available", "error");
         return;
@@ -1566,7 +1574,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   document.getElementById("export-json-btn")?.addEventListener("click", async () => {
     try {
-      const state = await chrome.runtime.sendMessage({ type: "GET_STATE" });
+      const state = await chrome.runtime.sendMessage({
+        action: "GET_STATE",
+      } satisfies RuntimeMessage);
       if (!state) throw new Error("No meeting data available");
       const sessionData = {
         exportedAt: new Date().toISOString(),
@@ -1600,7 +1610,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   async function loadMeetingHistory() {
     try {
-      const sessions: State[] = await chrome.runtime.sendMessage({ type: "GET_SAVED_SESSIONS" });
+      const sessions: State[] = await chrome.runtime.sendMessage({
+        action: "GET_SAVED_SESSIONS",
+      } satisfies RuntimeMessage);
       const container = document.getElementById("dash-history-list");
       if (!container) return;
       if (!sessions || sessions.length === 0) {
@@ -1709,9 +1721,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   document.getElementById("confirm-delete-btn")?.addEventListener("click", async () => {
     if (sessionToDelete) {
       await chrome.runtime.sendMessage({
-        type: "DELETE_SAVED_SESSION",
+        action: "DELETE_SAVED_SESSION",
         sessionId: sessionToDelete,
-      });
+      } satisfies RuntimeMessage);
       sessionToDelete = null;
       document.getElementById("delete-confirm-modal")?.classList.add("hidden");
       loadMeetingHistory();
@@ -1722,9 +1734,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   async function loadFullSavedSession(sessionId: string): Promise<State | null> {
     try {
       const session: State | null = await chrome.runtime.sendMessage({
-        type: "GET_SAVED_SESSION",
+        action: "GET_SAVED_SESSION",
         sessionId,
-      });
+      } satisfies RuntimeMessage);
 
       if (!session) {
         showToast("Saved session data could not be found", "error");

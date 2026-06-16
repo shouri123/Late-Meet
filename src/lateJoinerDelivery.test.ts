@@ -148,7 +148,7 @@ test("late-joiner workflow: Bob joins (private-only), then Carol joins (with pub
   settings = { lateJoinerBriefing: true, publicLateJoinerChat: false };
 
   const response1 = await sendMessage({
-    type: "PARTICIPANTS_UPDATED",
+    action: "PARTICIPANTS_UPDATED",
     participants: ["Alice", "Bob"],
     selfName: "Alice",
   });
@@ -157,7 +157,7 @@ test("late-joiner workflow: Bob joins (private-only), then Carol joins (with pub
   assert.deepEqual(response1.joiners, ["Bob"]);
   assert.equal(tabMessages.length, 1);
   assert.equal(tabMessages[0].tabId, 7);
-  assert.equal(tabMessages[0].message.type, "SHOW_BRIEF");
+  assert.equal(tabMessages[0].message.action, "SHOW_BRIEF");
   assert.equal(tabMessages[0].message.targetName, "Bob");
   assert.match(tabMessages[0].message.briefContent, /Bob/i);
 
@@ -167,7 +167,7 @@ test("late-joiner workflow: Bob joins (private-only), then Carol joins (with pub
   settings = { lateJoinerBriefing: true, publicLateJoinerChat: true };
 
   const response2 = await sendMessage({
-    type: "PARTICIPANTS_UPDATED",
+    action: "PARTICIPANTS_UPDATED",
     participants: ["Alice", "Bob", "Carol"],
     selfName: "Alice",
   });
@@ -175,7 +175,7 @@ test("late-joiner workflow: Bob joins (private-only), then Carol joins (with pub
   assert.equal(response2.success, true);
   assert.deepEqual(response2.joiners, ["Carol"]);
   assert.deepEqual(
-    tabMessages.map((entry) => entry.message.type),
+    tabMessages.map((entry) => entry.message.action),
     ["SHOW_BRIEF", "SEND_CHAT_MESSAGE"],
   );
   assert.equal(tabMessages[0].message.targetName, "Carol");

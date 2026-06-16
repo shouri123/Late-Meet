@@ -11,14 +11,7 @@
  * @see {@link https://developer.chrome.com/docs/extensions/reference/offscreen/ chrome.offscreen API}
  */
 
-/** Message payload sent to the offscreen document for audio processing. */
-type OffscreenMessage = {
-  type: "PROCESS_AUDIO_CHUNK";
-  /** Raw audio data to process. */
-  chunk: ArrayBuffer;
-  /** Chrome tab ID that is the audio source, used for per-tab state tracking. */
-  tabId: number;
-};
+import { RuntimeMessage } from "../types";
 
 /**
  * Sends a raw audio chunk to the offscreen document for transcription processing.
@@ -44,10 +37,10 @@ export async function sendChunkToOffscreen(chunk: ArrayBuffer, tabId: number): P
   await ensureOffscreenDocument();
 
   await chrome.runtime.sendMessage({
-    type: "PROCESS_AUDIO_CHUNK",
+    action: "PROCESS_AUDIO_CHUNK",
     chunk,
     tabId,
-  } as OffscreenMessage);
+  } satisfies RuntimeMessage);
 }
 
 /**

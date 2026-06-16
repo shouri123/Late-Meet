@@ -1,4 +1,4 @@
-import { State } from "./types";
+import { State, RuntimeMessage } from "./types";
 import { initTheme } from "./theme.js";
 import {
   getApiCredentials,
@@ -274,7 +274,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     try {
       if (btn) btn.disabled = true;
-      await chrome.runtime.sendMessage({ type: "MANUAL_STOP_AUDIO" });
+      await chrome.runtime.sendMessage({ action: "MANUAL_STOP_AUDIO" } satisfies RuntimeMessage);
     } catch (err) {
       console.error("[LateMeet] Failed to stop audio:", err);
     } finally {
@@ -324,9 +324,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         requestMicrophonePermission: requestPopupMicrophonePermission,
         startAudioCapture: (payload) =>
           chrome.runtime.sendMessage({
-            type: "MANUAL_START_AUDIO",
+            action: "MANUAL_START_AUDIO",
             ...payload,
-          }),
+          } satisfies RuntimeMessage),
       });
 
       if (!microphoneEnabled) {
@@ -524,7 +524,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     try {
-      const response = await chrome.runtime.sendMessage({ type: "SAVE_SESSION" });
+      const response = await chrome.runtime.sendMessage({
+        action: "SAVE_SESSION",
+      } satisfies RuntimeMessage);
       if (!response?.success) {
         throw new Error(response?.error || "Failed to save session");
       }
@@ -568,7 +570,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     try {
-      const response = await chrome.runtime.sendMessage({ type: "DISCARD_SESSION" });
+      const response = await chrome.runtime.sendMessage({
+        action: "DISCARD_SESSION",
+      } satisfies RuntimeMessage);
       if (!response?.success) {
         throw new Error(response?.error || "Failed to discard session");
       }
@@ -595,19 +599,20 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // ——— Get Initial state load ———
   try {
-    lastState = await chrome.runtime.sendMessage({ type: "GET_STATE" });
+    lastState = await chrome.runtime.sendMessage({ action: "GET_STATE" } satisfies RuntimeMessage);
     if (lastState) updateUI(lastState);
   } catch {
     /* background script might be idle */
   }
 
   // ——— Listen for State Updates ———
-  chrome.runtime.onMessage.addListener((message) => {
-    if (message.type === "STATE_UPDATE") {
-      lastState = message.state;
-      updateUI(message.state);
+  chrome.runtime.onMessage.addListener((rawMessage) => {
+    const message = rawMessage as RuntimeMessage;
+    if (message.action === "STATE_UPDATE") {
+      lastState = message.state as State;
+      updateUI(message.state as State);
     }
-    if (message.type === "SESSION_ENDED") {
+    if (message.action === "SESSION_ENDED") {
       showSessionModal();
     }
   });

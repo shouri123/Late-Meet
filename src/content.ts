@@ -3,6 +3,7 @@ import {
   participantNameFromCandidate,
   type ParticipantNameCandidate,
 } from "./participantDetection.ts";
+import { RuntimeMessage } from "./types";
 
 import { initTheme } from "./theme.js";
 
@@ -399,10 +400,10 @@ void initTheme().catch((err) => console.error(err));
 
       try {
         await chrome.runtime.sendMessage({
-          type: "PARTICIPANTS_UPDATED",
+          action: "PARTICIPANTS_UPDATED",
           participants,
-          selfName,
-        });
+          selfName: selfName ?? undefined,
+        } satisfies RuntimeMessage);
       } catch {
         // Service worker idle
       }
@@ -430,9 +431,9 @@ void initTheme().catch((err) => console.error(err));
 
     try {
       await chrome.runtime.sendMessage({
-        type: "ACTIVE_SPEAKER_CHANGED",
+        action: "ACTIVE_SPEAKER_CHANGED",
         name,
-      });
+      } satisfies RuntimeMessage);
       lastActiveSpeakerName = name;
     } catch {
       // Service worker idle
@@ -561,7 +562,7 @@ void initTheme().catch((err) => console.error(err));
       try {
         // Open the side panel (dashboard) where tabCapture can be properly initiated
         // with user gesture context. Content scripts cannot use chrome.tabCapture.
-        await chrome.runtime.sendMessage({ type: "OPEN_SIDE_PANEL" });
+        await chrome.runtime.sendMessage({ action: "OPEN_SIDE_PANEL" } satisfies RuntimeMessage);
         btn.remove();
       } catch (err) {
         console.error(`${COPILOT_PREFIX} Error opening side panel:`, err);
@@ -626,7 +627,9 @@ void initTheme().catch((err) => console.error(err));
   globalThis.addEventListener("beforeunload", () => {
     // 1. Attempt auto-save first, while the runtime is still reachable.
     try {
-      chrome.runtime.sendMessage({ type: "SAVE_SESSION" }).catch(() => {});
+      chrome.runtime
+        .sendMessage({ action: "SAVE_SESSION" } satisfies RuntimeMessage)
+        .catch(() => {});
     } catch {
       // Ignore — page is already unloading
     }
@@ -649,19 +652,20 @@ void initTheme().catch((err) => console.error(err));
     }
   });
 
-  chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-    if (message?.type === "SHOW_BRIEF") {
+  chrome.runtime.onMessage.addListener((rawMessage, _sender, sendResponse) => {
+    const message = rawMessage as RuntimeMessage;
+    if (message?.action === "SHOW_BRIEF") {
       upsertBriefOverlay(message.briefContent, message.targetName);
       sendResponse({ success: true });
       return false;
     }
 
-    if (message?.type === "SEND_CHAT_MESSAGE") {
+    if (message?.action === "SEND_CHAT_MESSAGE") {
       sendChatMessage(message.text).then((success) => sendResponse({ success }));
       return true;
     }
 
-    if (message?.type === "STATE_UPDATE") {
+    if (message?.action === "STATE_UPDATE") {
       const btn = document.getElementById("mc-float-btn") as HTMLButtonElement | null;
       const isActive = message.state?.isActive;
       if (btn && isActive) {

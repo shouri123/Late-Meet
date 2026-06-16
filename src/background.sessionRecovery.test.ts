@@ -149,7 +149,7 @@ function sendMessage(message: AnyRecord): Promise<AnyRecord> {
 }
 
 test("recovers the active meeting identity after a simulated restart", async () => {
-  const state = await sendMessage({ type: "GET_STATE" });
+  const state = await sendMessage({ action: "GET_STATE" });
   assert.equal(state.isActive, true);
   assert.equal(state.meetingId, "abc-defg-hij");
   assert.equal(state.meetingUrl, "https://meet.google.com/abc-defg-hij");
@@ -159,7 +159,7 @@ test("recovers the active meeting identity after a simulated restart", async () 
 });
 
 test("recovers AI-derived meeting content", async () => {
-  const state = await sendMessage({ type: "GET_STATE" });
+  const state = await sendMessage({ action: "GET_STATE" });
   assert.equal(state.summary, "Recovered summary");
   assert.equal(state.currentTopic, "Roadmap");
   assert.equal(state.sentiment, "positive");
@@ -180,7 +180,7 @@ test("recovers AI-derived meeting content", async () => {
 });
 
 test("recovers transcript, timeline, and participant lists", async () => {
-  const state = await sendMessage({ type: "GET_STATE" });
+  const state = await sendMessage({ action: "GET_STATE" });
 
   const transcript = state.transcript as AnyRecord[];
   assert.equal(transcript.length, 1);
@@ -194,6 +194,6 @@ test("recovers transcript, timeline, and participant lists", async () => {
 });
 
 test("keeps audioActive when the offscreen document is still present", async () => {
-  const state = await sendMessage({ type: "GET_STATE" });
+  const state = await sendMessage({ action: "GET_STATE" });
   assert.equal(state.audioActive, true);
 });
