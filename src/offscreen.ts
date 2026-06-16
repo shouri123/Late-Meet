@@ -19,7 +19,7 @@ let pendingChunks: Blob[] = [];
 let isStopping = false;
 let isDrainingQueue = false;
 
-const VAD_SAMPLE_MS = 250;
+let vadSampleMs = 250;
 // Increased from 50ms (20x/sec) to 100ms (10x/sec)
 // to reduce unnecessary service worker wake-ups
 // and chrome.runtime.sendMessage calls
@@ -30,7 +30,7 @@ const SILENCE_FLUSH_MS = 1500;
 const MAX_BUFFER_MS = 25000;
 const MAX_PENDING_CHUNKS = 20;
 const DRAIN_TIMEOUT_MS = 30000;
-const SILENCE_FLUSH_TICKS = Math.ceil(SILENCE_FLUSH_MS / VAD_SAMPLE_MS);
+let silenceFlushTicks = Math.ceil(SILENCE_FLUSH_MS / vadSampleMs);
 let rmsThreshold = 0.012;
 
 let isFlushInProgress = false;
@@ -456,6 +456,7 @@ async function startCapture(
   _tabId: number,
   includeMicrophone = true,
   vadThreshold?: number,
+  vadFrameSize?: number,
 ) {
   if (mediaRecorder && mediaRecorder.state === "recording") {
     console.log("[LateMeet][offscreen] Capture already running");
@@ -467,6 +468,8 @@ async function startCapture(
   // Offscreen documents cannot access chrome.storage — threshold is forwarded
   // by the background service worker which reads it before sending this message.
   rmsThreshold = vadThreshold ?? 0.012;
+  vadSampleMs = vadFrameSize ?? 250;
+  silenceFlushTicks = Math.ceil(SILENCE_FLUSH_MS / vadSampleMs);
 
   mediaStream = await getTabAudioStream(streamId);
 
@@ -579,7 +582,7 @@ async function startCapture(
         silenceTicks = 0;
       }
 
-      const naturalPause = silenceTicks >= SILENCE_FLUSH_TICKS;
+      const naturalPause = silenceTicks >= silenceFlushTicks;
       const overflowReached = Date.now() - bufferStartTime >= MAX_BUFFER_MS;
 
       if (naturalPause || overflowReached) {
@@ -597,9 +600,9 @@ async function startCapture(
     } finally {
       isVadBusy = false;
     }
-  }, VAD_SAMPLE_MS);
+  }, vadSampleMs);
 
-  relay(`capture started — mic=${Boolean(microphoneStream)} rmsThreshold=${rmsThreshold}`);
+  relay(`capture started — mic=${Boolean(microphoneStream)} rmsThreshold=${rmsThreshold} vadFrameSize=${vadSampleMs}`);
 
   return {
     microphoneActive: Boolean(microphoneStream),
@@ -655,6 +658,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
           message.tabId,
           message.includeMicrophone !== false,
           message.vadThreshold,
+          message.vadFrameSize,
         );
 
         sendResponse({
