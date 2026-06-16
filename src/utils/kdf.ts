@@ -20,12 +20,9 @@ export const LEGACY_PBKDF2_ITERATIONS = 100_000;
  * decrypts); anything missing or invalid falls back to the legacy count.
  */
 export function resolveKdfIterations(storedIterations: unknown): number {
-  if (
-    typeof storedIterations === "number" &&
-    Number.isFinite(storedIterations) &&
-    storedIterations > 0
-  ) {
-    return Math.floor(storedIterations);
+  if (typeof storedIterations === "number" && Number.isFinite(storedIterations)) {
+    const normalized = Math.floor(storedIterations);
+    if (normalized > 0) return normalized;
   }
   return LEGACY_PBKDF2_ITERATIONS;
 }
