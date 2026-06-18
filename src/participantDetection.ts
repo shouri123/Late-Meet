@@ -43,7 +43,10 @@ function stripExcludedLabels(value: string): string {
   return cleanText(cleaned);
 }
 
-export function participantNameFromCandidate(candidate: ParticipantNameCandidate): string | null {
+export function participantNameFromCandidate(
+  candidate: ParticipantNameCandidate | null | undefined,
+): string | null {
+  if (!candidate) return null;
   const selfName = cleanText(candidate.selfName || "");
   const text = stripExcludedLabels(candidate.text || "");
   const ariaLabel = cleanText(candidate.ariaLabel || "");

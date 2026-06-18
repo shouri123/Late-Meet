@@ -95,3 +95,8 @@ test("label stripping does not remove embedded words", () => {
   assert.equal(participantNameFromCandidate({ text: "Mutee Johnson" }), "Mutee Johnson");
   assert.equal(participantNameFromCandidate({ text: "Unmuteable Ada" }), "Unmuteable Ada");
 });
+
+test("participantNameFromCandidate handles null/undefined candidate objects", () => {
+  assert.equal(participantNameFromCandidate(null), null);
+  assert.equal(participantNameFromCandidate(undefined), null);
+});
