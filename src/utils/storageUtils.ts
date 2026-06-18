@@ -5,7 +5,13 @@ const DEFAULT_QUOTA_BYTES = 10 * 1024 * 1024; // 10MB — chrome.storage.local d
 const DEFAULT_WARNING_THRESHOLD = 80;
 
 function roughBytes(value: unknown): number {
-  return new Blob([JSON.stringify(value)]).size;
+  try {
+    const serialized = JSON.stringify(value);
+    if (!serialized) return 0;
+    return new Blob([serialized]).size;
+  } catch {
+    return 0;
+  }
 }
 
 export function formatBytes(bytes: number): string {
