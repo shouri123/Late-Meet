@@ -28,8 +28,12 @@ export function getSavedSessionKey(sessionId: string): string {
 }
 
 export function estimateStorageBytes(value: unknown): number {
-  const serialized = JSON.stringify(value ?? null);
-  return new TextEncoder().encode(serialized).byteLength;
+  try {
+    const serialized = JSON.stringify(value ?? null);
+    return new TextEncoder().encode(serialized).byteLength;
+  } catch {
+    return 0;
+  }
 }
 
 export function isStorageQuotaError(err: unknown): boolean {
@@ -192,6 +196,7 @@ export async function getSavedMeetingSession(
   storage: StorageArea,
   sessionId: string,
 ): Promise<StoredSession | null> {
+  if (!sessionId) return null;
   const sessionKey = getSavedSessionKey(sessionId);
   const values = await storage.get([sessionKey, SAVED_SESSIONS_LEGACY_KEY]);
   const indexedSession = asStoredSession(values[sessionKey]);
@@ -208,6 +213,7 @@ export async function deleteSavedMeetingSession(
   storage: StorageArea,
   sessionId: string,
 ): Promise<void> {
+  if (!sessionId) return;
   const values = await storage.get([SAVED_SESSION_INDEX_KEY, SAVED_SESSIONS_LEGACY_KEY]);
   const indexedSessions = Array.isArray(values[SAVED_SESSION_INDEX_KEY])
     ? (values[SAVED_SESSION_INDEX_KEY].map(asStoredSession).filter(Boolean) as StoredSession[])
