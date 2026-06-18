@@ -608,11 +608,18 @@ document.addEventListener("DOMContentLoaded", async () => {
   function updateContradictions(contradictions: any[]) {
     const list = document.getElementById("dash-contradictions-list");
     if (!list) return;
-    if (!contradictions || contradictions.length === 0) {
+
+    const validContradictions = (contradictions || []).filter((c) => {
+      if (c == null) return false;
+      const issue = typeof c === "string" ? c : c.issue || "";
+      return String(issue).trim().length > 0;
+    });
+
+    if (validContradictions.length === 0) {
       list.innerHTML = '<li class="empty-msg">No contradictions detected</li>';
       return;
     }
-    list.innerHTML = contradictions
+    list.innerHTML = validContradictions
       .filter((c) => c != null)
       .map((c) => {
         const issue = typeof c === "string" ? c : c.issue || "";
