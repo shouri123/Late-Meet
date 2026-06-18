@@ -47,6 +47,11 @@ export function participantNameFromCandidate(
   candidate: ParticipantNameCandidate | null | undefined,
 ): string | null {
   if (!candidate) return null;
+const LOWERCASE_EXCLUDED_LABELS = new Set(
+  Array.from(EXCLUDED_PARTICIPANT_LABELS).map((label) => label.toLowerCase()),
+);
+
+export function participantNameFromCandidate(candidate: ParticipantNameCandidate): string | null {
   const selfName = cleanText(candidate.selfName || "");
   const text = stripExcludedLabels(candidate.text || "");
   const ariaLabel = cleanText(candidate.ariaLabel || "");
@@ -67,7 +72,7 @@ export function participantNameFromCandidate(
     return null;
   }
 
-  if (EXCLUDED_PARTICIPANT_LABELS.has(name)) {
+  if (LOWERCASE_EXCLUDED_LABELS.has(name.toLowerCase())) {
     return null;
   }
 

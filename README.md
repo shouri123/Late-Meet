@@ -76,6 +76,31 @@
 
 ---
 
+## 📚 Table of Contents
+
+- [The Problem](#the-problem)
+- [Our Solution](#our-solution)
+- [Features](#features)
+- [Screenshots & Workflow](#screenshots--workflow)
+- [Architecture](#architecture)
+- [Project Structure](#project-structure)
+- [Installation](#installation)
+  - [Quick Install (For Regular Users)](#quick-install-for-regular-users)
+  - [Developer Setup (For Contributors)](#developer-setup-for-contributors)
+- [API Key Setup](#api-key-setup)
+- [Tech Stack](#tech-stack)
+- [Roadmap](#roadmap)
+- [Contributing — GSSoC 2026](#contributing--gssoc-2026)
+- [Documentation Hub](#documentation-hub)
+- [Known Issues](#known-issues)
+- [Extension Shortcuts](#extension-shortcuts)
+- [Global Shortcuts](#global-shortcuts)
+- [Security & Privacy](#security--privacy)
+- [FAQ](#faq)
+- [Community](#community)
+- [License](#license)
+- [Troubleshooting](#troubleshooting)
+
 ## 🌟 The Problem
 
 <div align="center">
@@ -124,16 +149,16 @@ It uses **Chrome's native `tabCapture` API** to intercept audio without adding p
 
 <div align="center">
 
-|     | Feature                     | What it does                                                                       |
-| :-: | :-------------------------- | :--------------------------------------------------------------------------------- |
-| 🤫  | **Invisible Audio Capture** | Chrome's `tabCapture` + Offscreen Document APIs — no bot joins, no alert shown     |
-| 🔤  | **ElevenLabs Scribe STT**   | Industry-leading multilingual transcription with OpenAI Whisper fallback           |
-| ⚡  | **Late-Joiner Briefings**   | Join 10 min late → hit "Catch Me Up" → get a private AI summary of what you missed |
-| 🧠  | **Proactive Intelligence**  | Auto-detects Meet sessions, 1+N participant tracking, action-item extraction       |
-| 🔑  | **BYOK Model**              | Your ElevenLabs + OpenAI keys — zero vendor lock-in, zero subscriptions            |
-| 💎  | **Premium Glass UI**        | Deep-monochrome dashboard, glassmorphism, smooth animations                        |
-| 🏠  | **Local-First Storage**     | `chrome.storage.local` only — Save or Discard after each session, your choice      |
-| 🌍  | **Multilingual**            | ElevenLabs Scribe handles multiple languages out of the box                        |
+| Feature                        | What it does                                                                       |
+| :----------------------------- | :--------------------------------------------------------------------------------- |
+| 🤫 **Invisible Audio Capture** | Chrome's `tabCapture` + Offscreen Document APIs — no bot joins, no alert shown     |
+| 🔤 **ElevenLabs Scribe STT**   | Industry-leading multilingual transcription with OpenAI Whisper fallback           |
+| ⚡ **Late-Joiner Briefings**   | Join 10 min late → hit "Catch Me Up" → get a private AI summary of what you missed |
+| 🧠 **Proactive Intelligence**  | Auto-detects Meet sessions, 1+N participant tracking, action-item extraction       |
+| 🔑 **BYOK Model**              | Your ElevenLabs + OpenAI keys — zero vendor lock-in, zero subscriptions            |
+| 💎 **Premium Glass UI**        | Deep-monochrome dashboard, glassmorphism, smooth animations                        |
+| 🏠 **Local-First Storage**     | `chrome.storage.local` only — Save or Discard after each session                   |
+| 🌍 **Multilingual**            | ElevenLabs Scribe handles multiple languages out of the box                        |
 
 </div>
 
@@ -632,61 +657,54 @@ git push origin feature/your-feature-name
 
 #### 🟢 Beginner — `level-1`
 
-|                             #                             | Title                                                                    | Skills  |
-| :-------------------------------------------------------: | :----------------------------------------------------------------------- | :------ |
-| [#402](https://github.com/shouri123/Late-Meet/issues/402) | \[FEATURE\] Handle IndexedDB Connection Cleanup During Database Upgrades | General |
-| [#378](https://github.com/shouri123/Late-Meet/issues/378) | \[FEATURE\] Add storage usage insights and session cleanup tools         | General |
-| [#104](https://github.com/shouri123/Late-Meet/issues/104) | \[FEAT\]: Show live recording duration timer in the popup UI             | General |
+|                             #                             | Title                                                                                  | Skills  |
+| :-------------------------------------------------------: | :------------------------------------------------------------------------------------- | :------ |
+| [#667](https://github.com/shouri123/Late-Meet/issues/667) | docs: Add a comprehensive developer setup guide and contributing guidelines            | General |
+| [#665](https://github.com/shouri123/Late-Meet/issues/665) | refactor: Migrate remaining JavaScript prompt configurations to TypeScript             | General |
+| [#664](https://github.com/shouri123/Late-Meet/issues/664) | test: Add unit test coverage reporting to GitHub Actions build checks                  | General |
+| [#663](https://github.com/shouri123/Late-Meet/issues/663) | test: Setup GitHub Actions workflow to run semantic PR title linter                    | General |
+| [#661](https://github.com/shouri123/Late-Meet/issues/661) | feat: Add confirmation dialog popup before clearing all local data                     | General |
+| [#660](https://github.com/shouri123/Late-Meet/issues/660) | docs: Document extension permissions audit and privacy policy guidelines               | General |
+| [#651](https://github.com/shouri123/Late-Meet/issues/651) | style: Add micro-animations (pulse, slide-in) to recording status indicators           | General |
+| [#650](https://github.com/shouri123/Late-Meet/issues/650) | feat: Add a 'Select All' checkbox for bulk actions in storage dashboard                | General |
+| [#646](https://github.com/shouri123/Late-Meet/issues/646) | feat: Implement interactive tooltip tour for first-time onboarding flow                | General |
+| [#644](https://github.com/shouri123/Late-Meet/issues/644) | feat: Support export of meeting sessions as CSV spreadsheet                            | General |
+| [#642](https://github.com/shouri123/Late-Meet/issues/642) | feat: Add configurable summarization interval setting (e.g. 5, 10, 15 minutes)         | General |
+| [#641](https://github.com/shouri123/Late-Meet/issues/641) | docs: Add prompt engineering guide and templates for meeting summaries                 | General |
+| [#638](https://github.com/shouri123/Late-Meet/issues/638) | feat: Support model selection (GPT-4o, GPT-4o-mini, GPT-3.5-turbo) in settings         | General |
+| [#634](https://github.com/shouri123/Late-Meet/issues/634) | feat: Implement transcript language selection dropdown (Spanish, French, German, etc.) | General |
 
 #### 🟡 Intermediate — `level-2`
 
-|                             #                             | Title                                                                                                                                                      | Skills  |
-| :-------------------------------------------------------: | :--------------------------------------------------------------------------------------------------------------------------------------------------------- | :------ |
-| [#418](https://github.com/shouri123/Late-Meet/issues/418) | \[UI\] Improve Responsiveness of Extension Popup Across Different Screen Sizes                                                                             | General |
-| [#412](https://github.com/shouri123/Late-Meet/issues/412) | \[Enhancement\] Add support for Google Meet breakout room transcription                                                                                    | General |
-| [#410](https://github.com/shouri123/Late-Meet/issues/410) | \[Bug\] \`background.ts\` service worker fails to restart after Chrome updates extension                                                                   | General |
-| [#409](https://github.com/shouri123/Late-Meet/issues/409) | \[Enhancement\] Add meeting duration tracking to the summary view                                                                                          | General |
-| [#407](https://github.com/shouri123/Late-Meet/issues/407) | \[Bug\] \`popup.ts\` throws uncaught error when opened outside a Google Meet tab                                                                           | General |
-| [#406](https://github.com/shouri123/Late-Meet/issues/406) | \[Enhancement\] Add export to Markdown format for meeting transcripts                                                                                      | General |
-| [#404](https://github.com/shouri123/Late-Meet/issues/404) | \[Bug\] Meeting transcript continues recording after tab is navigated away from Google Meet                                                                | General |
-| [#401](https://github.com/shouri123/Late-Meet/issues/401) | \[FEATURE\] Strengthen \`asStoredSession()\` Runtime Validation                                                                                            | General |
-| [#395](https://github.com/shouri123/Late-Meet/issues/395) | \[Bug\] Speaker attribution breaks when participant names contain non-ASCII characters                                                                     | General |
-| [#394](https://github.com/shouri123/Late-Meet/issues/394) | \[Enhancement\] Add meeting summary export to PDF format                                                                                                   | General |
-| [#391](https://github.com/shouri123/Late-Meet/issues/391) | \[Bug\] Extension popup closes unexpectedly when switching between Google Meet tabs                                                                        | General |
-| [#380](https://github.com/shouri123/Late-Meet/issues/380) | \[FEATURE\] Add first-time onboarding and setup wizard                                                                                                     | General |
-| [#374](https://github.com/shouri123/Late-Meet/issues/374) | \[FEATURE\] feat: add timestamp-linked transcript references for summaries and action items                                                                | General |
-| [#363](https://github.com/shouri123/Late-Meet/issues/363) | \[BUG\] Options page passphrase visibility toggle button missing \`aria-label\` — inconsistent with other toggle buttons                                   | General |
-| [#362](https://github.com/shouri123/Late-Meet/issues/362) | \[BUG\] Dashboard transcript re-renders entire list on every state update — destroys search highlights and scroll position                                 | General |
-| [#361](https://github.com/shouri123/Late-Meet/issues/361) | \[A11Y\] Accent color picker buttons never update \`aria-pressed\` — screen readers cannot identify the selected color                                     | General |
-| [#359](https://github.com/shouri123/Late-Meet/issues/359) | \[BUG\] TXT export uses \`generateMarkdown()\` — outputs markdown syntax instead of plain text                                                             | General |
-| [#354](https://github.com/shouri123/Late-Meet/issues/354) | \[PERF\] \`offscreen.ts\` sends 20 \`chrome.runtime.sendMessage\` per second for waveform data — unnecessary service worker wake-ups and rejected messages | General |
-| [#353](https://github.com/shouri123/Late-Meet/issues/353) | \[BUG\] \`storageDashboard.ts\` uses native \`confirm()\` dialog for delete — inconsistent with custom modal UX pattern                                    | General |
-| [#352](https://github.com/shouri123/Late-Meet/issues/352) | 📋 Issue 1: Individual Copy-to-Clipboard Buttons for Action Items and Decisions                                                                            | General |
-| [#350](https://github.com/shouri123/Late-Meet/issues/350) | \[BUG\] Dashboard capture ignores denied microphone permission and still requests mic in offscreen document                                                | General |
-| [#289](https://github.com/shouri123/Late-Meet/issues/289) | \[BUG\]persistMeetingSession silently discards transcript updates after MV3 service worker restart — duplicate ID guard causes permanent data loss         | General |
-| [#238](https://github.com/shouri123/Late-Meet/issues/238) | \[Security\] \`credentials.ts\` stores API keys in plaintext in chrome.storage.local                                                                       | General |
-| [#236](https://github.com/shouri123/Late-Meet/issues/236) | \[Bug\] \`sessionStorage.ts\` does not handle \`chrome.storage\` quota exceeded errors                                                                     | General |
-| [#212](https://github.com/shouri123/Late-Meet/issues/212) | UI/UX Feature: Implement a Professional Empty States Design System for Dashboard                                                                           | General |
-| [#207](https://github.com/shouri123/Late-Meet/issues/207) | Feature/UX: Add Delete Functionality and Confirmation Modal for Action Items                                                                               | General |
-| [#200](https://github.com/shouri123/Late-Meet/issues/200) | \[FEATURE\] Make dashboard insight sections collapsible                                                                                                    | General |
-| [#198](https://github.com/shouri123/Late-Meet/issues/198) | \[FEAT\]: Add one-click copy summary button in side panel                                                                                                  | General |
-| [#138](https://github.com/shouri123/Late-Meet/issues/138) | Feature: Implement One-Click Export to Markdown and PDF for Meeting Summaries & Transcripts                                                                | General |
-| [#112](https://github.com/shouri123/Late-Meet/issues/112) | \[SEC\]: Implement API key rotation reminders and age tracking                                                                                             | General |
+|                             #                             | Title                                                                                | Skills  |
+| :-------------------------------------------------------: | :----------------------------------------------------------------------------------- | :------ |
+| [#658](https://github.com/shouri123/Late-Meet/issues/658) | fix: Guard against prototype pollution in state hydration of storage payloads        | General |
+| [#657](https://github.com/shouri123/Late-Meet/issues/657) | fix: Prevent HTML injection and XSS by sanitizing participant names before rendering | General |
+| [#653](https://github.com/shouri123/Late-Meet/issues/653) | feat: Implement strict Content Security Policy (CSP) headers in manifest             | General |
+| [#652](https://github.com/shouri123/Late-Meet/issues/652) | feat: Custom accent color picker in options page using color palette grid            | General |
+| [#645](https://github.com/shouri123/Late-Meet/issues/645) | feat: Support export of meeting sessions as PDF with clean styling template          | General |
+| [#640](https://github.com/shouri123/Late-Meet/issues/640) | test: Add mock API integration tests for transcript refinement pipeline              | General |
+| [#639](https://github.com/shouri123/Late-Meet/issues/639) | feat: Implement structured JSON mode output for transcript refinements               | General |
+| [#637](https://github.com/shouri123/Late-Meet/issues/637) | fix: Handle token limit warnings and implement automatic prompt truncation           | General |
+| [#633](https://github.com/shouri123/Late-Meet/issues/633) | feat: Support custom system prompts for summary and action-item generation           | General |
+| [#630](https://github.com/shouri123/Late-Meet/issues/630) | fix: Handle audio capture track end events dynamically by resetting recorder         | General |
+| [#629](https://github.com/shouri123/Late-Meet/issues/629) | feat: Add configurable VAD (Voice Activity Detection) frame size setting             | General |
+| [#627](https://github.com/shouri123/Late-Meet/issues/627) | test: Add mock tests for Web Audio API node connections in offscreen                 | General |
+| [#626](https://github.com/shouri123/Late-Meet/issues/626) | feat: Add audio channels mapping and stereo-to-mono downmixing in offscreen          | General |
+| [#625](https://github.com/shouri123/Late-Meet/issues/625) | fix: Prevent audio track clipping by implementing custom limiter Node                | General |
+| [#623](https://github.com/shouri123/Late-Meet/issues/623) | feat: Implement adaptive Web Audio API noise gate for offscreen audio capture        | General |
 
 #### 🔴 Advanced — `level-3`
 
-|                             #                             | Title                                                                                                                     | Skills  |
-| :-------------------------------------------------------: | :------------------------------------------------------------------------------------------------------------------------ | :------ |
-| [#411](https://github.com/shouri123/Late-Meet/issues/411) | \[Performance\] \`speakerAttribution.ts\` allocates new arrays on every audio frame                                       | General |
-| [#408](https://github.com/shouri123/Late-Meet/issues/408) | \[Security\] No integrity validation on meeting data loaded from storage                                                  | General |
-| [#405](https://github.com/shouri123/Late-Meet/issues/405) | \[Performance\] Dashboard renders all past meeting summaries at once without virtualization                               | General |
-| [#403](https://github.com/shouri123/Late-Meet/issues/403) | \[Security\] Extension stores OpenAI API key in sync storage accessible across devices                                    | General |
-| [#393](https://github.com/shouri123/Late-Meet/issues/393) | \[Performance\] \`audioChunkQueue.ts\` processes audio chunks synchronously blocking the main thread                      | General |
-| [#392](https://github.com/shouri123/Late-Meet/issues/392) | \[Security\] Meeting transcription data sent to external API without transport encryption validation                      | General |
-| [#356](https://github.com/shouri123/Late-Meet/issues/356) | Graceful Error Handling and Actionable UX for Invalid/Expired API Keys                                                    | General |
-| [#346](https://github.com/shouri123/Late-Meet/issues/346) | \[BUG\] Unscoped participant updates from background Meet tabs can leak late-joiner summaries into the wrong meeting chat | General |
-| [#235](https://github.com/shouri123/Late-Meet/issues/235) | \[Performance\] \`speakerAttribution.ts\` does not debounce speaker detection, causing excessive processing               | General |
-| [#234](https://github.com/shouri123/Late-Meet/issues/234) | \[Bug\] \`audioProcessing.ts\` does not handle microphone permission denial gracefully                                    | General |
+|                             #                             | Title                                                                                                                             | Skills  |
+| :-------------------------------------------------------: | :-------------------------------------------------------------------------------------------------------------------------------- | :------ |
+| [#768](https://github.com/shouri123/Late-Meet/issues/768) | Accessibility Features for Users with Visual, Hearing, and Speech Impairments                                                     | General |
+| [#666](https://github.com/shouri123/Late-Meet/issues/666) | refactor: Consolidate duplicate getSettings functions in options and dashboard                                                    | General |
+| [#662](https://github.com/shouri123/Late-Meet/issues/662) | feat: Implement secure backup partition file export with signature verification                                                   | General |
+| [#654](https://github.com/shouri123/Late-Meet/issues/654) | feat: Purge plaintext credential keys from RAM cache when inactivity timeout fires                                                | General |
+| [#643](https://github.com/shouri123/Late-Meet/issues/643) | feat: Add animated canvas audio waveform visualizer inside popup during capture                                                   | General |
+| [#632](https://github.com/shouri123/Late-Meet/issues/632) | perf: Optimize Web Audio analyzer frequency analysis to reduce CPU overhead                                                       | General |
+| [#610](https://github.com/shouri123/Late-Meet/issues/610) | Race Condition Between stopAudioCapture() and Offscreen Drain Orphans tabCapture Streams + Silently Drops Final Transcript Chunks | General |
 
 </div>
 <!-- END_ISSUE_TABLES -->
@@ -746,16 +764,17 @@ Before submitting, verify all boxes:
 
 ---
 
-## ⌨️ Keyboard Shortcuts
+## Extension Shortcuts
 
 Control Late Meet without touching your mouse — perfect for accessibility and power users.
 
-| Shortcut       | Mac           | Action                  |
-| :------------- | :------------ | :---------------------- |
-| `Ctrl+Shift+S` | `Cmd+Shift+S` | Toggle recording on/off |
-| `Ctrl+Shift+P` | `Cmd+Shift+P` | Open the side panel     |
+| Shortcut       | Mac           | Action                   |
+| :------------- | :------------ | :----------------------- |
+| `Ctrl+Shift+S` | `Cmd+Shift+S` | Toggle recording on/off  |
+| `Ctrl+Shift+P` | `Cmd+Shift+P` | Open the side panel      |
+| `Ctrl+Shift+Y` | `Cmd+Shift+Y` | Save the current session |
 
-> Shortcuts can be customized at `chrome://extensions/shortcuts`.
+> The save-session shortcut was changed from `Ctrl+Shift+W` / `Cmd+Shift+W` because that combination is reserved by Chrome for closing windows. Shortcuts can be customized at `chrome://extensions/shortcuts`.
 
 ---
 
@@ -957,3 +976,29 @@ in the Software without restriction...
 _Made with 🖤 by the Late Meet community · [Report Bug](https://github.com/shouri123/Late-Meet/issues/new?template=bug_report.md) · [Request Feature](https://github.com/shouri123/Late-Meet/issues/new?template=feature_request.md) · [Join GSSoC 2026](https://gssoc.girlscript.tech/)_
 
 </div>
+
+---
+
+## Troubleshooting
+
+| Issue                                    | Cause                                     | Fix                                                          |
+| ---------------------------------------- | ----------------------------------------- | ------------------------------------------------------------ |
+| Transcription not starting               | Microphone permission denied              | Click the lock icon in Chrome address bar → Allow Microphone |
+| Extension popup shows "Not in a meeting" | Tab is not a Google Meet tab              | Navigate to meet.google.com first                            |
+| API key error                            | Key not set or expired                    | Open extension Options and re-enter your API key             |
+| Transcript stops mid-meeting             | Chrome service worker restarted           | Refresh the Meet tab and restart recording                   |
+| Speaker names show as "Unknown"          | Non-ASCII names or Google Meet DOM change | Update the extension to the latest version                   |
+| Storage quota exceeded                   | Too many saved meetings                   | Open the dashboard and delete old sessions                   |
+
+---
+
+## Global Shortcuts
+
+| Shortcut      | Action                       |
+| ------------- | ---------------------------- |
+| `Alt+Shift+R` | Start / Stop recording       |
+| `Alt+Shift+P` | Pause / Resume transcription |
+| `Alt+Shift+S` | Generate meeting summary     |
+| `Alt+Shift+E` | Export transcript            |
+
+> **Note:** Shortcuts can be customized at `chrome://extensions/shortcuts`

@@ -1,4 +1,10 @@
-import { getStorageStats, formatBytes, deleteSavedMeetingSession } from "./utils/storageUtils";
+import {
+  getStorageStats,
+  formatBytes,
+  deleteSavedMeetingSession,
+  deleteMultipleSavedMeetingSessions,
+  deleteAllSavedMeetingSessions,
+} from "./utils/storageUtils";
 import { StorageStats } from "./types";
 
 function escapeHtml(value: string): string {
@@ -62,19 +68,28 @@ function buildDashboardHTML(stats: StorageStats): string {
         stats.largestMeetings.length > 0
           ? `
         <div class="storage-card">
-          <div class="storage-card-header">
+          <div class="storage-card-header storage-card-controls">
             <span class="storage-label">Largest meetings</span>
+            <div class="storage-actions">
+              <button id="storage-delete-selected" class="btn btn-danger" aria-label="Delete selected sessions" disabled>Delete Selected</button>
+              <button id="storage-clear-all" class="btn btn-warning" aria-label="Clear all saved sessions">Clear All</button>
+              <button id="storage-select-all" class="btn" aria-pressed="false" aria-label="Select all sessions">Select All</button>
+            </div>
           </div>
-          <ul class="storage-meeting-list">
+          <ul class="storage-meeting-list" id="storage-meeting-list">
             ${stats.largestMeetings
               .map(
                 (m) => `
               <li class="storage-meeting-item">
+                <label class="storage-meeting-select">
+                  <input type="checkbox" class="storage-meeting-checkbox" data-id="${escapeHtml(m.id)}" aria-label="Select ${escapeHtml(m.title)}" />
+                  <span class="visually-hidden">Select ${escapeHtml(m.title)}</span>
+                </label>
                 <div class="storage-meeting-info">
                   <span class="storage-meeting-title">${escapeHtml(m.title)}</span>
                   <span class="storage-meeting-size">${formatBytes(m.totalBytes)}</span>
                 </div>
-                <button class="storage-delete-btn" data-id="${escapeHtml(m.id)}">Delete</button>
+                <button class="storage-delete-btn" data-id="${escapeHtml(m.id)}" aria-label="Delete ${escapeHtml(m.title)}">Delete</button>
               </li>
             `,
               )
@@ -107,33 +122,73 @@ function buildBreakdownCard(label: string, bytes: number, total: number, color: 
 function attachEventListeners(container: HTMLElement): void {
   container.querySelectorAll(".storage-delete-btn").forEach((btn) => {
     btn.addEventListener("click", async (e) => {
-      const target = e.currentTarget as HTMLElement;
-      const id = target.dataset.id;
-      if (!id) return;
+      const id = (e.target as HTMLElement).dataset.id!;
+      const title =
+        (e.target as HTMLElement)
+          .closest(".storage-meeting-item")
+          ?.querySelector(".storage-meeting-title")?.textContent || id;
 
-      // Show inline confirmation instead of native confirm() dialog
-      if (target.dataset.confirming === "true") {
-        // Second click — confirmed, proceed with deletion
-        target.dataset.confirming = "";
-        target.textContent = "Deleting...";
-        target.setAttribute("disabled", "true");
-        await deleteSavedMeetingSession(chrome.storage.local, id);
-        await renderStorageDashboard(container);
-      } else {
-        // First click — ask for confirmation
-        target.dataset.confirming = "true";
-        target.textContent = "Confirm?";
-        target.classList.add("confirming");
-        // Reset after 3 seconds if user doesn't confirm
-        setTimeout(() => {
-          if (target.dataset.confirming === "true") {
-            target.dataset.confirming = "";
-            target.textContent = "Delete";
-            target.classList.remove("confirming");
-          }
-        }, 3000);
+      if (confirm(`Delete stored data for "${title}"? This cannot be undone.`)) {
+        try {
+          await deleteSavedMeetingSession(chrome.storage.local, id);
+          await renderStorageDashboard(container);
+        } catch (err) {
+          console.error("[LateMeet] Failed to delete session:", err);
+          alert("Failed to delete session. See console for details.");
+        }
       }
     });
+  });
+
+  const meetingList = container.querySelectorAll<HTMLInputElement>(".storage-meeting-checkbox");
+  const deleteSelectedBtn = container.querySelector<HTMLButtonElement>("#storage-delete-selected");
+  const clearAllBtn = container.querySelector<HTMLButtonElement>("#storage-clear-all");
+  const selectAllBtn = container.querySelector<HTMLButtonElement>("#storage-select-all");
+
+  function updateSelectionState() {
+    const checked = Array.from(meetingList)
+      .filter((c) => c.checked)
+      .map((c) => c.dataset.id!);
+    if (deleteSelectedBtn) deleteSelectedBtn.disabled = checked.length === 0;
+    return checked;
+  }
+
+  meetingList.forEach((cb) => {
+    cb.addEventListener("change", () => updateSelectionState());
+  });
+
+  // Delete selected
+  deleteSelectedBtn?.addEventListener("click", async () => {
+    const selected = updateSelectionState();
+    if (selected.length === 0) return;
+    if (!confirm(`Delete ${selected.length} selected session(s)? This cannot be undone.`)) return;
+    try {
+      await deleteMultipleSavedMeetingSessions(chrome.storage.local, selected);
+      await renderStorageDashboard(container);
+    } catch (err) {
+      console.error("[LateMeet] Failed to delete selected sessions:", err);
+      alert("Failed to delete selected sessions. See console for details.");
+    }
+  });
+
+  // Clear all sessions
+  clearAllBtn?.addEventListener("click", async () => {
+    if (!confirm("Delete ALL saved sessions and clear storage? This cannot be undone.")) return;
+    try {
+      await deleteAllSavedMeetingSessions(chrome.storage.local);
+      await renderStorageDashboard(container);
+    } catch (err) {
+      console.error("[LateMeet] Failed to clear sessions:", err);
+      alert("Failed to clear sessions. See console for details.");
+    }
+  });
+
+  // Select all toggle
+  selectAllBtn?.addEventListener("click", () => {
+    const allChecked = Array.from(meetingList).every((c) => c.checked);
+    meetingList.forEach((c) => (c.checked = !allChecked));
+    if (selectAllBtn) selectAllBtn.setAttribute("aria-pressed", String(!allChecked));
+    updateSelectionState();
   });
 
   const refreshBtn = container.querySelector("#storage-refresh");

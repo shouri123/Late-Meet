@@ -26,6 +26,7 @@
     {
       "matches": ["https://meet.google.com/*"],
       "js": ["src/content.ts"],
+      "css": ["src/content.css"],
       "run_at": "document_idle"
     }
   ],
@@ -64,13 +65,14 @@
     },
     "save-session": {
       "suggested_key": {
-        "default": "Ctrl+Shift+W",
-        "mac": "Command+Shift+W"
+        "default": "Ctrl+Shift+Y",
+        "mac": "Command+Shift+Y"
       },
       "description": "Save the current meeting session"
     }
   },
+  "_comment_csp": "Strengthened CSP: scripts restricted to self only, no unsafe-eval or unsafe-inline",
   "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'self';"
+    "extension_pages": "default-src 'none'; script-src 'self'; style-src 'self'; connect-src https://api.openai.com https://api.elevenlabs.io; img-src 'self' data:; font-src 'self' data:; object-src 'none';"
   }
 }

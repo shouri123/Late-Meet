@@ -1,4 +1,20 @@
 import { VoiceActivityTracker, isChunkViable } from "./audioProcessing";
+import { computeRms, shouldRunVadAnalysis } from "./vadTuning";
+import {
+  DRAIN_TIMEOUT_MS,
+  MAX_BUFFER_MS,
+  MAX_PENDING_CHUNKS,
+  SILENCE_FLUSH_MS,
+  VAD_SAMPLE_MS,
+  WAVEFORM_BUCKETS,
+  WAVEFORM_GAIN,
+  WAVEFORM_INTERVAL_MS,
+} from "./config";
+import {
+  connectMicrophoneToOffscreenAudioGraph,
+  createOffscreenAudioGraph,
+  MICROPHONE_AUDIO_CONSTRAINTS,
+} from "./offscreenAudioGraph";
 
 let mediaStream: MediaStream | null = null;
 let microphoneStream: MediaStream | null = null;
@@ -14,15 +30,6 @@ let pendingChunks: Blob[] = [];
 let isStopping = false;
 let isDrainingQueue = false;
 
-const VAD_SAMPLE_MS = 250;
-// Increased from 50ms (20x/sec) to 100ms (10x/sec)
-// to reduce unnecessary service worker wake-ups
-// and chrome.runtime.sendMessage calls
-const WAVEFORM_INTERVAL_MS = 100;
-const WAVEFORM_BUCKETS = 32;
-const WAVEFORM_GAIN = 6;
-const SILENCE_FLUSH_MS = 1500;
-const MAX_BUFFER_MS = 25000;
 const SILENCE_FLUSH_TICKS = Math.ceil(SILENCE_FLUSH_MS / VAD_SAMPLE_MS);
 let rmsThreshold = 0.012;
 
@@ -30,6 +37,14 @@ let isFlushInProgress = false;
 let isVadBusy = false;
 let silenceTicks = 0;
 let bufferStartTime = 0;
+let recorderMimeType = "";
+// Reused across analyser reads to avoid allocating a Uint8Array on every VAD and
+// waveform tick (≈14×/sec). Sized to the analyser's fftSize when capture starts.
+let analysisBuffer: Uint8Array<ArrayBuffer> | null = null;
+// Tracks whether the last analysed tick detected speech, plus a tick counter, so
+// the VAD loop can throttle analysis while speech is sustained (#632).
+let speechActive = false;
+let vadTickCounter = 0;
 let voiceActivity = new VoiceActivityTracker({
   rmsThreshold: rmsThreshold,
 });
@@ -90,25 +105,23 @@ function pickSupportedMimeType(): string {
 }
 
 function getCurrentRms(): number {
-  if (!analyserNode) return 0;
+  if (!analyserNode || !analysisBuffer) return 0;
 
-  const buffer = new Uint8Array(analyserNode.fftSize);
-  analyserNode.getByteTimeDomainData(buffer);
-
-  let sumSquares = 0;
-
-  for (let i = 0; i < buffer.length; i += 1) {
-    const normalized = (buffer[i] - 128) / 128;
-    sumSquares += normalized * normalized;
-  }
-
-  return Math.sqrt(sumSquares / buffer.length);
+  analyserNode.getByteTimeDomainData(analysisBuffer);
+  return computeRms(analysisBuffer);
 }
 
 function sampleAndSendWaveform() {
-  if (!analyserNode || !mediaRecorder || mediaRecorder.state !== "recording" || isStopping) return;
+  if (
+    !analyserNode ||
+    !analysisBuffer ||
+    !mediaRecorder ||
+    mediaRecorder.state !== "recording" ||
+    isStopping
+  )
+    return;
 
-  const buffer = new Uint8Array(analyserNode.fftSize);
+  const buffer = analysisBuffer;
   analyserNode.getByteTimeDomainData(buffer);
 
   const bucketSize = Math.floor(buffer.length / WAVEFORM_BUCKETS);
@@ -139,35 +152,53 @@ async function flushAudioChunk(force = false) {
       return;
     }
 
-    // In continuous mode, dataavailable only fires on requestData() or stop().
-    // We must wait for the event before draining so the new blob lands in pendingChunks.
-    // A 1 000 ms timeout guards against the event never firing (browser throttling,
-    // system load) which would otherwise leave isFlushInProgress permanently true.
-    await new Promise<void>((resolve) => {
-      const recorder = mediaRecorder!;
-      let settled = false;
-      const finish = () => {
-        if (settled) return;
-        settled = true;
-        clearTimeout(timeoutId);
-        recorder.removeEventListener("dataavailable", onData);
-        resolve();
-      };
-      const onData = () => finish();
-      const timeoutId = setTimeout(() => {
-        relay("requestData timeout — resuming with queued chunks");
-        finish();
-      }, 1000);
-      recorder.addEventListener("dataavailable", onData, { once: true });
-      try {
-        recorder.requestData();
-      } catch (err) {
-        console.error("[LateMeet][offscreen] requestData failed:", err);
-        finish();
-      }
-    });
+    // Finalize the current segment by stopping the recorder. Stopping emits a
+    // complete, self-contained file (WebM initialization segment + media) via
+    // `dataavailable` — unlike `requestData()`, whose post-first blobs are
+    // headerless fragments the STT API cannot decode (see issue #678). A fresh
+    // recorder is then started so the next segment carries its own header too.
+    const previousRecorder = mediaRecorder;
+    // Drop the persistent error listener first so a stop-time error is handled
+    // by the wait helper below instead of recursing into stopCapture().
+    previousRecorder.removeEventListener("error", handleRecorderError);
 
-    await drainPendingChunks();
+    // Wait for the final `dataavailable` so the complete segment is pushed into
+    // pendingChunks before we drain. Per the MediaStream Recording spec the
+    // order is `dataavailable` → `stop`, and on a non-fatal error it is
+    // `error` → `dataavailable` → `stop`, so the final blob always arrives;
+    // a timeout guards against the event never firing.
+    await stopRecorderAndAwaitData(previousRecorder);
+    previousRecorder.removeEventListener("dataavailable", handleRecorderDataAvailable);
+
+    if (isStopping || !recorderStream) {
+      await drainWithTimeout();
+      return;
+    }
+
+    // Start a fresh recorder so the next segment carries its own header. Resume
+    // capture before draining so the inter-segment gap stays minimal.
+    // `MediaRecorder` creation/`start()` can throw synchronously (e.g.
+    // NotSupportedError when the stream has gone inactive); if it does, end
+    // capture cleanly instead of leaving the VAD loop spinning on a dead recorder.
+    try {
+      mediaRecorder = createRecorder();
+      mediaRecorder.start();
+      bufferStartTime = Date.now();
+    } catch (err) {
+      console.error("[LateMeet][offscreen] Failed to restart recorder after flush:", err);
+      relay(`recorder restart failed — ${(err as Error)?.message ?? "unknown error"}`);
+      mediaRecorder = null;
+      await stopCapture();
+      await chrome.runtime
+        .sendMessage({
+          type: "UNEXPECTED_TRACK_END",
+          reason: "Recorder failed to restart after flush",
+        })
+        .catch(() => {});
+      return;
+    }
+
+    await drainWithTimeout();
   } finally {
     isFlushInProgress = false;
   }
@@ -200,6 +231,30 @@ async function postChunk(blob: Blob) {
   }
 }
 
+async function drainWithTimeout() {
+  const drainPromise = drainPendingChunks();
+  const timeoutPromise = new Promise<void>((resolve) => {
+    setTimeout(() => {
+      if (pendingChunks.length > 0 || isDrainingQueue) {
+        relay(
+          `drainPendingChunks exceeded ${DRAIN_TIMEOUT_MS}ms timeout — dropping ${pendingChunks.length} remaining chunks and restarting recorder`,
+        );
+        pendingChunks = [];
+        isDrainingQueue = false;
+        if (mediaRecorder?.state === "paused" || mediaRecorder?.state === "recording") {
+          try {
+            mediaRecorder.stop();
+          } catch (e) {
+            console.warn("[LateMeet][offscreen] Failed to stop recorder on drain timeout:", e);
+          }
+        }
+      }
+      resolve();
+    }, DRAIN_TIMEOUT_MS);
+  });
+  await Promise.race([drainPromise, timeoutPromise]);
+}
+
 async function drainPendingChunks() {
   if (isDrainingQueue) return;
 
@@ -215,6 +270,14 @@ async function drainPendingChunks() {
     }
   } finally {
     isDrainingQueue = false;
+    if (mediaRecorder?.state === "paused") {
+      relay("pendingChunks drained, resuming recording");
+      try {
+        mediaRecorder.resume();
+      } catch (e) {
+        console.warn("[LateMeet][offscreen] Failed to resume recorder:", e);
+      }
+    }
   }
 }
 
@@ -248,11 +311,14 @@ async function cleanupResources() {
 
   mediaRecorder = null;
   analyserNode = null;
+  analysisBuffer = null;
   audioSources = [];
   pendingChunks = [];
   isStopping = false;
   isVadBusy = false;
   silenceTicks = 0;
+  speechActive = false;
+  vadTickCounter = 0;
   bufferStartTime = 0;
 
   voiceActivity = new VoiceActivityTracker({
@@ -275,32 +341,122 @@ async function getTabAudioStream(streamId: string) {
 async function getMicrophoneStream() {
   try {
     return await navigator.mediaDevices.getUserMedia({
-      audio: {
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true,
-      },
+      audio: MICROPHONE_AUDIO_CONSTRAINTS,
       video: false,
     });
   } catch (err) {
     console.warn("[LateMeet][offscreen] Microphone capture unavailable:", err);
-
     return null;
   }
 }
 
-function connectSourceToRecorder(
-  stream: MediaStream,
-  destination: MediaStreamAudioDestinationNode,
-) {
-  if (!audioContext || !analyserNode) return;
+async function stopMediaRecorder() {
+  if (mediaRecorder && mediaRecorder.state !== "inactive") {
+    const recorder = mediaRecorder;
 
-  const source = audioContext.createMediaStreamSource(stream);
+    await new Promise<void>((resolve) => {
+      const timeout = setTimeout(resolve, 2000);
 
-  source.connect(destination);
-  source.connect(analyserNode);
+      recorder.addEventListener("stop", () => resolve(), { once: true });
 
-  audioSources.push(source);
+      recorder.addEventListener("error", () => resolve(), { once: true });
+
+      try {
+        recorder.stop();
+      } catch (err) {
+        console.warn("[LateMeet][offscreen] Recorder stop failed:", err);
+        resolve();
+      }
+
+      recorder.addEventListener("stop", () => clearTimeout(timeout), { once: true });
+    });
+  }
+}
+
+// Stops a recorder and resolves once its final `dataavailable` has fired (which
+// handleRecorderDataAvailable pushes into pendingChunks), so callers can drain a
+// complete segment. Resolves on `stop` for the no-data case and on a 2 000 ms
+// timeout so a missing event can't wedge the flush loop.
+function stopRecorderAndAwaitData(recorder: MediaRecorder): Promise<void> {
+  return new Promise<void>((resolve) => {
+    if (recorder.state === "inactive") {
+      resolve();
+      return;
+    }
+
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeoutId);
+      recorder.removeEventListener("dataavailable", onData);
+      recorder.removeEventListener("stop", onStop);
+      resolve();
+    };
+    // handleRecorderDataAvailable is registered first, so the blob is already in
+    // pendingChunks by the time this listener runs and resolves.
+    const onData = () => finish();
+    const onStop = () => finish();
+    const timeoutId = setTimeout(() => {
+      relay("recorder stop timeout — proceeding with queued chunks");
+      finish();
+    }, 2000);
+
+    recorder.addEventListener("dataavailable", onData, { once: true });
+    recorder.addEventListener("stop", onStop, { once: true });
+
+    try {
+      recorder.stop();
+    } catch (err) {
+      console.error("[LateMeet][offscreen] recorder stop failed:", err);
+      finish();
+    }
+  });
+}
+
+function handleRecorderDataAvailable(event: BlobEvent) {
+  console.log("[LateMeet][offscreen] Chunk received:", {
+    type: event.data?.type,
+    size: event.data?.size,
+  });
+
+  if (event.data && event.data.size > 0) {
+    pendingChunks.push(event.data);
+    if (pendingChunks.length >= MAX_PENDING_CHUNKS && mediaRecorder?.state === "recording") {
+      relay(`pendingChunks cap reached (${MAX_PENDING_CHUNKS}), pausing recording`);
+      try {
+        mediaRecorder.pause();
+      } catch (e) {
+        console.warn("[LateMeet][offscreen] Failed to pause recorder:", e);
+      }
+    }
+  }
+}
+
+async function handleRecorderError(err: Event) {
+  console.error("[LateMeet][offscreen] Recorder error:", err);
+
+  if (!isStopping) {
+    await stopCapture();
+  }
+}
+
+// Builds a MediaRecorder bound to the active recorder stream with the shared
+// listeners attached. A new recorder is created per capture and again on every
+// flush so each emitted file is independently decodable (see issue #678).
+function createRecorder(): MediaRecorder {
+  if (!recorderStream) {
+    throw new Error("Cannot create recorder without an active stream");
+  }
+
+  const recorder = recorderMimeType
+    ? new MediaRecorder(recorderStream, { mimeType: recorderMimeType })
+    : new MediaRecorder(recorderStream);
+
+  recorder.addEventListener("dataavailable", handleRecorderDataAvailable);
+  recorder.addEventListener("error", handleRecorderError);
+
+  return recorder;
 }
 
 async function startCapture(
@@ -332,10 +488,26 @@ async function startCapture(
 
       if (isStopping) return;
 
+      isStopping = true;
+
       try {
-        await stopCapture();
+        if (vadTimer) {
+          clearInterval(vadTimer);
+          vadTimer = null;
+        }
+
+        if (waveformTimer) {
+          clearInterval(waveformTimer);
+          waveformTimer = null;
+        }
+
+        await stopMediaRecorder();
+
+        await drainPendingChunks();
+        await cleanupResources();
       } catch (err) {
         console.error("[LateMeet][offscreen] Cleanup after track end failed:", err);
+        await cleanupResources();
       } finally {
         await chrome.runtime
           .sendMessage({
@@ -353,55 +525,42 @@ async function startCapture(
     await audioContext.resume();
   }
 
-  const destination = audioContext.createMediaStreamDestination();
+  const audioGraph = createOffscreenAudioGraph(audioContext, mediaStream);
+  const destination = audioGraph.recorderDestination;
 
-  analyserNode = audioContext.createAnalyser();
-  analyserNode.fftSize = 1024;
-
-  const tabSource = audioContext.createMediaStreamSource(mediaStream);
-
-  tabSource.connect(destination);
-  tabSource.connect(analyserNode);
-  tabSource.connect(audioContext.destination);
-
-  audioSources.push(tabSource);
+  analyserNode = audioGraph.analyser;
+  audioSources.push(audioGraph.tabSource);
 
   if (includeMicrophone) {
     microphoneStream = await getMicrophoneStream();
 
     if (microphoneStream) {
-      connectSourceToRecorder(microphoneStream, destination);
+      const microphoneSource = connectMicrophoneToOffscreenAudioGraph(
+        audioContext,
+        microphoneStream,
+        audioGraph,
+      );
+
+      audioSources.push(microphoneSource);
+
+      microphoneStream.getTracks().forEach((track) => {
+        track.onended = () => {
+          console.warn("[LateMeet][offscreen] Microphone track ended unexpectedly");
+          if (isStopping) return;
+          relay("Microphone track ended unexpectedly (input device disconnected)");
+        };
+      });
     }
   }
 
   recorderStream = destination.stream;
 
-  const mimeType = pickSupportedMimeType();
+  recorderMimeType = pickSupportedMimeType();
+  mediaRecorder = createRecorder();
 
-  mediaRecorder = mimeType
-    ? new MediaRecorder(recorderStream, { mimeType })
-    : new MediaRecorder(recorderStream);
-
-  mediaRecorder.addEventListener("dataavailable", (event: BlobEvent) => {
-    console.log("[LateMeet][offscreen] Chunk received:", {
-      type: event.data?.type,
-      size: event.data?.size,
-    });
-
-    if (event.data && event.data.size > 0) {
-      pendingChunks.push(event.data);
-    }
-  });
-
-  mediaRecorder.addEventListener("error", async (err) => {
-    console.error("[LateMeet][offscreen] Recorder error:", err);
-
-    if (!isStopping) {
-      await stopCapture();
-    }
-  });
-
-  // Continuous mode: no timeslice argument — we control flush timing via VAD.
+  // No timeslice argument — flush timing is controlled by VAD. Each flush stops
+  // and restarts the recorder so every emitted chunk is a complete file with its
+  // own WebM header (see issue #678).
   mediaRecorder.start();
 
   waveformTimer = setInterval(sampleAndSendWaveform, WAVEFORM_INTERVAL_MS);
@@ -411,30 +570,43 @@ async function startCapture(
   });
 
   silenceTicks = 0;
+  speechActive = false;
+  vadTickCounter = 0;
   bufferStartTime = Date.now();
 
   vadTimer = setInterval(async () => {
-    if (isStopping || isVadBusy) return;
+    if (isStopping || isVadBusy || isDrainingQueue) return;
+
+    vadTickCounter += 1;
+    const overflowReached = Date.now() - bufferStartTime >= MAX_BUFFER_MS;
+    const runAnalysis = shouldRunVadAnalysis(speechActive, vadTickCounter);
+
+    // While speech is sustained, skip the analyser read on alternate ticks to
+    // cut CPU (#632). The overflow flush is time-based, so it still runs.
+    if (!runAnalysis && !overflowReached) return;
 
     isVadBusy = true;
 
     try {
-      const rms = getCurrentRms();
-      voiceActivity.observe(rms);
+      let naturalPause = false;
+      let rms = -1;
 
-      if (rms < rmsThreshold) {
-        silenceTicks++;
-      } else {
-        silenceTicks = 0;
+      if (runAnalysis) {
+        rms = getCurrentRms();
+        voiceActivity.observe(rms);
+        speechActive = rms >= rmsThreshold;
+        if (speechActive) {
+          silenceTicks = 0;
+        } else {
+          silenceTicks++;
+        }
+        naturalPause = silenceTicks >= SILENCE_FLUSH_TICKS;
       }
-
-      const naturalPause = silenceTicks >= SILENCE_FLUSH_TICKS;
-      const overflowReached = Date.now() - bufferStartTime >= MAX_BUFFER_MS;
 
       if (naturalPause || overflowReached) {
         const reason = naturalPause ? "silence-pause" : "overflow-cap";
         relay(
-          `flush triggered — reason=${reason} rms=${rms.toFixed(4)} silenceTicks=${silenceTicks}`,
+          `flush triggered — reason=${reason} rms=${rms >= 0 ? rms.toFixed(4) : "n/a"} silenceTicks=${silenceTicks}`,
         );
         silenceTicks = 0;
         bufferStartTime = Date.now();
@@ -474,26 +646,7 @@ async function stopCapture() {
       waveformTimer = null;
     }
 
-    if (mediaRecorder && mediaRecorder.state !== "inactive") {
-      const recorder = mediaRecorder;
-
-      await new Promise<void>((resolve) => {
-        const timeout = setTimeout(resolve, 2000);
-
-        recorder.addEventListener("stop", () => resolve(), { once: true });
-
-        recorder.addEventListener("error", () => resolve(), { once: true });
-
-        try {
-          recorder.stop();
-        } catch (err) {
-          console.warn("[LateMeet][offscreen] Recorder stop failed:", err);
-          resolve();
-        }
-
-        recorder.addEventListener("stop", () => clearTimeout(timeout), { once: true });
-      });
-    }
+    await stopMediaRecorder();
 
     await drainPendingChunks();
 
@@ -511,6 +664,11 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   }
 
   (async () => {
+    if (message.type === "OFFSCREEN_PING") {
+      sendResponse({ success: true });
+      return;
+    }
+
     if (message.type === "OFFSCREEN_START_CAPTURE") {
       try {
         const captureInfo = await startCapture(
@@ -537,6 +695,11 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     }
 
     if (message.type === "OFFSCREEN_STOP_CAPTURE") {
+      if (isStopping) {
+        sendResponse({ success: false, alreadyStopping: true });
+        return;
+      }
+
       try {
         await stopCapture();
       } finally {

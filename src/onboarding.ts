@@ -1,4 +1,9 @@
-import { getApiCredentials, saveApiCredentials } from "./utils/credentials";
+import {
+  getApiCredentials,
+  saveApiCredentials,
+  isUnlocked,
+  unlockCredentials,
+} from "./utils/credentials";
 import { validateOpenAIKey, validateElevenLabsKey } from "./utils/api";
 
 export async function renderOnboarding(container: HTMLElement) {
@@ -52,6 +57,10 @@ export async function renderOnboarding(container: HTMLElement) {
         <h2>API Keys</h2>
         <p>Provide your OpenAI API key to enable summarization features. ElevenLabs is optional for TTS.</p>
         <div class="form-group">
+          <label for="onb-passphrase">Encryption Passphrase</label>
+          <input id="onb-passphrase" type="password" class="form-input" placeholder="Create or enter passphrase..." />
+        </div>
+        <div class="form-group">
           <label for="onb-openai">OpenAI API Key</label>
           <input id="onb-openai" class="form-input" placeholder="sk-xxxx" />
           <button id="onb-validate-openai" class="btn">Validate</button>
@@ -85,7 +94,7 @@ export async function renderOnboarding(container: HTMLElement) {
         <ol>
           <li>Join a Google Meet</li>
           <li>Open the Late Meet popup and start Copilot</li>
-          <li>Use "Catch Me Up" for shortings</li>
+          <li>Use "Catch Me Up" for summaries</li>
         </ol>
       `,
     },
@@ -113,6 +122,7 @@ export async function renderOnboarding(container: HTMLElement) {
 
     // Wire validate/save controls if API step
     if (step.id === "api-keys") {
+      const passInput = container.querySelector<HTMLInputElement>("#onb-passphrase")!;
       const openaiInput = container.querySelector<HTMLInputElement>("#onb-openai")!;
       const elevenInput = container.querySelector<HTMLInputElement>("#onb-eleven")!;
       const openaiStatus = container.querySelector<HTMLDivElement>("#onb-openai-status")!;
@@ -126,18 +136,39 @@ export async function renderOnboarding(container: HTMLElement) {
         if (creds.elevenlabs_api_key) elevenInput.value = creds.elevenlabs_api_key;
       })();
 
+      type UnlockResult = { unlocked: true } | { unlocked: false; reason: "missing" | "wrong" };
+
+      async function ensureUnlocked(): Promise<UnlockResult> {
+        if (isUnlocked()) return { unlocked: true };
+        const pass = passInput.value;
+        if (!pass) return { unlocked: false, reason: "missing" };
+        const ok = await unlockCredentials(pass);
+        return ok ? { unlocked: true } : { unlocked: false, reason: "wrong" };
+      }
+
+      function unlockFailureMessage(reason: "missing" | "wrong"): string {
+        return reason === "missing"
+          ? "Enter an encryption passphrase to save this API key."
+          : "Incorrect passphrase — please try again.";
+      }
+
       valOpenBtn.addEventListener("click", async () => {
         openaiStatus.textContent = "Validating...";
         const key = openaiInput.value.trim();
         try {
           const ok = await validateOpenAIKey(key);
           if (ok) {
-            openaiStatus.textContent = "Valid OpenAI key — saved.";
+            const result = await ensureUnlocked();
+            if (!result.unlocked) {
+              openaiStatus.textContent = unlockFailureMessage(result.reason);
+              return;
+            }
             await saveApiCredentials({ openai_api_key: key });
+            openaiStatus.textContent = "Valid OpenAI key — saved.";
           } else {
             openaiStatus.textContent = "Invalid OpenAI key.";
           }
-        } catch (err) {
+        } catch {
           openaiStatus.textContent = "Validation error.";
         }
       });
@@ -148,12 +179,17 @@ export async function renderOnboarding(container: HTMLElement) {
         try {
           const ok = await validateElevenLabsKey(key);
           if (ok) {
-            elevenStatus.textContent = "Valid ElevenLabs key — saved.";
+            const result = await ensureUnlocked();
+            if (!result.unlocked) {
+              elevenStatus.textContent = unlockFailureMessage(result.reason);
+              return;
+            }
             await saveApiCredentials({ elevenlabs_api_key: key });
+            elevenStatus.textContent = "Valid ElevenLabs key — saved.";
           } else {
             elevenStatus.textContent = "Invalid ElevenLabs key.";
           }
-        } catch (err) {
+        } catch {
           elevenStatus.textContent = "Validation error.";
         }
       });
@@ -162,19 +198,13 @@ export async function renderOnboarding(container: HTMLElement) {
     if (step.id === "complete") {
       const openBtn = container.querySelector<HTMLButtonElement>("#onb-open-dashboard");
       const finishBtn = container.querySelector<HTMLButtonElement>("#onb-finish");
-      openBtn?.addEventListener("click", async () => {
-        const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-        const tabId = tabs[0]?.id;
-        if (typeof tabId === "number") {
-          await chrome.sidePanel.open({ tabId });
-        } else {
-          console.warn("Unable to determine current tab id for sidePanel.open");
-        }
+      openBtn?.addEventListener("click", () => {
+        chrome.sidePanel.open({ windowId: chrome.windows.WINDOW_ID_CURRENT });
       });
       finishBtn?.addEventListener("click", async () => {
         await chrome.storage.local.set({ onboardingCompleted: true });
         container.hidden = true;
-        location.href = "src/options.html";
+        location.href = "options.html";
       });
     }
   }
@@ -194,7 +224,7 @@ export async function renderOnboarding(container: HTMLElement) {
       // Finish
       await chrome.storage.local.set({ onboardingCompleted: true });
       container.hidden = true;
-      location.href = "src/options.html";
+      location.href = "options.html";
     }
   });
 
@@ -202,7 +232,7 @@ export async function renderOnboarding(container: HTMLElement) {
     if (confirm("Skip the onboarding? You can always view it later in Settings.")) {
       await chrome.storage.local.set({ onboardingCompleted: true });
       container.hidden = true;
-      location.href = "src/options.html";
+      location.href = "options.html";
     }
   });
 

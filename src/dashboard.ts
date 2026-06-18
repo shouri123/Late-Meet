@@ -10,8 +10,23 @@ import {
 import { initTheme } from "./theme.js";
 import { resolveManualMeetTab } from "./meetingTabs";
 import { startDashboardAudioCapture } from "./dashboardCapture";
+import { escapeHtml, formatDuration, sanitizeTopicStatus } from "./utils/domHelpers";
+import { sanitizeDataAttr } from "./utils/sanitize";
+import { renderApiUsageDashboard } from "./apiUsageDashboard";
+
+const UI_TRUNCATION_MAX = 50;
 
 initTheme();
+
+function truncatedNoticeHtml(key: string, total: number | undefined): string {
+  if (total === undefined || total <= UI_TRUNCATION_MAX) return "";
+  return `<div class="truncated-notice">Showing last ${UI_TRUNCATION_MAX} of ${total} ${key}</div>`;
+}
+
+function truncatedNoticeText(key: string, total: number | undefined): string {
+  if (total === undefined || total <= UI_TRUNCATION_MAX) return "";
+  return `Showing last ${UI_TRUNCATION_MAX} of ${total} ${key}`;
+}
 
 /** Securely checks whether a URL belongs to meet.google.com using URL parsing (not substring matching). */
 function isMeetHostname(url: string | null | undefined): boolean {
@@ -264,6 +279,10 @@ document.addEventListener("DOMContentLoaded", async () => {
           else if (tabId === "timeline") updateTimeline(lastState?.timeline || []);
           else if (tabId === "transcript") updateTranscript(lastState?.transcript || []);
           else if (tabId === "history" || tabId === "sessions") loadMeetingHistory();
+          else if (tabId === "usage") {
+            const usageContainer = document.getElementById("sidepanel-usage-container");
+            if (usageContainer) renderApiUsageDashboard(usageContainer);
+          }
         }, 150);
       }
     });
@@ -472,22 +491,25 @@ document.addEventListener("DOMContentLoaded", async () => {
     const summaryEl = document.getElementById("dash-summary");
     if (summaryEl) {
       if (Array.isArray(state.summaryItems) && state.summaryItems.length > 0) {
-        summaryEl.innerHTML = state.summaryItems
-          .map((item) => {
-            const label = escapeHtml(item.timestampLabel || item.timestamp || "00:00");
-            const timestampChunk = item.chunkId
-              ? `<button type="button" class="timestamp-link" data-chunk-id="${escapeHtml(
-                  item.chunkId,
-                )}" aria-label="Jump to transcript at ${label}">${label}</button>`
-              : `<span class="timestamp-text">${label}</span>`;
-            return `
+        const notice = truncatedNoticeHtml("summary items", state.truncatedCounts?.summaryItems);
+        summaryEl.innerHTML =
+          notice +
+          state.summaryItems
+            .map((item) => {
+              const label = escapeHtml(item.timestampLabel || item.timestamp || "00:00");
+              const timestampChunk = item.chunkId
+                ? `<button type="button" class="timestamp-link" data-chunk-id="${escapeHtml(
+                    item.chunkId,
+                  )}" aria-label="Jump to transcript at ${label}">${label}</button>`
+                : `<span class="timestamp-text">${label}</span>`;
+              return `
               <div class="summary-item">
                 <div class="summary-text">${escapeHtml(item.text || "")}</div>
                 <div class="summary-meta">${timestampChunk}</div>
               </div>
             `;
-          })
-          .join("");
+            })
+            .join("");
       } else {
         summaryEl.textContent = state.summary || "Waiting for conversation to begin...";
       }
@@ -544,6 +566,20 @@ document.addEventListener("DOMContentLoaded", async () => {
     // Transcript Tab
     if (loadedTabs.has("transcript")) updateTranscript(state.transcript);
     attachTimestampLinkListeners();
+
+    // Live Session Token & Cost Tracker
+    const trackerCard = document.getElementById("live-tracker-card");
+    const liveTokensEl = document.getElementById("live-tokens");
+    const liveCostEl = document.getElementById("live-cost");
+    if (trackerCard) {
+      if (state.isActive) {
+        trackerCard.style.display = "";
+        if (liveTokensEl) liveTokensEl.textContent = (state.tokensUsed ?? 0).toLocaleString();
+        if (liveCostEl) liveCostEl.textContent = `$${(state.estimatedCost ?? 0).toFixed(4)}`;
+      } else {
+        trackerCard.style.display = "none";
+      }
+    }
   }
 
   // ——— Sentiment ———
@@ -570,8 +606,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     const list = document.getElementById("dash-insights-list");
     if (!list) return;
     if (!insights || insights.length === 0) {
-      list.innerHTML =
-        '<li class="empty-msg">Insights will appear as the conversation progresses</li>';
+      list.innerHTML = getEmptyStateHTML(
+        "Insights will appear as the conversation progresses",
+        true,
+      );
       return;
     }
     list.innerHTML = insights
@@ -599,7 +637,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const list = document.getElementById("dash-unresolved-list");
     if (!list) return;
     if (!discussions || discussions.length === 0) {
-      list.innerHTML = '<li class="empty-msg">No unresolved discussions yet</li>';
+      list.innerHTML = getEmptyStateHTML("No unresolved discussions yet", true);
       return;
     }
     list.innerHTML = discussions.map((d) => `<li>${escapeHtml(d || "")}</li>`).join("");
@@ -609,7 +647,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const list = document.getElementById("dash-contradictions-list");
     if (!list) return;
     if (!contradictions || contradictions.length === 0) {
-      list.innerHTML = '<li class="empty-msg">No contradictions detected</li>';
+      list.innerHTML = getEmptyStateHTML("No contradictions detected", true);
       return;
     }
     list.innerHTML = contradictions
@@ -633,9 +671,12 @@ document.addEventListener("DOMContentLoaded", async () => {
       container.innerHTML = '<div class="empty-msg">No topics detected yet</div>';
       return;
     }
-    container.innerHTML = topics
-      .map(
-        (t) => `
+    const notice = truncatedNoticeHtml("topics", lastState?.truncatedCounts?.topics);
+    container.innerHTML =
+      notice +
+      topics
+        .map(
+          (t) => `
       <div class="topic-full-item">
         <div class="topic-full-dot ${sanitizeTopicStatus(t.status)}"></div>
         <div class="topic-full-info">
@@ -645,8 +686,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         <span class="topic-full-badge ${sanitizeTopicStatus(t.status)}">${escapeHtml(t.status || "active")}</span>
       </div>
     `,
-      )
-      .join("");
+        )
+        .join("");
   }
 
   // ——— Decisions ———
@@ -654,28 +695,101 @@ document.addEventListener("DOMContentLoaded", async () => {
     const container = document.getElementById("dash-decisions-list");
     if (!container) return;
     if (!decisions || decisions.length === 0) {
-      container.innerHTML = '<div class="empty-msg">No decisions detected yet</div>';
+      container.innerHTML = getEmptyStateHTML("No decisions detected yet");
       return;
     }
-    container.innerHTML = decisions
-      .map((d) => {
-        const label = escapeHtml(d.timestampLabel || d.timestamp || "00:00");
-        const timestampChunk = d.chunkId
-          ? `<button type="button" class="timestamp-link" data-chunk-id="${escapeHtml(
-              d.chunkId,
-            )}" aria-label="Jump to transcript at ${label}">${label}</button>`
-          : d.timestamp
-            ? ` <span class="timestamp-text">${escapeHtml(d.timestamp)}</span>`
-            : "";
+    container.innerHTML = "";
+    const noticeText = truncatedNoticeText("decisions", lastState?.truncatedCounts?.decisions);
+    if (noticeText) {
+      const noticeDiv = document.createElement("div");
+      noticeDiv.className = "truncated-notice";
+      noticeDiv.textContent = noticeText;
+      container.appendChild(noticeDiv);
+    }
+    decisions.forEach((d) => {
+      const wrapper = document.createElement("div");
+      wrapper.className = "decision-item";
 
-        return `
-      <div class="decision-item">
-        <div class="decision-text">${escapeHtml(d.text || "")} ${d.classification === "tentative" ? '<span style="font-size: 11px; background: #FEF3C7; color: #D97706; padding: 2px 6px; border-radius: 4px; margin-left: 6px;">Tentative</span>' : ""}</div>
-        <div class="decision-meta">${d.by ? `By ${escapeHtml(d.by)}` : ""}${timestampChunk ? ` • ${timestampChunk}` : ""}</div>
-      </div>
-    `;
-      })
-      .join("");
+      const contentDiv = document.createElement("div");
+      contentDiv.className = "decision-content";
+
+      const textDiv = document.createElement("div");
+      textDiv.className = "decision-text";
+      textDiv.textContent = d.text || "";
+      if (d.classification === "tentative") {
+        const tentativeSpan = document.createElement("span");
+        tentativeSpan.style.cssText =
+          "font-size: 11px; background: #FEF3C7; color: #D97706; padding: 2px 6px; border-radius: 4px; margin-left: 6px;";
+        tentativeSpan.textContent = "Tentative";
+        textDiv.appendChild(tentativeSpan);
+      }
+      contentDiv.appendChild(textDiv);
+
+      const metaDiv = document.createElement("div");
+      metaDiv.className = "decision-meta";
+
+      const metaParts: string[] = [];
+      if (d.by) {
+        metaParts.push(`By ${d.by}`);
+      }
+      metaDiv.textContent = metaParts.join(" • ");
+
+      const label = d.timestampLabel || d.timestamp || "00:00";
+      const chunkId = d.chunkId;
+      if (chunkId) {
+        if (metaParts.length > 0) {
+          metaDiv.appendChild(document.createTextNode(" • "));
+        }
+        const timestampButton = document.createElement("button");
+        timestampButton.type = "button";
+        timestampButton.className = "timestamp-link";
+        timestampButton.textContent = label;
+        timestampButton.setAttribute("aria-label", `Jump to transcript at ${label}`);
+        timestampButton.dataset.chunkId = chunkId;
+        timestampButton.dataset.hasListener = "true";
+        timestampButton.addEventListener("click", () => navigateToTranscriptChunk(chunkId));
+        timestampButton.addEventListener("keydown", (event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            navigateToTranscriptChunk(chunkId);
+          }
+        });
+        metaDiv.appendChild(timestampButton);
+      } else if (d.timestamp) {
+        if (metaParts.length > 0) {
+          metaDiv.appendChild(document.createTextNode(" • "));
+        }
+        const timestampSpan = document.createElement("span");
+        timestampSpan.className = "timestamp-text";
+        timestampSpan.textContent = d.timestamp;
+        metaDiv.appendChild(timestampSpan);
+      }
+      contentDiv.appendChild(metaDiv);
+
+      const copyBtn = document.createElement("button");
+      copyBtn.type = "button";
+      copyBtn.className = "copy-btn";
+      copyBtn.setAttribute("aria-label", "Copy decision to clipboard");
+      copyBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>`;
+      copyBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        let copyText = `${d.text || ""}`;
+        if (d.by) {
+          copyText += ` - Announced by: ${d.by}`;
+        }
+        navigator.clipboard
+          .writeText(copyText)
+          .then(() => showToast("Copied to clipboard!", "success"))
+          .catch((err) => {
+            console.error("Failed to copy decision: ", err);
+            showToast("Failed to copy!", "error");
+          });
+      });
+
+      wrapper.appendChild(contentDiv);
+      wrapper.appendChild(copyBtn);
+      container.appendChild(wrapper);
+    });
   }
 
   // ——— Action Items ———
@@ -683,11 +797,18 @@ document.addEventListener("DOMContentLoaded", async () => {
     const container = document.getElementById("dash-actions-list");
     if (!container) return;
     if (!actions || actions.length === 0) {
-      container.innerHTML = '<div class="empty-msg">No action items detected yet</div>';
+      container.innerHTML = getEmptyStateHTML("No action items detected yet");
       return;
     }
 
     container.innerHTML = "";
+    const noticeText = truncatedNoticeText("action items", lastState?.truncatedCounts?.actionItems);
+    if (noticeText) {
+      const noticeDiv = document.createElement("div");
+      noticeDiv.className = "truncated-notice";
+      noticeDiv.textContent = noticeText;
+      container.appendChild(noticeDiv);
+    }
     actions.forEach((a, idx) => {
       const normalized = normalizeActionItem(a);
       const task = normalized?.task ?? resolveActionKey(a);
@@ -756,9 +877,17 @@ document.addEventListener("DOMContentLoaded", async () => {
         timestampButton.className = "timestamp-link";
         timestampButton.textContent = timestampLabel;
         timestampButton.setAttribute("aria-label", `Jump to transcript at ${timestampLabel}`);
-        if (a.chunkId) {
-          timestampButton.dataset.chunkId = a.chunkId;
+        const chunkId = a.chunkId;
+        if (chunkId) {
+          timestampButton.dataset.chunkId = chunkId;
           timestampButton.dataset.hasListener = "true";
+          timestampButton.addEventListener("click", () => navigateToTranscriptChunk(chunkId));
+          timestampButton.addEventListener("keydown", (event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              navigateToTranscriptChunk(chunkId);
+            }
+          });
         } else {
           timestampButton.disabled = true;
           timestampButton.classList.add("timestamp-text");
@@ -777,8 +906,33 @@ document.addEventListener("DOMContentLoaded", async () => {
         taskDiv.classList.toggle("action-task--done", isDone);
       });
 
+      const copyBtn = document.createElement("button");
+      copyBtn.type = "button";
+      copyBtn.className = "copy-btn";
+      copyBtn.setAttribute("aria-label", "Copy action item to clipboard");
+      copyBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>`;
+      copyBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const checkMark = checkbox.checked ? "[x]" : "[ ]";
+        let copyText = `${checkMark} ${task}`;
+        if (owner) {
+          copyText += ` - Assignee: ${owner}`;
+        }
+        if (deadline) {
+          copyText += ` (Due: ${deadline})`;
+        }
+        navigator.clipboard
+          .writeText(copyText)
+          .then(() => showToast("Copied to clipboard!", "success"))
+          .catch((err) => {
+            console.error("Failed to copy action item: ", err);
+            showToast("Failed to copy!", "error");
+          });
+      });
+
       wrapper.appendChild(checkbox);
       wrapper.appendChild(label);
+      wrapper.appendChild(copyBtn);
       container.appendChild(wrapper);
     });
   }
@@ -788,26 +942,29 @@ document.addEventListener("DOMContentLoaded", async () => {
     const container = document.getElementById("dash-participants-list");
     if (!container) return;
     if (!participants || participants.length === 0) {
-      container.innerHTML = '<div class="empty-msg">No participants detected</div>';
+      container.innerHTML = getEmptyStateHTML("No participants detected");
       return;
     }
 
     const isMeetSession = isMeetHostname(meetingUrl);
-    container.innerHTML = participants
-      .map((name) => {
-        const isLate = lateJoiners?.includes(name);
-        const rawName = String(name || "");
-        const safeName = escapeHtml(rawName);
-        const initials = escapeHtml(
-          rawName
-            .split(" ")
-            .filter(Boolean)
-            .map((w) => w[0])
-            .join("")
-            .toUpperCase()
-            .slice(0, 2),
-        );
-        return `
+    const notice = truncatedNoticeHtml("participants", lastState?.truncatedCounts?.participants);
+    container.innerHTML =
+      notice +
+      participants
+        .map((name) => {
+          const isLate = lateJoiners?.includes(name);
+          const rawName = String(name || "");
+          const safeName = escapeHtml(rawName);
+          const initials = escapeHtml(
+            rawName
+              .split(" ")
+              .filter(Boolean)
+              .map((w) => w[0])
+              .join("")
+              .toUpperCase()
+              .slice(0, 2),
+          );
+          return `
         <div class="participant-item">
           <div class="participant-avatar">${initials}</div>
           <span class="participant-name">${safeName}</span>
@@ -816,8 +973,8 @@ document.addEventListener("DOMContentLoaded", async () => {
           </span>
         </div>
       `;
-      })
-      .join("");
+        })
+        .join("");
 
     // Late joiner section
     const lateCard = document.getElementById("late-joiners-card");
@@ -852,15 +1009,19 @@ document.addEventListener("DOMContentLoaded", async () => {
     const container = document.getElementById("dash-timeline");
     if (!container) return;
     if (!timeline || timeline.length === 0) {
-      container.innerHTML =
-        '<div class="empty-msg">Timeline will build as the meeting progresses</div>';
+      container.innerHTML = container.innerHTML = getEmptyStateHTML(
+        "Timeline will build as the meeting progresses",
+      );
       return;
     }
 
-    container.innerHTML = timeline
-      .map((entry) => {
-        const icon = getTimelineIcon(entry.event);
-        return `
+    const notice = truncatedNoticeHtml("timeline events", lastState?.truncatedCounts?.timeline);
+    container.innerHTML =
+      notice +
+      timeline
+        .map((entry) => {
+          const icon = getTimelineIcon(entry.event);
+          return `
         <div class="timeline-item">
           <div class="timeline-marker">${icon}</div>
           <div class="timeline-info">
@@ -869,8 +1030,8 @@ document.addEventListener("DOMContentLoaded", async () => {
           </div>
         </div>
       `;
-      })
-      .join("");
+        })
+        .join("");
   }
 
   function getTimelineIcon(event: string) {
@@ -914,7 +1075,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   function createTranscriptEntryHTML(entry: TranscriptEntry): string {
     const timeStr = escapeHtml(entry.timestampLabel || formatDuration(entry.timestamp || 0));
     const speaker = escapeHtml(entry.speaker || "Unknown");
-    const initials = speaker
+    const initials = (entry.speaker || "Unknown")
       .split(" ")
       .filter(Boolean)
       .map((w) => w[0])
@@ -933,8 +1094,29 @@ document.addEventListener("DOMContentLoaded", async () => {
           <div class="transcript-speaker">${speaker}</div>
           <div class="transcript-text">${text}</div>
         </div>
+        <button type="button" class="copy-transcript-btn" 
+                data-speaker="${speaker}" 
+                data-time="${timeStr}" 
+                data-message="${text}" 
+                title="Copy message to clipboard" 
+                aria-label="Copy message to clipboard">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>
+        </button>
       </div>
     `;
+  }
+
+  function maybeAppendTranscriptNotice() {
+    if (!transcriptContainer || renderedTranscriptCount !== 0) return;
+    const noticeText = truncatedNoticeText(
+      "transcript entries",
+      lastState?.truncatedCounts?.transcript,
+    );
+    if (!noticeText) return;
+    const noticeDiv = document.createElement("div");
+    noticeDiv.className = "truncated-notice";
+    noticeDiv.textContent = noticeText;
+    transcriptContainer.appendChild(noticeDiv);
   }
 
   function updateTranscript(transcript: TranscriptEntry[]) {
@@ -953,6 +1135,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       renderedTranscriptCount = 0;
       transcriptContainer.innerHTML = "";
     }
+
+    maybeAppendTranscriptNotice();
 
     // Only render new entries that haven't been rendered yet
     if (transcript.length > renderedTranscriptCount) {
@@ -1096,6 +1280,28 @@ document.addEventListener("DOMContentLoaded", async () => {
       md += `_No insights available_\n\n`;
     }
 
+    md += `## Timeline\n`;
+    if (state.timeline?.length) {
+      state.timeline.forEach((e) => {
+        md += `- [${formatDuration(e.elapsed || 0)}] ${e.event}\n`;
+      });
+      md += "\n";
+    } else {
+      md += `_No timeline events recorded_\n\n`;
+    }
+
+    md += `## Transcript\n`;
+    if (state.transcript?.length) {
+      const start =
+        state.startTime || (state.transcript[0] ? state.transcript[0].timestamp : Date.now());
+      state.transcript.forEach((t) => {
+        const elapsed = Math.max(0, Math.round((t.timestamp - start) / 1000));
+        md += `**[${formatDuration(elapsed)}] ${t.speaker}:** ${t.text}\n\n`;
+      });
+    } else {
+      md += `_No transcript captured during this session_\n\n`;
+    }
+
     return md;
   }
 
@@ -1175,6 +1381,28 @@ document.addEventListener("DOMContentLoaded", async () => {
       txt += "\n";
     } else {
       txt += `  (No insights available)\n\n`;
+    }
+
+    txt += `Timeline\n`;
+    if (state.timeline?.length) {
+      state.timeline.forEach((e) => {
+        txt += `  • [${formatDuration(e.elapsed || 0)}] ${e.event}\n`;
+      });
+      txt += "\n";
+    } else {
+      txt += `  (No timeline events recorded)\n\n`;
+    }
+
+    txt += `Transcript\n`;
+    if (state.transcript?.length) {
+      const start =
+        state.startTime || (state.transcript[0] ? state.transcript[0].timestamp : Date.now());
+      state.transcript.forEach((t) => {
+        const elapsed = Math.max(0, Math.round((t.timestamp - start) / 1000));
+        txt += `  [${formatDuration(elapsed)}] ${t.speaker}: ${t.text}\n\n`;
+      });
+    } else {
+      txt += `  (No transcript captured during this session)\n\n`;
     }
 
     return txt;
@@ -1325,20 +1553,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         return;
       }
       const markdown = generateMarkdown(state);
-      if (navigator.clipboard && window.isSecureContext) {
-        await navigator.clipboard.writeText(markdown);
-      } else {
-        const textArea = document.createElement("textarea");
-        textArea.value = markdown;
-        textArea.style.position = "fixed";
-        textArea.style.left = "-999999px";
-        textArea.style.top = "-999999px";
-        document.body.appendChild(textArea);
-        textArea.focus();
-        textArea.select();
-        document.execCommand("copy");
-        textArea.remove();
-      }
+      await navigator.clipboard.writeText(markdown);
       showToast("Copied to clipboard", "success");
     } catch (err) {
       console.error(err);
@@ -1380,25 +1595,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
 
   // ——— Helpers ———
-  function escapeHtml(str: string) {
-    const div = document.createElement("div");
-    div.textContent = str;
-    return div.innerHTML;
-  }
-
-  function sanitizeTopicStatus(status: string) {
-    if (status === "completed") return "completed";
-    if (status === "unresolved") return "unresolved";
-    return "active";
-  }
-
-  function formatDuration(seconds: number) {
-    const h = Math.floor(seconds / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
-    const s = Math.floor(seconds % 60);
-    return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-  }
-
   // ——— Meeting History Tab ———
   let sessionToDelete: string | null = null;
 
@@ -1408,8 +1604,9 @@ document.addEventListener("DOMContentLoaded", async () => {
       const container = document.getElementById("dash-history-list");
       if (!container) return;
       if (!sessions || sessions.length === 0) {
-        container.innerHTML =
-          '<div class="empty-msg">No history exists yet. Sessions are saved when you end a meeting and click "Save".</div>';
+        container.innerHTML = getEmptyStateHTML(
+          "No history exists yet. Sessions are saved when you end them.",
+        );
         return;
       }
 
@@ -1428,7 +1625,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           const actionCount = s.actionItems?.length || 0;
 
           return `
-          <div class="session-item" data-session-id="${s.id}">
+          <div class="session-item" data-session-id="${sanitizeDataAttr(s.id)}">
             <div class="session-item-header">
               <div>
                 <div class="session-item-date">${escapeHtml(date)} at ${escapeHtml(time)}</div>
@@ -1445,15 +1642,15 @@ document.addEventListener("DOMContentLoaded", async () => {
               <span>${actionCount} actions</span>
             </div>
             <div class="session-item-actions">
-              <button class="session-export-btn" data-session-id="${s.id}" title="Export as Markdown">
+              <button class="session-export-btn" data-session-id="${sanitizeDataAttr(s.id)}" title="Export as Markdown">
                 <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" x2="12" y1="15" y2="3"></line></svg>
                 Export
               </button>
-              <button class="session-export-btn session-download-btn" data-session-id="${s.id}" title="Download as Markdown File">
+              <button class="session-export-btn session-download-btn" data-session-id="${sanitizeDataAttr(s.id)}" title="Download as Markdown File">
                 <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" x2="12" y1="15" y2="3"></line></svg>
                 Download
               </button>
-              <button class="session-delete-btn" data-session-id="${s.id}" title="Delete session">
+              <button class="session-delete-btn" data-session-id="${sanitizeDataAttr(s.id)}" title="Delete session">
                 <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
                 Delete
               </button>
@@ -1834,4 +2031,89 @@ document.addEventListener("DOMContentLoaded", async () => {
   document.querySelector('[data-tab="sessions"]')?.addEventListener("click", loadMeetingHistory);
   // Load history on tab switch
   document.querySelector('[data-tab="history"]')?.addEventListener("click", loadMeetingHistory);
+
+  // ——— Copy Transcript Message (Event Delegation) ———
+  transcriptContainer?.addEventListener("click", (e) => {
+    const target = e.target as HTMLElement;
+    const btn = target.closest(".copy-transcript-btn") as HTMLButtonElement | null;
+    if (!btn) return;
+
+    e.stopPropagation();
+    const speaker = btn.dataset.speaker || "Unknown";
+    const time = btn.dataset.time || "";
+    const message = btn.dataset.message || "";
+
+    const copyText = `Speaker: ${speaker}\nTime: ${time}\nMessage: ${message}`;
+
+    navigator.clipboard
+      .writeText(copyText)
+      .then(() => showToast("Copied to clipboard!", "success"))
+      .catch((err) => {
+        console.error("Failed to copy transcript message:", err);
+        showToast("Failed to copy!", "error");
+      });
+  });
+
+  // ——— Copy Summary Button ———
+  document.getElementById("copy-summary-btn")?.addEventListener("click", async () => {
+    try {
+      const summaryEl = document.getElementById("dash-summary");
+      const text = summaryEl?.textContent?.trim() || "";
+      if (!text || text === "Waiting for conversation to begin...") {
+        showToast("No summary available to copy", "error");
+        return;
+      }
+      await navigator.clipboard.writeText(text);
+      showToast("Summary copied to clipboard!", "success");
+    } catch {
+      showToast("Failed to copy summary", "error");
+    }
+  });
+
+  // ——— Header Export Buttons ———
+  const headerMdBtn = document.getElementById("header-export-md-btn");
+  const headerPdfBtn = document.getElementById("header-export-pdf-btn");
+
+  if (headerMdBtn) {
+    headerMdBtn.addEventListener("click", async () => {
+      try {
+        const state = await chrome.runtime.sendMessage({ type: "GET_STATE" });
+        if (!state) throw new Error("No meeting data available");
+
+        const markdown = generateMarkdown(state);
+        const filename = `meeting-summary-${new Date().toISOString().slice(0, 10)}.md`;
+
+        downloadFile(markdown, filename, "text/markdown");
+        showToast("Downloaded as .md file", "success");
+      } catch (err) {
+        showToast(
+          "Failed to export: " + (err instanceof Error ? err.message : String(err)),
+          "error",
+        );
+      }
+    });
+  }
+
+  if (headerPdfBtn) {
+    headerPdfBtn.addEventListener("click", () => {
+      showToast("PDF UI active! Ready for Phase 2 library integration.", "success");
+    });
+  }
 });
+
+// --- Empty State Utility ---
+function getEmptyStateHTML(message: string, isList: boolean = false): string {
+  const tag = isList ? "li" : "div";
+  return `
+    <${tag} class="empty-state-container">
+      <div class="empty-state-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
+          <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+          <line x1="12" x2="12" y1="19" y2="22"></line>
+        </svg>
+      </div>
+      <div class="empty-state-title">${message}</div>
+    </${tag}>
+  `;
+}

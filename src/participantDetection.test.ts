@@ -99,4 +99,8 @@ test("label stripping does not remove embedded words", () => {
 test("participantNameFromCandidate handles null/undefined candidate objects", () => {
   assert.equal(participantNameFromCandidate(null), null);
   assert.equal(participantNameFromCandidate(undefined), null);
+test("case-insensitive control labels are rejected", () => {
+  assert.equal(participantNameFromCandidate({ selfName: "you" }), null);
+  assert.equal(participantNameFromCandidate({ selfName: "mute" }), null);
+  assert.equal(participantNameFromCandidate({ selfName: "Camera Off" }), null);
 });

@@ -1,16 +1,9 @@
 // shared/theme.ts
+import { getSettings, normalizeSettings, type Settings, type ThemeMode } from "./settings";
 
-type ThemeMode = "light" | "dark" | "system";
-
-export interface Settings {
-  theme: ThemeMode;
-  accent: string;
-}
-
-const DEFAULT_SETTINGS: Settings = {
-  theme: "system",
-  accent: "210, 100%, 50%",
-};
+// Re-exported for backward compatibility with existing importers (#666).
+export { getSettings, isValidAccent } from "./settings";
+export type { Settings } from "./settings";
 
 // Mode Helper: Safe to evaluate anywhere
 function resolveTheme(theme: ThemeMode): "light" | "dark" {
@@ -22,34 +15,6 @@ function resolveTheme(theme: ThemeMode): "light" | "dark" {
     return "dark"; // Safe headless default fallback for background context
   }
   return theme;
-}
-
-export function isValidAccent(value: string): boolean {
-  const accent = value.trim();
-  return (
-    /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(accent) ||
-    /^\d{1,3}\s*,\s*\d{1,3}%\s*,\s*\d{1,3}%$/.test(accent) ||
-    /^\d{1,3}\s+\d{1,3}%\s+\d{1,3}%$/.test(accent)
-  );
-}
-
-function normalizeSettings(raw: unknown): Settings {
-  const candidate = (raw ?? {}) as Partial<Settings>;
-
-  const theme: ThemeMode =
-    candidate.theme === "light" || candidate.theme === "dark" || candidate.theme === "system"
-      ? candidate.theme
-      : DEFAULT_SETTINGS.theme;
-
-  const accentCandidate = typeof candidate.accent === "string" ? candidate.accent.trim() : "";
-
-  const accent = isValidAccent(accentCandidate) ? accentCandidate : DEFAULT_SETTINGS.accent;
-
-  return { theme, accent };
-}
-export async function getSettings(): Promise<Settings> {
-  const result = await chrome.storage.local.get("settings");
-  return normalizeSettings(result.settings);
 }
 
 export function applyTheme(settings: Settings): void {

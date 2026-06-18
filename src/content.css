@@ -28,7 +28,12 @@
 #mc-float-btn:hover {
   transform: translateY(-2px) scale(1.05);
 }
-
+#mc-float-btn:focus-visible {
+  outline: 2px solid #8ec0fe;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 3.5px #8ec0fe;
+  border-radius: 16px;
+}
 #mc-float-btn:hover .mc-float-label {
   opacity: 1;
   transform: translateX(0);

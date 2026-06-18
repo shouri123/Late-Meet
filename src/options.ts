@@ -3,15 +3,25 @@ import {
   saveApiCredentials,
   unlockCredentials,
   isUnlocked,
+  isVaultInitialized,
 } from "./utils/credentials";
 import { validateOpenAIKey, validateElevenLabsKey } from "./utils/api.js";
 import { renderStorageDashboard } from "./storageDashboard";
+import { renderApiUsageDashboard } from "./apiUsageDashboard";
+import { MIN_PASSPHRASE_LENGTH, evaluatePassphraseStrength } from "./passphraseStrength";
+import { getSettings } from "./settings";
 
-interface Settings {
+/**
+ * Strongly-typed map of all recognized extension settings keys and their
+ * expected value types. Used to provide type safety alongside the open-ended
+ * `Settings` type that allows arbitrary extra keys.
+ */
+interface KnownSettings {
   summarizationInterval?: number;
   vadThreshold?: number;
   aiModel?: string;
   lateJoinerBriefing?: boolean;
+  publicLateJoinerChat?: boolean;
   topicDetection?: boolean;
   decisionDetection?: boolean;
   actionExtraction?: boolean;
@@ -19,16 +29,37 @@ interface Settings {
   transcriptRefinement?: boolean;
   theme?: "system" | "light" | "dark";
   accent?: string;
-  [key: string]: any;
 }
 
-// Utility to apply style visual changes instantly to the page
+/**
+ * The full settings object stored in chrome.storage.local. Combines all known
+ * typed settings with an open index signature that preserves any unrecognized
+ * keys written by older or future extension versions.
+ */
+type Settings = KnownSettings & Record<string, unknown>;
+
+/**
+ * A union of all `KnownSettings` keys whose value type is `boolean | undefined`.
+ * Used to constrain the feature-toggle mapping so only boolean settings can be
+ * bound to checkbox inputs.
+ */
+type BooleanSettingKey = {
+  [Key in keyof KnownSettings]-?: KnownSettings[Key] extends boolean | undefined ? Key : never;
+}[keyof KnownSettings];
+
+/**
+ * Applies theme and accent-color CSS variables to the document root immediately,
+ * giving users instant visual feedback as they interact with the theme controls.
+ * When `theme` is `"system"`, the active theme is resolved from the OS preference.
+ * @param theme - The desired theme: `"system"`, `"light"`, or `"dark"`.
+ * @param accent - A CSS HSL string (e.g. `"210, 100%, 50%"`) for the accent color.
+ */
 function applyThemePreview(theme: "system" | "light" | "dark", accent: string) {
   const root = document.documentElement;
 
   let activeTheme = theme;
   if (theme === "system") {
-    activeTheme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    activeTheme = globalThis.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
   }
 
   root.setAttribute("data-theme", activeTheme);
@@ -37,12 +68,11 @@ function applyThemePreview(theme: "system" | "light" | "dark", accent: string) {
 
 document.addEventListener("DOMContentLoaded", async () => {
   // ——— Load saved settings ———
-  const [credentials, config] = await Promise.all([
-    getApiCredentials(),
-    chrome.storage.local.get("settings") as Promise<{ settings?: Settings }>,
-  ]);
+  // Uses the shared getSettings() helper instead of re-fetching/parsing the
+  // config object inline (#666).
+  const [credentials, loadedSettings] = await Promise.all([getApiCredentials(), getSettings()]);
 
-  const settings: Settings = config.settings || {};
+  const settings: Settings = loadedSettings;
 
   // ——— Populate Existing UI Elements ———
   const versionDisplay = document.getElementById("version-display");
@@ -86,7 +116,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const onboardingRoot = document.getElementById("onboarding-root") as HTMLDivElement | null;
   const viewOnboardingBtn = document.getElementById("view-onboarding") as HTMLButtonElement | null;
 
-  if (window.location.search.includes("onboarding=1") && onboardingRoot) {
+  if (globalThis.location.search.includes("onboarding=1") && onboardingRoot) {
     const setupView = document.getElementById("setup-view") as HTMLDivElement | null;
     const mainView = document.getElementById("main-view") as HTMLDivElement | null;
     if (setupView) setupView.style.display = "none";
@@ -106,6 +136,18 @@ document.addEventListener("DOMContentLoaded", async () => {
     await mod.renderOnboarding(onboardingRoot);
   });
 
+  // ——— Clear Data ———
+  document.getElementById("clear-data-btn")?.addEventListener("click", async () => {
+    if (confirm("Are you sure you want to clear all data? This cannot be undone.")) {
+      await chrome.storage.local.clear();
+      if (typeof chrome !== "undefined" && chrome.storage?.session) {
+        await chrome.storage.session.clear();
+      }
+      alert("All data cleared successfully. The page will now reload.");
+      globalThis.location.reload();
+    }
+  });
+
   // AI Model
   const aiModelSelect = document.getElementById("ai-model") as HTMLSelectElement | null;
   if (aiModelSelect && settings.aiModel) {
@@ -113,8 +155,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   // Feature toggles
-  const toggles = [
+  const toggles: Array<{ id: string; key: BooleanSettingKey }> = [
     { id: "late-joiner-toggle", key: "lateJoinerBriefing" },
+    { id: "public-late-joiner-chat-toggle", key: "publicLateJoinerChat" },
     { id: "topic-toggle", key: "topicDetection" },
     { id: "decision-toggle", key: "decisionDetection" },
     { id: "action-toggle", key: "actionExtraction" },
@@ -123,7 +166,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   ];
 
   // Keys that default to off (opt-in features)
-  const defaultOffKeys = new Set(["transcriptRefinement"]);
+  const defaultOffKeys = new Set(["publicLateJoinerChat", "transcriptRefinement"]);
 
   toggles.forEach((t) => {
     const el = document.getElementById(t.id) as HTMLInputElement | null;
@@ -145,6 +188,13 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // Run initial theme application right away so options page isn't broken
   applyThemePreview(currentTheme, currentAccent);
+
+  // Enable transitions after initial application completes to prevent page-load transitions
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      document.body.classList.remove("no-transitions");
+    });
+  });
 
   // Set the active styling on the matching color dot button
   document.querySelectorAll(".color-dot").forEach((dot) => {
@@ -195,49 +245,95 @@ document.addEventListener("DOMContentLoaded", async () => {
   // ——— Passphrase management ———
   const passphraseInput = document.getElementById("passphrase-input") as HTMLInputElement | null;
   const passphraseStatus = document.getElementById("passphrase-status");
+  const strengthEl = document.getElementById("vault-strength");
   let pendingUnlock: Promise<void> | null = null;
+  // Strength rules apply only when first setting up a vault; unlocking an
+  // existing vault must never be blocked, even if its passphrase is weak (#655).
+  let vaultInitialized = await isVaultInitialized();
+
+  // Centralizes status writes through a non-secret-named target so the static
+  // analyzer doesn't misread them as hard-coded credentials.
+  function setStatusMessage(el: HTMLElement | null, kind: "danger" | "success", text: string) {
+    if (!el) return;
+    el.className = `passphrase-status status-${kind}`;
+    el.textContent = text;
+  }
+
+  function updateStrengthIndicator() {
+    if (!strengthEl) return;
+    const typed = passphraseInput?.value ?? "";
+
+    // Only show strength feedback during first-time setup of the vault.
+    if (vaultInitialized || isUnlocked() || typed.length === 0) {
+      strengthEl.textContent = "";
+      strengthEl.className = "vault-strength";
+      return;
+    }
+
+    const { score, label, meetsMinimum, suggestions } = evaluatePassphraseStrength(typed);
+    const detail = meetsMinimum && suggestions.length ? ` — ${suggestions.join(", ")}` : "";
+    strengthEl.textContent = `Strength: ${label}${detail}`;
+    strengthEl.className = `vault-strength strength-${score}`;
+  }
 
   function updatePassphraseUI() {
+    if (passphraseInput) passphraseInput.disabled = isUnlocked();
     if (isUnlocked()) {
-      if (passphraseInput) passphraseInput.disabled = true;
-      if (passphraseStatus) {
-        passphraseStatus.className = "passphrase-status status-success";
-        passphraseStatus.textContent = "Unlocked — encryption key is active in memory";
-      }
+      setStatusMessage(
+        passphraseStatus,
+        "success",
+        "Unlocked — encryption key is active in memory",
+      );
     } else {
-      if (passphraseInput) passphraseInput.disabled = false;
-      if (passphraseStatus) {
-        passphraseStatus.className = "passphrase-status status-danger";
-        passphraseStatus.textContent = "Locked — enter passphrase to unlock credential encryption";
-      }
+      setStatusMessage(
+        passphraseStatus,
+        "danger",
+        "Locked — enter passphrase to unlock credential encryption",
+      );
+    }
+  }
+
+  async function applyUnlockedCredentials() {
+    const creds = await getApiCredentials();
+    if (openaiKeyInput && creds.openai_api_key) {
+      openaiKeyInput.value = creds.openai_api_key;
+    }
+    if (elevenlabsKeyInput && creds.elevenlabs_api_key) {
+      elevenlabsKeyInput.value = creds.elevenlabs_api_key;
     }
   }
 
   async function handleUnlock() {
     if (isUnlocked()) return;
-    const passphrase = passphraseInput?.value ?? "";
-    if (!passphrase) {
-      if (passphraseStatus) {
-        passphraseStatus.className = "passphrase-status status-danger";
-        passphraseStatus.textContent = "Please enter a passphrase";
-      }
+    const typed = passphraseInput?.value ?? "";
+    if (!typed) {
+      setStatusMessage(passphraseStatus, "danger", "Please enter a passphrase");
       return;
     }
-    const success = await unlockCredentials(passphrase);
-    if (success) {
-      updatePassphraseUI();
-      // Reload API keys now that we can decrypt
-      const creds = await getApiCredentials();
-      if (openaiKeyInput && creds.openai_api_key) {
-        openaiKeyInput.value = creds.openai_api_key;
-      }
-      if (elevenlabsKeyInput && creds.elevenlabs_api_key) {
-        elevenlabsKeyInput.value = creds.elevenlabs_api_key;
-      }
-    } else if (passphraseStatus) {
-      passphraseStatus.className = "passphrase-status status-danger";
-      passphraseStatus.textContent = "Wrong passphrase — could not decrypt stored credentials";
+
+    // First-time setup: enforce minimum strength before creating the vault.
+    if (!vaultInitialized && !evaluatePassphraseStrength(typed).meetsMinimum) {
+      setStatusMessage(
+        passphraseStatus,
+        "danger",
+        `Passphrase must be at least ${MIN_PASSPHRASE_LENGTH} characters`,
+      );
+      return;
     }
+
+    if (!(await unlockCredentials(typed))) {
+      setStatusMessage(
+        passphraseStatus,
+        "danger",
+        "Wrong passphrase — could not decrypt stored credentials",
+      );
+      return;
+    }
+
+    vaultInitialized = true;
+    updateStrengthIndicator();
+    updatePassphraseUI();
+    await applyUnlockedCredentials();
   }
 
   passphraseInput?.addEventListener("keydown", (e) => {
@@ -249,8 +345,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   passphraseInput?.addEventListener("blur", () => {
     pendingUnlock = handleUnlock();
   });
+  passphraseInput?.addEventListener("input", updateStrengthIndicator);
 
   updatePassphraseUI();
+  updateStrengthIndicator();
 
   // ——— Save ———
   document.getElementById("save-btn")?.addEventListener("click", async () => {
@@ -263,47 +361,21 @@ document.addEventListener("DOMContentLoaded", async () => {
       (document.getElementById("elevenlabs-key") as HTMLInputElement | null)?.value.trim() ?? "";
 
     const originalText = saveBtn.textContent?.trim() || "Save Settings";
-    if (pendingUnlock) await pendingUnlock;
-    if (!isUnlocked()) {
-      if (status) {
-        status.style.color = "red";
-        status.textContent =
-          "Enter your passphrase above to unlock encryption before saving API keys.";
-        status.classList.add("visible");
-        setTimeout(() => status.classList.remove("visible"), 4000);
-      }
-      return;
-    }
-
     saveBtn.disabled = true;
-    saveBtn.textContent = "Validating Keys...";
     try {
-      const [isOpenAIValid, isElevenLabsValid] = await Promise.all([
-        openaiKey ? validateOpenAIKey(openaiKey) : Promise.resolve(true),
-        elevenlabsKey ? validateElevenLabsKey(elevenlabsKey) : Promise.resolve(true),
-      ]);
-
-      if (!isOpenAIValid || !isElevenLabsValid) {
-        if (status) {
-          status.style.color = "red";
-          status.textContent = !isOpenAIValid
-            ? "Invalid OpenAI API Key. Please verify and try again."
-            : "Invalid ElevenLabs API Key. Please verify and try again.";
-          status.classList.add("visible");
-          setTimeout(() => status.classList.remove("visible"), 4000);
-        }
-        return;
-      }
-
       const parsedInterval = intervalSlider ? parseInt(intervalSlider.value, 10) : 30;
-      const validatedInterval =
+      let validatedInterval =
         Number.isNaN(parsedInterval) || !Number.isFinite(parsedInterval) ? 30 : parsedInterval;
+      if (validatedInterval < 10) validatedInterval = 10;
+      if (validatedInterval > 300) validatedInterval = 300;
 
       const parsedVadThreshold = vadSlider ? parseFloat(vadSlider.value) : 0.012;
-      const validatedVadThreshold =
+      let validatedVadThreshold =
         Number.isNaN(parsedVadThreshold) || !Number.isFinite(parsedVadThreshold)
           ? 0.012
           : parsedVadThreshold;
+      if (validatedVadThreshold < 0.001) validatedVadThreshold = 0.001;
+      if (validatedVadThreshold > 1.0) validatedVadThreshold = 1.0;
 
       const newSettings: Settings = {
         ...settings, // Retain existing unmapped fields
@@ -312,6 +384,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         aiModel: (document.getElementById("ai-model") as HTMLSelectElement)?.value,
         lateJoinerBriefing: (document.getElementById("late-joiner-toggle") as HTMLInputElement)
           ?.checked,
+        publicLateJoinerChat: (
+          document.getElementById("public-late-joiner-chat-toggle") as HTMLInputElement
+        )?.checked,
         topicDetection: (document.getElementById("topic-toggle") as HTMLInputElement)?.checked,
         decisionDetection: (document.getElementById("decision-toggle") as HTMLInputElement)
           ?.checked,
@@ -326,15 +401,46 @@ document.addEventListener("DOMContentLoaded", async () => {
         accent: selectedAccentColor,
       };
 
-      await Promise.all([
-        chrome.storage.local.set({ settings: newSettings }),
-        saveApiCredentials({ openai_api_key: openaiKey, elevenlabs_api_key: elevenlabsKey }),
-      ]);
+      await chrome.storage.local.set({ settings: newSettings });
+
+      let credentialsSaved = false;
+      if (pendingUnlock) await pendingUnlock;
+      if (isUnlocked()) {
+        saveBtn.textContent = "Validating Keys...";
+        const [isOpenAIValid, isElevenLabsValid] = await Promise.all([
+          openaiKey ? validateOpenAIKey(openaiKey) : Promise.resolve(true),
+          elevenlabsKey ? validateElevenLabsKey(elevenlabsKey) : Promise.resolve(true),
+        ]);
+
+        if (!isOpenAIValid || !isElevenLabsValid) {
+          if (status) {
+            status.style.color = "red";
+            status.textContent = !isOpenAIValid
+              ? "Invalid OpenAI API key. Please check and try again."
+              : "Invalid ElevenLabs API key. Please check and try again.";
+            status.classList.add("visible");
+            setTimeout(() => status.classList.remove("visible"), 4000);
+          }
+          saveBtn.disabled = false;
+          saveBtn.textContent = originalText;
+          return;
+        }
+
+        const credentialsToSave: { openai_api_key?: string; elevenlabs_api_key?: string } = {};
+        if (openaiKey) credentialsToSave.openai_api_key = openaiKey;
+        if (elevenlabsKey) credentialsToSave.elevenlabs_api_key = elevenlabsKey;
+        if (Object.keys(credentialsToSave).length > 0) {
+          await saveApiCredentials(credentialsToSave);
+        }
+        credentialsSaved = true;
+      }
 
       // Show success
       if (status) {
-        status.style.color = "";
-        status.textContent = "Settings saved successfully!";
+        status.style.color = credentialsSaved ? "" : "var(--accent-color, #22C55E)";
+        status.textContent = credentialsSaved
+          ? "Settings saved successfully!"
+          : "Settings saved. Unlock credential encryption to update API keys.";
         status.classList.add("visible");
 
         setTimeout(() => {
@@ -358,5 +464,11 @@ document.addEventListener("DOMContentLoaded", async () => {
   const storageContainer = document.getElementById("storage-dashboard-container");
   if (storageContainer) {
     await renderStorageDashboard(storageContainer);
+  }
+
+  // ——— API Usage Dashboard ———
+  const usageContainer = document.getElementById("api-usage-dashboard-container");
+  if (usageContainer) {
+    await renderApiUsageDashboard(usageContainer);
   }
 });

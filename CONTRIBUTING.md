@@ -308,3 +308,35 @@ If you're stuck or have questions:
 - Reach out through the repository issue tracker
 
 We appreciate every contribution and look forward to collaborating with you 🚀
+
+## Chrome Extension Development Guidelines
+
+### Manifest Changes
+
+When modifying `src/manifest.json`:
+
+- Keep permissions minimal — only request what is actually used
+- Document why each permission is needed in your PR description
+- Avoid `"*://*/*"` host permissions — be specific to `meet.google.com`
+- Test that CSP changes don't break existing functionality
+
+### Testing the Extension
+
+1. Build the extension: `npm run build`
+2. Load in Chrome: `chrome://extensions/` → Enable Developer mode → Load unpacked → select `dist/`
+3. Test on an actual Google Meet call (you can test with yourself using two browser windows)
+4. Check the service worker console: `chrome://extensions/` → Details → Inspect views: service worker
+
+### Adding New Features
+
+- Prefer modifying existing files over creating new ones for focused changes
+- All new TypeScript types go in `src/types.ts`
+- Storage operations must use the `StorageSchema` type for type safety
+- Audio processing code should run in the offscreen document, not the popup
+
+### Service Worker Constraints
+
+- Service workers have no access to the DOM
+- Use `chrome.storage.session` for ephemeral state, `chrome.storage.local` for persistent
+- Handle `chrome.runtime.onInstalled` to set up initial state
+- Always check `chrome.runtime.lastError` after storage operations

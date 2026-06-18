@@ -12,11 +12,26 @@ export function resolveTranscriptSpeaker(value: string | null | undefined): stri
   return normalizeActiveSpeakerName(value) || DEFAULT_TRANSCRIPT_SPEAKER;
 }
 
-// Speaker detection debouncing utility
-export function debounceSpeakerAttribution(callback: (...args: any[]) => void, delay: number) {
-  let timer: any = null;
-  return (...args: any[]) => {
-    clearTimeout(timer);
-    timer = setTimeout(() => callback(...args), delay);
+export function debounceSpeakerAttribution<T extends (...args: unknown[]) => void>(
+  callback: T,
+  delay: number,
+): { invoke: (...args: Parameters<T>) => void; cancel: () => void } {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+
+  const invoke = (...args: Parameters<T>) => {
+    if (timer !== null) clearTimeout(timer);
+    timer = setTimeout(() => {
+      timer = null;
+      callback(...args);
+    }, delay);
   };
+
+  const cancel = () => {
+    if (timer !== null) {
+      clearTimeout(timer);
+      timer = null;
+    }
+  };
+
+  return { invoke, cancel };
 }
