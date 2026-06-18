@@ -1677,7 +1677,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       }
 
       case "DELETE_SAVED_SESSION": {
-        await deleteSavedMeetingSession(chrome.storage.local, message.sessionId);
+        if (typeof message.sessionId === "string") {
+          await deleteSavedMeetingSession(chrome.storage.local, message.sessionId);
+        }
         sendResponse({ success: true });
         return;
       }
