@@ -551,7 +551,13 @@ function getTranscriptionPrompt() {
 async function transcribeChunk(base64Audio: string, mimeType = "audio/webm", prompt = "") {
   const elevenlabsKey = await getElevenLabsApiKey();
 
-  const bytes = Uint8Array.from(atob(base64Audio), (c) => c.charCodeAt(0));
+  let bytes: any;
+  try {
+    bytes = Uint8Array.from(atob(base64Audio), (c) => c.charCodeAt(0));
+  } catch (err) {
+    console.error("[LateMeet] Failed to decode base64 audio chunk:", err);
+    return null;
+  }
   const blob = new Blob([bytes], { type: mimeType });
 
   if (!isChunkViable(blob)) {
@@ -1677,7 +1683,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       }
 
       case "DELETE_SAVED_SESSION": {
-        await deleteSavedMeetingSession(chrome.storage.local, message.sessionId);
+        if (typeof message.sessionId === "string") {
+          await deleteSavedMeetingSession(chrome.storage.local, message.sessionId);
+        }
         sendResponse({ success: true });
         return;
       }
