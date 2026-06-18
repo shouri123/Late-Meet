@@ -598,11 +598,14 @@ document.addEventListener("DOMContentLoaded", async () => {
   function updateUnresolvedDiscussions(discussions: string[]) {
     const list = document.getElementById("dash-unresolved-list");
     if (!list) return;
-    if (!discussions || discussions.length === 0) {
+
+    const validDiscussions = (discussions || []).filter((d) => d && String(d).trim().length > 0);
+
+    if (validDiscussions.length === 0) {
       list.innerHTML = '<li class="empty-msg">No unresolved discussions yet</li>';
       return;
     }
-    list.innerHTML = discussions.map((d) => `<li>${escapeHtml(d || "")}</li>`).join("");
+    list.innerHTML = validDiscussions.map((d) => `<li>${escapeHtml(d)}</li>`).join("");
   }
 
   function updateContradictions(contradictions: any[]) {
