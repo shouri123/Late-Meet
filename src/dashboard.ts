@@ -12,8 +12,21 @@ import { resolveManualMeetTab } from "./meetingTabs";
 import { startDashboardAudioCapture } from "./dashboardCapture";
 import { escapeHtml, formatDuration, sanitizeTopicStatus } from "./utils/domHelpers";
 import { sanitizeDataAttr } from "./utils/sanitize";
+import { renderApiUsageDashboard } from "./apiUsageDashboard";
+
+const UI_TRUNCATION_MAX = 50;
 
 initTheme();
+
+function truncatedNoticeHtml(key: string, total: number | undefined): string {
+  if (total === undefined || total <= UI_TRUNCATION_MAX) return "";
+  return `<div class="truncated-notice">Showing last ${UI_TRUNCATION_MAX} of ${total} ${key}</div>`;
+}
+
+function truncatedNoticeText(key: string, total: number | undefined): string {
+  if (total === undefined || total <= UI_TRUNCATION_MAX) return "";
+  return `Showing last ${UI_TRUNCATION_MAX} of ${total} ${key}`;
+}
 
 /** Securely checks whether a URL belongs to meet.google.com using URL parsing (not substring matching). */
 function isMeetHostname(url: string | null | undefined): boolean {
@@ -266,6 +279,10 @@ document.addEventListener("DOMContentLoaded", async () => {
           else if (tabId === "timeline") updateTimeline(lastState?.timeline || []);
           else if (tabId === "transcript") updateTranscript(lastState?.transcript || []);
           else if (tabId === "history" || tabId === "sessions") loadMeetingHistory();
+          else if (tabId === "usage") {
+            const usageContainer = document.getElementById("sidepanel-usage-container");
+            if (usageContainer) renderApiUsageDashboard(usageContainer);
+          }
         }, 150);
       }
     });
@@ -474,22 +491,25 @@ document.addEventListener("DOMContentLoaded", async () => {
     const summaryEl = document.getElementById("dash-summary");
     if (summaryEl) {
       if (Array.isArray(state.summaryItems) && state.summaryItems.length > 0) {
-        summaryEl.innerHTML = state.summaryItems
-          .map((item) => {
-            const label = escapeHtml(item.timestampLabel || item.timestamp || "00:00");
-            const timestampChunk = item.chunkId
-              ? `<button type="button" class="timestamp-link" data-chunk-id="${escapeHtml(
-                  item.chunkId,
-                )}" aria-label="Jump to transcript at ${label}">${label}</button>`
-              : `<span class="timestamp-text">${label}</span>`;
-            return `
+        const notice = truncatedNoticeHtml("summary items", state.truncatedCounts?.summaryItems);
+        summaryEl.innerHTML =
+          notice +
+          state.summaryItems
+            .map((item) => {
+              const label = escapeHtml(item.timestampLabel || item.timestamp || "00:00");
+              const timestampChunk = item.chunkId
+                ? `<button type="button" class="timestamp-link" data-chunk-id="${escapeHtml(
+                    item.chunkId,
+                  )}" aria-label="Jump to transcript at ${label}">${label}</button>`
+                : `<span class="timestamp-text">${label}</span>`;
+              return `
               <div class="summary-item">
                 <div class="summary-text">${escapeHtml(item.text || "")}</div>
                 <div class="summary-meta">${timestampChunk}</div>
               </div>
             `;
-          })
-          .join("");
+            })
+            .join("");
       } else {
         summaryEl.textContent = state.summary || "Waiting for conversation to begin...";
       }
@@ -546,6 +566,20 @@ document.addEventListener("DOMContentLoaded", async () => {
     // Transcript Tab
     if (loadedTabs.has("transcript")) updateTranscript(state.transcript);
     attachTimestampLinkListeners();
+
+    // Live Session Token & Cost Tracker
+    const trackerCard = document.getElementById("live-tracker-card");
+    const liveTokensEl = document.getElementById("live-tokens");
+    const liveCostEl = document.getElementById("live-cost");
+    if (trackerCard) {
+      if (state.isActive) {
+        trackerCard.style.display = "";
+        if (liveTokensEl) liveTokensEl.textContent = (state.tokensUsed ?? 0).toLocaleString();
+        if (liveCostEl) liveCostEl.textContent = `$${(state.estimatedCost ?? 0).toFixed(4)}`;
+      } else {
+        trackerCard.style.display = "none";
+      }
+    }
   }
 
   // ——— Sentiment ———
@@ -634,12 +668,15 @@ document.addEventListener("DOMContentLoaded", async () => {
     const container = document.getElementById("dash-topics-full");
     if (!container) return;
     if (!topics || topics.length === 0) {
-      container.innerHTML = getEmptyStateHTML("No topics detected yet");
+      container.innerHTML = '<div class="empty-msg">No topics detected yet</div>';
       return;
     }
-    container.innerHTML = topics
-      .map(
-        (t) => `
+    const notice = truncatedNoticeHtml("topics", lastState?.truncatedCounts?.topics);
+    container.innerHTML =
+      notice +
+      topics
+        .map(
+          (t) => `
       <div class="topic-full-item">
         <div class="topic-full-dot ${sanitizeTopicStatus(t.status)}"></div>
         <div class="topic-full-info">
@@ -649,8 +686,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         <span class="topic-full-badge ${sanitizeTopicStatus(t.status)}">${escapeHtml(t.status || "active")}</span>
       </div>
     `,
-      )
-      .join("");
+        )
+        .join("");
   }
 
   // ——— Decisions ———
@@ -662,6 +699,13 @@ document.addEventListener("DOMContentLoaded", async () => {
       return;
     }
     container.innerHTML = "";
+    const noticeText = truncatedNoticeText("decisions", lastState?.truncatedCounts?.decisions);
+    if (noticeText) {
+      const noticeDiv = document.createElement("div");
+      noticeDiv.className = "truncated-notice";
+      noticeDiv.textContent = noticeText;
+      container.appendChild(noticeDiv);
+    }
     decisions.forEach((d) => {
       const wrapper = document.createElement("div");
       wrapper.className = "decision-item";
@@ -758,6 +802,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     container.innerHTML = "";
+    const noticeText = truncatedNoticeText("action items", lastState?.truncatedCounts?.actionItems);
+    if (noticeText) {
+      const noticeDiv = document.createElement("div");
+      noticeDiv.className = "truncated-notice";
+      noticeDiv.textContent = noticeText;
+      container.appendChild(noticeDiv);
+    }
     actions.forEach((a, idx) => {
       const normalized = normalizeActionItem(a);
       const task = normalized?.task ?? resolveActionKey(a);
@@ -896,21 +947,24 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     const isMeetSession = isMeetHostname(meetingUrl);
-    container.innerHTML = participants
-      .map((name) => {
-        const isLate = lateJoiners?.includes(name);
-        const rawName = String(name || "");
-        const safeName = escapeHtml(rawName);
-        const initials = escapeHtml(
-          rawName
-            .split(" ")
-            .filter(Boolean)
-            .map((w) => w[0])
-            .join("")
-            .toUpperCase()
-            .slice(0, 2),
-        );
-        return `
+    const notice = truncatedNoticeHtml("participants", lastState?.truncatedCounts?.participants);
+    container.innerHTML =
+      notice +
+      participants
+        .map((name) => {
+          const isLate = lateJoiners?.includes(name);
+          const rawName = String(name || "");
+          const safeName = escapeHtml(rawName);
+          const initials = escapeHtml(
+            rawName
+              .split(" ")
+              .filter(Boolean)
+              .map((w) => w[0])
+              .join("")
+              .toUpperCase()
+              .slice(0, 2),
+          );
+          return `
         <div class="participant-item">
           <div class="participant-avatar">${initials}</div>
           <span class="participant-name">${safeName}</span>
@@ -919,8 +973,8 @@ document.addEventListener("DOMContentLoaded", async () => {
           </span>
         </div>
       `;
-      })
-      .join("");
+        })
+        .join("");
 
     // Late joiner section
     const lateCard = document.getElementById("late-joiners-card");
@@ -961,10 +1015,13 @@ document.addEventListener("DOMContentLoaded", async () => {
       return;
     }
 
-    container.innerHTML = timeline
-      .map((entry) => {
-        const icon = getTimelineIcon(entry.event);
-        return `
+    const notice = truncatedNoticeHtml("timeline events", lastState?.truncatedCounts?.timeline);
+    container.innerHTML =
+      notice +
+      timeline
+        .map((entry) => {
+          const icon = getTimelineIcon(entry.event);
+          return `
         <div class="timeline-item">
           <div class="timeline-marker">${icon}</div>
           <div class="timeline-info">
@@ -973,8 +1030,8 @@ document.addEventListener("DOMContentLoaded", async () => {
           </div>
         </div>
       `;
-      })
-      .join("");
+        })
+        .join("");
   }
 
   function getTimelineIcon(event: string) {
@@ -1049,6 +1106,19 @@ document.addEventListener("DOMContentLoaded", async () => {
     `;
   }
 
+  function maybeAppendTranscriptNotice() {
+    if (!transcriptContainer || renderedTranscriptCount !== 0) return;
+    const noticeText = truncatedNoticeText(
+      "transcript entries",
+      lastState?.truncatedCounts?.transcript,
+    );
+    if (!noticeText) return;
+    const noticeDiv = document.createElement("div");
+    noticeDiv.className = "truncated-notice";
+    noticeDiv.textContent = noticeText;
+    transcriptContainer.appendChild(noticeDiv);
+  }
+
   function updateTranscript(transcript: TranscriptEntry[]) {
     if (!transcriptContainer) return;
 
@@ -1065,6 +1135,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       renderedTranscriptCount = 0;
       transcriptContainer.innerHTML = "";
     }
+
+    maybeAppendTranscriptNotice();
 
     // Only render new entries that haven't been rendered yet
     if (transcript.length > renderedTranscriptCount) {

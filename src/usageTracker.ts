@@ -1,6 +1,8 @@
 // ——— API Cost & Token Usage Tracker ———
 // Persists daily stats in chrome.storage.local under the key "usageStats".
 
+import { DayStats } from "./types";
+
 /** Pricing per 1,000 tokens in USD (input / output). */
 const OPENAI_PRICING: Record<string, { input: number; output: number }> = {
   "gpt-4o-mini": { input: 0.00015, output: 0.0006 },
@@ -20,14 +22,6 @@ const ELEVENLABS_STT_PRICE_PER_SECOND = 0.000111;
 /** Whisper is billed at $0.006 per minute of audio. */
 const WHISPER_PRICE_PER_SECOND = 0.006 / 60;
 
-export interface DayStats {
-  promptTokens: number;
-  completionTokens: number;
-  totalTokens: number;
-  audioSeconds: number;
-  estimatedCost: number;
-}
-
 /** Returns today's date string key in local YYYY-MM-DD format. */
 export function getTodayKey(): string {
   const d = new Date();
@@ -43,7 +37,7 @@ export async function getUsageStats(): Promise<Record<string, DayStats>> {
   return (result.usageStats as Record<string, DayStats>) || {};
 }
 
-interface UsageDelta {
+export interface UsageDelta {
   promptTokens?: number;
   completionTokens?: number;
   totalTokens?: number;
@@ -53,6 +47,31 @@ interface UsageDelta {
   elevenlabsSeconds?: number;
   /** The model used for this chat completion (for pricing lookup). */
   model?: string;
+}
+
+export function calculateDeltaCost(delta: UsageDelta): {
+  tokens: number;
+  cost: number;
+  audioSeconds: number;
+} {
+  const pt = delta.promptTokens ?? 0;
+  const ct = delta.completionTokens ?? 0;
+  const tt = delta.totalTokens ?? pt + ct;
+  const ws = delta.whisperSeconds ?? 0;
+  const es = delta.elevenlabsSeconds ?? 0;
+
+  const model = delta.model ?? "gpt-4o-mini";
+  const pricing = OPENAI_PRICING[model] ?? OPENAI_PRICING["gpt-4o-mini"];
+  const chatCost = (pt / 1000) * pricing.input + (ct / 1000) * pricing.output;
+
+  const whisperCost = ws * WHISPER_PRICE_PER_SECOND;
+  const elevenlabsCost = es * ELEVENLABS_STT_PRICE_PER_SECOND;
+
+  return {
+    tokens: tt,
+    cost: chatCost + whisperCost + elevenlabsCost,
+    audioSeconds: ws + es,
+  };
 }
 
 // Module-level queue to serialize local storage writes and prevent race conditions

@@ -355,17 +355,21 @@ export async function deleteSavedMeetingSession(
   const indexedSessions = Array.isArray(values[SAVED_SESSION_INDEX_KEY])
     ? (values[SAVED_SESSION_INDEX_KEY].map(asStoredSession).filter(Boolean) as StoredSession[])
     : [];
-  const legacySessions = Array.isArray(values[SAVED_SESSIONS_LEGACY_KEY])
-    ? values[SAVED_SESSIONS_LEGACY_KEY].filter(
-        (session: Partial<StoredSession>) => session.id !== sessionId,
-      )
-    : [];
+  const hadLegacy = Array.isArray(values[SAVED_SESSIONS_LEGACY_KEY]);
 
   await storage.remove(getSavedSessionKey(sessionId));
-  await storage.set({
+
+  const update: Record<string, unknown> = {
     [SAVED_SESSION_INDEX_KEY]: indexedSessions.filter((session) => session.id !== sessionId),
-    [SAVED_SESSIONS_LEGACY_KEY]: legacySessions,
-  });
+  };
+  // Only rewrite the legacy key when it actually exists, so deleting a session
+  // doesn't resurrect the `savedSessions` key removed during migration (#677).
+  if (hadLegacy) {
+    update[SAVED_SESSIONS_LEGACY_KEY] = (
+      values[SAVED_SESSIONS_LEGACY_KEY] as Partial<StoredSession>[]
+    ).filter((session) => session.id !== sessionId);
+  }
+  await storage.set(update);
 }
 
 export async function deleteMultipleSavedMeetingSessions(
@@ -378,9 +382,7 @@ export async function deleteMultipleSavedMeetingSessions(
   const indexedSessions = Array.isArray(values[SAVED_SESSION_INDEX_KEY])
     ? (values[SAVED_SESSION_INDEX_KEY].map(asStoredSession).filter(Boolean) as StoredSession[])
     : [];
-  const legacySessions = Array.isArray(values[SAVED_SESSIONS_LEGACY_KEY])
-    ? values[SAVED_SESSIONS_LEGACY_KEY]
-    : [];
+  const hadLegacy = Array.isArray(values[SAVED_SESSIONS_LEGACY_KEY]);
 
   // Remove payload keys
   const keys = sessionIds.map((id) => getSavedSessionKey(id));
@@ -388,14 +390,15 @@ export async function deleteMultipleSavedMeetingSessions(
 
   // Update index(s)
   const nextIndex = indexedSessions.filter((s) => !sessionIds.includes(s.id));
-  const nextLegacy = Array.isArray(legacySessions)
-    ? legacySessions.filter((s: Partial<StoredSession>) => !sessionIds.includes(s.id as string))
-    : [];
 
-  await storage.set({
-    [SAVED_SESSION_INDEX_KEY]: nextIndex,
-    [SAVED_SESSIONS_LEGACY_KEY]: nextLegacy,
-  });
+  const update: Record<string, unknown> = { [SAVED_SESSION_INDEX_KEY]: nextIndex };
+  // Only rewrite the legacy key when it actually exists (#677).
+  if (hadLegacy) {
+    update[SAVED_SESSIONS_LEGACY_KEY] = (
+      values[SAVED_SESSIONS_LEGACY_KEY] as Partial<StoredSession>[]
+    ).filter((s) => !sessionIds.includes(s.id as string));
+  }
+  await storage.set(update);
 }
 
 export async function deleteAllSavedMeetingSessions(storage: StorageArea): Promise<void> {
@@ -403,32 +406,31 @@ export async function deleteAllSavedMeetingSessions(storage: StorageArea): Promi
   const indexedSessions = Array.isArray(values[SAVED_SESSION_INDEX_KEY])
     ? (values[SAVED_SESSION_INDEX_KEY].map(asStoredSession).filter(Boolean) as StoredSession[])
     : [];
-  const legacySessions = Array.isArray(values[SAVED_SESSIONS_LEGACY_KEY])
-    ? (values[SAVED_SESSIONS_LEGACY_KEY].map(asStoredSession).filter(Boolean) as StoredSession[])
+  const hadLegacy = Array.isArray(values[SAVED_SESSIONS_LEGACY_KEY]);
+  const legacySessions = hadLegacy
+    ? ((values[SAVED_SESSIONS_LEGACY_KEY] as unknown[])
+        .map(asStoredSession)
+        .filter(Boolean) as StoredSession[])
     : [];
 
   const allIds = [...indexedSessions, ...legacySessions].map((s) => s.id);
   const keys = allIds.map((id) => getSavedSessionKey(id));
   if (keys.length > 0) await storage.remove(keys);
 
-  await storage.set({ [SAVED_SESSION_INDEX_KEY]: [], [SAVED_SESSIONS_LEGACY_KEY]: [] });
+  await storage.set({ [SAVED_SESSION_INDEX_KEY]: [] });
+  // Drop the migrated legacy key when present rather than resurrecting it as [] (#677).
+  if (hadLegacy) {
+    await storage.remove(SAVED_SESSIONS_LEGACY_KEY);
+  }
 }
 
 /**
- * Writes a value to `chrome.storage.local` under the given key. Storage quota
- * errors and other failures are logged to the console instead of being thrown,
- * so callers are never interrupted by storage failures.
+ * Writes a value to `chrome.storage.local` under the given key.
+ * Errors (including quota errors) are rethrown so callers can detect and react
+ * to them — e.g. using `isStorageQuotaError` to identify quota exhaustion.
  * @param key - The storage key to write to.
  * @param value - The value to store.
  */
 export async function safeLocalStore(key: string, value: unknown): Promise<void> {
-  await new Promise<void>((resolve) => {
-    chrome.storage.local.set({ [key]: value }, () => {
-      const err = chrome.runtime.lastError;
-      if (err) {
-        console.error("[LateMeet] Storage write failed for key", key, ":", err.message);
-      }
-      resolve();
-    });
-  });
+  await chrome.storage.local.set({ [key]: value });
 }

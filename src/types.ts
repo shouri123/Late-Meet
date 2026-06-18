@@ -97,6 +97,10 @@ export interface State {
   duration?: number;
   pendingJoiners?: string[];
   participantCount?: number;
+  /** Tracks original array lengths before truncation for UI indicators. */
+  truncatedCounts?: Record<string, number>;
+  tokensUsed?: number;
+  estimatedCost?: number;
 }
 
 /** Storage metadata summary for a single saved meeting, used in storage usage reports. */
@@ -138,18 +142,26 @@ export interface MeetingSession {
   endTime: number | null; // null if recording is still active
   durationMs: number | null;
   participants: string[];
-  transcript: TranscriptEntry[];
+  transcript: StoredTranscriptEntry[];
   summary: string | null;
   language: string; // BCP 47 language tag (e.g., "en-US")
   schemaVersion: number; // For migration support
 }
 
-/** A single transcript entry with speaker and timestamp */
-export interface TranscriptEntry {
+/** A single transcript entry with speaker, text, and confidence (stored form) */
+export interface StoredTranscriptEntry {
   speaker: string;
   text: string;
   timestamp: number; // Offset from meeting start in ms
   confidence?: number; // 0.0 to 1.0
+}
+
+export interface DayStats {
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+  audioSeconds: number;
+  estimatedCost: number;
 }
 
 /** Root schema for chrome.storage.local */
@@ -159,6 +171,7 @@ export interface StorageSchema {
   sessions: MeetingSession[];
   preferences: ExtensionPreferences;
   schemaVersion: number;
+  usageStats?: Record<string, DayStats>;
 }
 
 /** User preferences for the extension */

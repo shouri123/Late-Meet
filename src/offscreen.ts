@@ -1,4 +1,20 @@
 import { VoiceActivityTracker, isChunkViable } from "./audioProcessing";
+import { computeRms, shouldRunVadAnalysis } from "./vadTuning";
+import {
+  DRAIN_TIMEOUT_MS,
+  MAX_BUFFER_MS,
+  MAX_PENDING_CHUNKS,
+  SILENCE_FLUSH_MS,
+  VAD_SAMPLE_MS,
+  WAVEFORM_BUCKETS,
+  WAVEFORM_GAIN,
+  WAVEFORM_INTERVAL_MS,
+} from "./config";
+import {
+  connectMicrophoneToOffscreenAudioGraph,
+  createOffscreenAudioGraph,
+  MICROPHONE_AUDIO_CONSTRAINTS,
+} from "./offscreenAudioGraph";
 
 let mediaStream: MediaStream | null = null;
 let microphoneStream: MediaStream | null = null;
@@ -14,17 +30,6 @@ let pendingChunks: Blob[] = [];
 let isStopping = false;
 let isDrainingQueue = false;
 
-const VAD_SAMPLE_MS = 250;
-// Increased from 50ms (20x/sec) to 100ms (10x/sec)
-// to reduce unnecessary service worker wake-ups
-// and chrome.runtime.sendMessage calls
-const WAVEFORM_INTERVAL_MS = 100;
-const WAVEFORM_BUCKETS = 32;
-const WAVEFORM_GAIN = 6;
-const SILENCE_FLUSH_MS = 1500;
-const MAX_BUFFER_MS = 25000;
-const MAX_PENDING_CHUNKS = 20;
-const DRAIN_TIMEOUT_MS = 30000;
 const SILENCE_FLUSH_TICKS = Math.ceil(SILENCE_FLUSH_MS / VAD_SAMPLE_MS);
 let rmsThreshold = 0.012;
 
@@ -33,6 +38,13 @@ let isVadBusy = false;
 let silenceTicks = 0;
 let bufferStartTime = 0;
 let recorderMimeType = "";
+// Reused across analyser reads to avoid allocating a Uint8Array on every VAD and
+// waveform tick (≈14×/sec). Sized to the analyser's fftSize when capture starts.
+let analysisBuffer: Uint8Array<ArrayBuffer> | null = null;
+// Tracks whether the last analysed tick detected speech, plus a tick counter, so
+// the VAD loop can throttle analysis while speech is sustained (#632).
+let speechActive = false;
+let vadTickCounter = 0;
 let voiceActivity = new VoiceActivityTracker({
   rmsThreshold: rmsThreshold,
 });
@@ -93,25 +105,23 @@ function pickSupportedMimeType(): string {
 }
 
 function getCurrentRms(): number {
-  if (!analyserNode) return 0;
+  if (!analyserNode || !analysisBuffer) return 0;
 
-  const buffer = new Uint8Array(analyserNode.fftSize);
-  analyserNode.getByteTimeDomainData(buffer);
-
-  let sumSquares = 0;
-
-  for (let i = 0; i < buffer.length; i += 1) {
-    const normalized = (buffer[i] - 128) / 128;
-    sumSquares += normalized * normalized;
-  }
-
-  return Math.sqrt(sumSquares / buffer.length);
+  analyserNode.getByteTimeDomainData(analysisBuffer);
+  return computeRms(analysisBuffer);
 }
 
 function sampleAndSendWaveform() {
-  if (!analyserNode || !mediaRecorder || mediaRecorder.state !== "recording" || isStopping) return;
+  if (
+    !analyserNode ||
+    !analysisBuffer ||
+    !mediaRecorder ||
+    mediaRecorder.state !== "recording" ||
+    isStopping
+  )
+    return;
 
-  const buffer = new Uint8Array(analyserNode.fftSize);
+  const buffer = analysisBuffer;
   analyserNode.getByteTimeDomainData(buffer);
 
   const bucketSize = Math.floor(buffer.length / WAVEFORM_BUCKETS);
@@ -301,11 +311,14 @@ async function cleanupResources() {
 
   mediaRecorder = null;
   analyserNode = null;
+  analysisBuffer = null;
   audioSources = [];
   pendingChunks = [];
   isStopping = false;
   isVadBusy = false;
   silenceTicks = 0;
+  speechActive = false;
+  vadTickCounter = 0;
   bufferStartTime = 0;
 
   voiceActivity = new VoiceActivityTracker({
@@ -328,32 +341,13 @@ async function getTabAudioStream(streamId: string) {
 async function getMicrophoneStream() {
   try {
     return await navigator.mediaDevices.getUserMedia({
-      audio: {
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true,
-      },
+      audio: MICROPHONE_AUDIO_CONSTRAINTS,
       video: false,
     });
   } catch (err) {
     console.warn("[LateMeet][offscreen] Microphone capture unavailable:", err);
-
     return null;
   }
-}
-
-function connectSourceToRecorder(
-  stream: MediaStream,
-  destination: MediaStreamAudioDestinationNode,
-) {
-  if (!audioContext || !analyserNode) return;
-
-  const source = audioContext.createMediaStreamSource(stream);
-
-  source.connect(destination);
-  source.connect(analyserNode);
-
-  audioSources.push(source);
 }
 
 async function stopMediaRecorder() {
@@ -531,24 +525,23 @@ async function startCapture(
     await audioContext.resume();
   }
 
-  const destination = audioContext.createMediaStreamDestination();
+  const audioGraph = createOffscreenAudioGraph(audioContext, mediaStream);
+  const destination = audioGraph.recorderDestination;
 
-  analyserNode = audioContext.createAnalyser();
-  analyserNode.fftSize = 1024;
-
-  const tabSource = audioContext.createMediaStreamSource(mediaStream);
-
-  tabSource.connect(destination);
-  tabSource.connect(analyserNode);
-  tabSource.connect(audioContext.destination);
-
-  audioSources.push(tabSource);
+  analyserNode = audioGraph.analyser;
+  audioSources.push(audioGraph.tabSource);
 
   if (includeMicrophone) {
     microphoneStream = await getMicrophoneStream();
 
     if (microphoneStream) {
-      connectSourceToRecorder(microphoneStream, destination);
+      const microphoneSource = connectMicrophoneToOffscreenAudioGraph(
+        audioContext,
+        microphoneStream,
+        audioGraph,
+      );
+
+      audioSources.push(microphoneSource);
 
       microphoneStream.getTracks().forEach((track) => {
         track.onended = () => {
@@ -577,30 +570,43 @@ async function startCapture(
   });
 
   silenceTicks = 0;
+  speechActive = false;
+  vadTickCounter = 0;
   bufferStartTime = Date.now();
 
   vadTimer = setInterval(async () => {
     if (isStopping || isVadBusy || isDrainingQueue) return;
 
+    vadTickCounter += 1;
+    const overflowReached = Date.now() - bufferStartTime >= MAX_BUFFER_MS;
+    const runAnalysis = shouldRunVadAnalysis(speechActive, vadTickCounter);
+
+    // While speech is sustained, skip the analyser read on alternate ticks to
+    // cut CPU (#632). The overflow flush is time-based, so it still runs.
+    if (!runAnalysis && !overflowReached) return;
+
     isVadBusy = true;
 
     try {
-      const rms = getCurrentRms();
-      voiceActivity.observe(rms);
+      let naturalPause = false;
+      let rms = -1;
 
-      if (rms < rmsThreshold) {
-        silenceTicks++;
-      } else {
-        silenceTicks = 0;
+      if (runAnalysis) {
+        rms = getCurrentRms();
+        voiceActivity.observe(rms);
+        speechActive = rms >= rmsThreshold;
+        if (speechActive) {
+          silenceTicks = 0;
+        } else {
+          silenceTicks++;
+        }
+        naturalPause = silenceTicks >= SILENCE_FLUSH_TICKS;
       }
-
-      const naturalPause = silenceTicks >= SILENCE_FLUSH_TICKS;
-      const overflowReached = Date.now() - bufferStartTime >= MAX_BUFFER_MS;
 
       if (naturalPause || overflowReached) {
         const reason = naturalPause ? "silence-pause" : "overflow-cap";
         relay(
-          `flush triggered — reason=${reason} rms=${rms.toFixed(4)} silenceTicks=${silenceTicks}`,
+          `flush triggered — reason=${reason} rms=${rms >= 0 ? rms.toFixed(4) : "n/a"} silenceTicks=${silenceTicks}`,
         );
         silenceTicks = 0;
         bufferStartTime = Date.now();
