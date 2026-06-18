@@ -1380,9 +1380,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
 
   // ——— Helpers ———
-  function escapeHtml(str: string) {
+  function escapeHtml(str: unknown) {
     const div = document.createElement("div");
-    div.textContent = str;
+    div.textContent = String(str ?? "");
     return div.innerHTML;
   }
 
