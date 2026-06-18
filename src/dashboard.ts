@@ -569,13 +569,19 @@ document.addEventListener("DOMContentLoaded", async () => {
   function updateInsights(insights: any[]) {
     const list = document.getElementById("dash-insights-list");
     if (!list) return;
-    if (!insights || insights.length === 0) {
+
+    const validInsights = (insights || []).filter((i) => {
+      if (i == null) return false;
+      const text = typeof i === "string" ? i : i.text || "";
+      return String(text).trim().length > 0;
+    });
+
+    if (validInsights.length === 0) {
       list.innerHTML =
         '<li class="empty-msg">Insights will appear as the conversation progresses</li>';
       return;
     }
-    list.innerHTML = insights
-      .filter((i) => i != null)
+    list.innerHTML = validInsights
       .map((i) => {
         const text = typeof i === "string" ? i : i.text || "";
         const rawScore =
