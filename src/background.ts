@@ -22,20 +22,25 @@ import { getOpenAiApiKey, getElevenLabsApiKey } from "./utils/credentials";
 import { isMessageFromActiveMeeting } from "./activeMeetingMessages";
 import { namesMatch, findParticipant, normalizeName } from "./utils/nameUtils";
 import { getTabState, setTabState, clearTabState, initTabStateCleanup } from "./tabStateManager";
-import { DEBUG, DEFAULT_CHAT_MODEL, ELEVENLABS_STT_MODEL, WHISPER_MODEL } from "./config";
+import {
+  BROADCAST_THROTTLE_MS,
+  DEBUG,
+  DEFAULT_CHAT_MODEL,
+  ELEVENLABS_STT_MODEL,
+  JOINER_MESSAGE_MAX_TOKENS,
+  MAX_PENDING_AUDIO_CHUNKS,
+  MAX_PROMPT_LENGTH,
+  MIN_MEETING_DURATION_FOR_WELCOME,
+  SUMMARIZATION_MAX_TOKENS,
+  TRANSCRIPT_WINDOW_SIZE,
+  WHISPER_MODEL,
+} from "./config";
 import { updateUsageStats, calculateDeltaCost, UsageDelta } from "./usageTracker";
 
 const OPENAI_CHAT_URL = "https://api.openai.com/v1/chat/completions";
 const OPENAI_WHISPER_URL = "https://api.openai.com/v1/audio/transcriptions";
 const OFFSCREEN_DOCUMENT_PATH = "src/offscreen.html";
 const OFFSCREEN_DOCUMENT_URL = chrome.runtime.getURL(OFFSCREEN_DOCUMENT_PATH);
-const MAX_PROMPT_LENGTH = 2000;
-const TRANSCRIPT_WINDOW_SIZE = 25;
-const SUMMARIZATION_MAX_TOKENS = 1200;
-const JOINER_MESSAGE_MAX_TOKENS = 120;
-const MAX_PENDING_AUDIO_CHUNKS = 8;
-// Delay late-joiner auto messages until 10s to avoid lobby/join churn spam.
-const MIN_MEETING_DURATION_FOR_WELCOME = 10;
 
 // ---------------------------------------------------------------------------
 // API Transaction Manager
@@ -611,7 +616,6 @@ function uiSnapshot() {
 // Throttled State Broadcast
 // ---------------------------------------------------------------------------
 
-const BROADCAST_THROTTLE_MS = 500;
 let lastBroadcastTime = 0;
 let pendingBroadcast = false;
 let broadcastTimerHandle: ReturnType<typeof setTimeout> | null = null;
@@ -1073,9 +1077,10 @@ async function summarizeTranscriptIfNeeded(force = false) {
   const settings = await getSettings();
   const requestedInterval = Number(settings.summarizationInterval);
   let intervalSeconds =
-    Number.isFinite(requestedInterval) && requestedInterval > 0 ? requestedInterval : 30;
-  if (intervalSeconds < 10) intervalSeconds = 10;
-  if (intervalSeconds > 300) intervalSeconds = 300;
+    Number.isFinite(requestedInterval) && requestedInterval > 0 ? requestedInterval : 300;
+
+  if (intervalSeconds < 300) intervalSeconds = 300;
+  if (intervalSeconds > 900) intervalSeconds = 900;
   const lastSum = state.lastSummarizedAt || 0;
   const elapsed = Math.floor((Date.now() - lastSum) / 1000);
 

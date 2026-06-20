@@ -105,10 +105,11 @@ document.addEventListener("DOMContentLoaded", async () => {
   const intervalSlider = document.getElementById("summary-interval") as HTMLInputElement | null;
   const intervalValue = document.getElementById("interval-value");
   if (intervalSlider && intervalValue) {
-    intervalSlider.value = String(settings.summarizationInterval || 30);
-    intervalValue.textContent = `${intervalSlider.value}s`;
+    intervalSlider.value = String(settings.summarizationInterval || 300);
+    intervalValue.textContent = `${Number(intervalSlider.value) / 60} min`;
+
     intervalSlider.addEventListener("input", () => {
-      intervalValue.textContent = `${intervalSlider.value}s`;
+      intervalValue.textContent = `${Number(intervalSlider.value) / 60} min`;
     });
   }
 
@@ -363,11 +364,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     const originalText = saveBtn.textContent?.trim() || "Save Settings";
     saveBtn.disabled = true;
     try {
-      const parsedInterval = intervalSlider ? parseInt(intervalSlider.value, 10) : 30;
+      const parsedInterval = intervalSlider ? parseInt(intervalSlider.value, 10) : 300;
       let validatedInterval =
-        Number.isNaN(parsedInterval) || !Number.isFinite(parsedInterval) ? 30 : parsedInterval;
-      if (validatedInterval < 10) validatedInterval = 10;
-      if (validatedInterval > 300) validatedInterval = 300;
+        Number.isNaN(parsedInterval) || !Number.isFinite(parsedInterval) ? 300 : parsedInterval;
+      if (validatedInterval < 300) validatedInterval = 300;
+      if (validatedInterval > 900) validatedInterval = 900;
 
       const parsedVadThreshold = vadSlider ? parseFloat(vadSlider.value) : 0.012;
       let validatedVadThreshold =
