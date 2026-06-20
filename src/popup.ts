@@ -597,11 +597,14 @@ document.addEventListener("DOMContentLoaded", async () => {
   showSkeletons();
   try {
     lastState = await chrome.runtime.sendMessage({ type: "GET_STATE" });
-    if (lastState) updateUI(lastState);
+    if (lastState) {
+      updateUI(lastState);
+    } else {
+      hideSkeletons();
+    }
   } catch {
-    /* background script might be idle */
-  } finally {
     hideSkeletons();
+    /* background script might be idle */
   }
 
   // ——— Listen for State Updates ———
