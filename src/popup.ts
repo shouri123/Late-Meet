@@ -4,6 +4,7 @@ import { getApiCredentials, saveApiCredentials } from "./utils/credentials";
 import { validateOpenAIKey } from "./utils/api.js";
 import { resolveManualMeetTab } from "./meetingTabs";
 import { startPopupAudioCapture } from "./popupCapture";
+import { debugLog } from "./utils/logger";
 
 initTheme();
 
@@ -144,7 +145,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const originalText = textEl?.textContent || "Start";
 
     if (lastState?.audioActive) {
-      console.log("[LateMeet] Audio already active, skipping capture request.");
+      debugLog("[LateMeet] Audio already active, skipping capture request.");
       return;
     }
 
