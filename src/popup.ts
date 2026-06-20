@@ -593,12 +593,15 @@ document.addEventListener("DOMContentLoaded", async () => {
     showSessionModal();
   }
 
-  // ——— Get Initial state load ———
+  // ——— Get Initial state load (show skeleton while loading) ———
+  showSkeletons();
   try {
     lastState = await chrome.runtime.sendMessage({ type: "GET_STATE" });
     if (lastState) updateUI(lastState);
   } catch {
     /* background script might be idle */
+  } finally {
+    hideSkeletons();
   }
 
   // ——— Listen for State Updates ———
@@ -623,6 +626,66 @@ document.addEventListener("DOMContentLoaded", async () => {
       const timerEl = document.getElementById("meeting-duration");
       if (timerEl) timerEl.textContent = formatDuration(elapsed);
     }, 1000);
+  }
+
+  // ——— Skeleton Loading Helpers ———
+  function showSkeletons() {
+    // Stat cards — replace values with shimmer blocks
+    const statValues = document.querySelectorAll(".stat-value");
+    const statLabels = document.querySelectorAll(".stat-label");
+    statValues.forEach((el) => {
+      (el as HTMLElement).dataset.originalText = el.textContent || "";
+      el.innerHTML = '<div class="skeleton skeleton-stat-value"></div>';
+    });
+    statLabels.forEach((el) => {
+      (el as HTMLElement).dataset.originalText = el.textContent || "";
+      el.innerHTML = '<div class="skeleton skeleton-stat-label"></div>';
+    });
+
+    // Summary card body — shimmer lines
+    const summaryEl = document.getElementById("summary-text");
+    if (summaryEl) {
+      (summaryEl as HTMLElement).dataset.originalText = summaryEl.textContent || "";
+      summaryEl.innerHTML =
+        '<div class="skeleton skeleton-line" style="width:90%"></div>' +
+        '<div class="skeleton skeleton-line" style="width:75%"></div>' +
+        '<div class="skeleton skeleton-line"></div>';
+    }
+
+    // Topics list — shimmer lines
+    const topicEl = document.getElementById("current-topic");
+    if (topicEl) {
+      (topicEl as HTMLElement).dataset.originalText = topicEl.textContent || "";
+      topicEl.innerHTML = '<div class="skeleton skeleton-line" style="width:80%"></div>';
+    }
+  }
+
+  function hideSkeletons() {
+    // Restore stat values
+    const statValues = document.querySelectorAll(".stat-value");
+    const statLabels = document.querySelectorAll(".stat-label");
+    statValues.forEach((el) => {
+      const original = (el as HTMLElement).dataset.originalText;
+      if (original !== undefined) el.textContent = original;
+    });
+    statLabels.forEach((el) => {
+      const original = (el as HTMLElement).dataset.originalText;
+      if (original !== undefined) el.textContent = original;
+    });
+
+    // Restore summary
+    const summaryEl = document.getElementById("summary-text");
+    if (summaryEl) {
+      const original = (summaryEl as HTMLElement).dataset.originalText;
+      if (original !== undefined) summaryEl.textContent = original;
+    }
+
+    // Restore topic
+    const topicEl = document.getElementById("current-topic");
+    if (topicEl) {
+      const original = (topicEl as HTMLElement).dataset.originalText;
+      if (original !== undefined) topicEl.textContent = original;
+    }
   }
 
   // ——— Update UI ———
