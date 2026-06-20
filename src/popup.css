@@ -137,6 +137,19 @@ body::-webkit-scrollbar-thumb {
   animation: shake 0.4s ease;
 }
 
+@keyframes shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-5px);
+  }
+  75% {
+    transform: translateX(5px);
+  }
+}
+
 /* ——— Setup View ——— */
 .setup-container {
   padding: 40px 24px;
