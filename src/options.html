@@ -315,18 +315,21 @@
 
         <div class="form-group">
           <label class="form-label">Summarization Interval</label>
-          <p class="form-hint">How often AI processes the transcript (in seconds)</p>
+          <p class="form-hint">
+            Choose how often AI summarizes the meeting transcript (5–15 minutes)
+          </p>
           <div class="slider-row">
             <input
               type="range"
               id="summary-interval"
               class="form-range"
-              min="15"
-              max="120"
-              step="5"
-              value="30"
+              min="300"
+              max="900"
+              step="300"
+              value="300"
             />
-            <span id="interval-value" class="range-value">30s</span>
+
+            <span id="interval-value" class="range-value">5 min</span>
           </div>
         </div>
 
