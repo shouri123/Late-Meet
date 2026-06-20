@@ -577,6 +577,12 @@ body::-webkit-scrollbar-thumb {
   overflow-y: auto;
 }
 
+.topics-items-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
 .topic-item {
   display: flex;
   align-items: center;

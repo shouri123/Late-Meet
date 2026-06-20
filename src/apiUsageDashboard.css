@@ -1,0 +1,351 @@
+/* ============================================================
+   API Usage & Cost Dashboard — AI Meeting Copilot
+   Works in both the side-panel (dashboard.html) and the
+   options page (options.html) via shared theme.css tokens.
+   ============================================================ */
+
+/* ——— Container ——— */
+.usage-dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px 0;
+}
+
+/* ——— Loading / Error states ——— */
+.usage-loading,
+.usage-error {
+  font-size: 13px;
+  color: var(--text-muted);
+  padding: 20px 0;
+  text-align: center;
+}
+.usage-error {
+  color: var(--text-danger);
+}
+
+/* ——— Cards ——— */
+.usage-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-main);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.usage-card:hover {
+  border-color: var(--border-sub);
+  box-shadow: 0 2px 12px var(--shadow-main);
+}
+
+/* Active-meeting glow variant */
+.live-tracker-card {
+  border-color: var(--border-element);
+  box-shadow: 0 4px 24px var(--shadow-main);
+  background: var(--bg-card);
+}
+
+/* ——— Card header row ——— */
+.usage-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.usage-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--text-muted);
+}
+
+/* ——— LIVE badge ——— */
+.usage-badge-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  color: var(--text-danger);
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+
+.usage-badge-live::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-danger);
+  animation: usage-blink 1.8s ease-in-out infinite;
+}
+
+@keyframes usage-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
+
+/* ——— Session URL subtitle ——— */
+.usage-session-title {
+  font-size: 11px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 160px;
+}
+
+/* ——— Two-column metric grid (live tracker) ——— */
+.usage-metric-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.usage-metric {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.usage-metric-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.usage-metric-value {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-main);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.usage-metric-value.accent {
+  color: var(--text-success);
+}
+
+/* ——— Summary pair grid ——— */
+.usage-grid-summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+/* ——— Stat rows inside a summary card ——— */
+.usage-summary-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 13px;
+  color: var(--text-sub);
+}
+
+.summary-row strong {
+  color: var(--text-main);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Top-border accent on the cost row */
+.summary-row.accent-row {
+  border-top: 1px solid var(--border-main);
+  padding-top: 8px;
+  margin-top: 2px;
+}
+
+/* ——— All-time banner ——— */
+.usage-alltime-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.usage-alltime-heading {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.usage-alltime-value {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--text-main);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.usage-alltime-value span {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+.usage-alltime-cost {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--text-success);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+/* ——— Table ——— */
+.usage-table-wrapper {
+  overflow-x: auto;
+  border-radius: 8px;
+}
+
+.usage-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.usage-table thead th {
+  text-align: left;
+  padding: 8px 10px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border-main);
+  white-space: nowrap;
+}
+
+.usage-table tbody td {
+  padding: 9px 10px;
+  color: var(--text-sub);
+  border-bottom: 1px solid var(--border-main);
+  font-variant-numeric: tabular-nums;
+  vertical-align: middle;
+}
+
+.usage-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.usage-table tbody tr:hover td {
+  background: var(--bg-card);
+  color: var(--text-main);
+}
+
+/* ——— Cost accent colour ——— */
+.cost-val {
+  color: var(--text-success) !important;
+  font-weight: 600;
+}
+
+/* ——— Empty state ——— */
+.usage-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 20px;
+  gap: 8px;
+  text-align: center;
+}
+
+.usage-empty-icon {
+  font-size: 32px;
+  opacity: 0.4;
+  margin-bottom: 4px;
+}
+
+.usage-empty-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.usage-empty-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+  max-width: 240px;
+  line-height: 1.6;
+}
+
+/* ——— Action button row ——— */
+.usage-action-row {
+  display: flex;
+  gap: 8px;
+}
+
+/* ——— Buttons ——— */
+.usage-refresh-btn,
+.usage-clear-btn {
+  flex: 1;
+  padding: 9px 14px;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+
+.usage-refresh-btn {
+  background: transparent;
+  border: 1px solid var(--border-sub);
+  color: var(--text-sub);
+}
+
+.usage-refresh-btn:hover {
+  border-color: var(--border-element);
+  color: var(--text-main);
+  background: var(--bg-card);
+}
+
+.usage-clear-btn {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: var(--text-danger);
+}
+
+.usage-clear-btn:hover {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.5);
+}
+
+/* ——— Footnote ——— */
+.usage-footnote {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: center;
+  line-height: 1.5;
+  padding: 0 4px;
+}

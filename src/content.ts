@@ -247,7 +247,12 @@ void initTheme().catch((err) => console.error(err));
 
   function upsertBriefOverlay(briefContent: string, targetName?: string) {
     const overlayId = "mc-brief-overlay";
+    const titleId = "mc-brief-title-label";
     let overlay = document.getElementById(overlayId);
+
+    // Track the element that had focus before the overlay opens so we can
+    // restore it when the overlay closes (WCAG 2.4.3 focus order).
+    const previouslyFocused = document.activeElement as HTMLElement | null;
 
     const closeOverlay = () => {
       if (!overlay) return;
@@ -255,6 +260,9 @@ void initTheme().catch((err) => console.error(err));
       window.setTimeout(() => {
         overlay?.remove();
         overlay = null;
+        if (previouslyFocused && document.contains(previouslyFocused)) {
+          previouslyFocused.focus();
+        }
       }, 550);
     };
 
@@ -264,6 +272,9 @@ void initTheme().catch((err) => console.error(err));
 
       const card = document.createElement("div");
       card.className = "mc-brief-card";
+      card.setAttribute("role", "dialog");
+      card.setAttribute("aria-modal", "true");
+      card.setAttribute("aria-labelledby", titleId);
 
       const header = document.createElement("div");
       header.className = "mc-brief-header";
@@ -274,6 +285,7 @@ void initTheme().catch((err) => console.error(err));
 
       const title = document.createElement("div");
       title.className = "mc-brief-title";
+      title.id = titleId;
       title.textContent = targetName ? `Brief for ${targetName}` : "Meeting brief";
 
       const closeBtn = document.createElement("button");
@@ -298,6 +310,35 @@ void initTheme().catch((err) => console.error(err));
       footer.textContent = "Late Meet — private brief (only visible to you)";
 
       card.append(header, greeting, text, footer);
+
+      card.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") {
+          event.preventDefault();
+          event.stopPropagation();
+          closeOverlay();
+          return;
+        }
+        if (event.key === "Tab") {
+          const focusable = Array.from(
+            card.querySelectorAll<HTMLElement>(
+              'a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])',
+            ),
+          ).filter((el) => el.offsetParent !== null);
+          if (focusable.length === 0) return;
+          const first = focusable[0];
+          const last = focusable.at(-1)!;
+          if (event.shiftKey) {
+            if (document.activeElement === first) {
+              event.preventDefault();
+              last.focus();
+            }
+          } else if (document.activeElement === last) {
+            event.preventDefault();
+            first.focus();
+          }
+        }
+      });
+
       overlay.appendChild(card);
 
       overlay.addEventListener("click", (event) => {
@@ -305,7 +346,12 @@ void initTheme().catch((err) => console.error(err));
       });
 
       document.body.appendChild(overlay);
-      requestAnimationFrame(() => overlay?.classList.add("mc-visible"));
+      requestAnimationFrame(() => {
+        overlay?.classList.add("mc-visible");
+        // Move focus to the close button so keyboard users can immediately
+        // dismiss the dialog without tabbing through the entire Meet UI.
+        closeBtn.focus();
+      });
     } else {
       const title = overlay.querySelector(".mc-brief-title");
       if (title) title.textContent = targetName ? `Brief for ${targetName}` : "Meeting brief";
