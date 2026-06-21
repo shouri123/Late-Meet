@@ -1600,12 +1600,13 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   let allHistorySessions: State[] = [];
 
-  function highlightText(text: string, query: string): string {
-    if (!query.trim()) return escapeHtml(text);
-    const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const re = new RegExp(`(${escaped})`, "gi");
-    return escapeHtml(text).replace(re, '<mark class="history-highlight">$1</mark>');
-  }
+ function highlightText(text: string, query: string): string {
+  if (!query.trim()) return escapeHtml(text);
+  const escapedText = escapeHtml(text);
+  const escapedQuery = escapeHtml(query).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const re = new RegExp(`(${escapedQuery})`, "gi");
+  return escapedText.replace(re, '<mark class="history-highlight">$1</mark>');
+ }
 
   function buildSessionCardHTML(s: State, query = ""): string {
     const date = new Date(s.savedAt || s.startTime || Date.now()).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
