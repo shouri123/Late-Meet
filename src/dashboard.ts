@@ -1598,109 +1598,199 @@ document.addEventListener("DOMContentLoaded", async () => {
   // ——— Meeting History Tab ———
   let sessionToDelete: string | null = null;
 
+  let allHistorySessions: State[] = [];
+
+  function highlightText(text: string, query: string): string {
+    if (!query.trim()) return escapeHtml(text);
+    const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const re = new RegExp(`(${escaped})`, "gi");
+    return escapeHtml(text).replace(re, '<mark class="history-highlight">$1</mark>');
+  }
+
+  function buildSessionCardHTML(s: State, query = ""): string {
+    const date = new Date(s.savedAt || s.startTime || Date.now()).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+    const time = new Date(s.savedAt || s.startTime || Date.now()).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
+    const topicCount = s.topics?.length || 0;
+    const decisionCount = s.decisions?.length || 0;
+    const actionCount = s.actionItems?.length || 0;
+    const meetingLabel = s.meetingUrl || s.meetingId || "Unknown Meeting";
+    const summaryText = s.summary || "No summary available";
+    return `
+      <div class="session-item" data-session-id="${sanitizeDataAttr(s.id)}">
+        <div class="session-item-header">
+          <div>
+            <div class="session-item-date">${highlightText(date + " at " + time, query)}</div>
+            <div class="session-item-id" title="${escapeHtml(s.meetingUrl || "")}">${highlightText(meetingLabel, query)}</div>
+          </div>
+          <div class="session-item-meta">
+            <span>${formatDuration((s as State & { duration?: number }).duration || 0)}</span>
+          </div>
+        </div>
+        <div class="session-item-summary" style="cursor:pointer;" title="Click to expand/collapse summary">${highlightText(summaryText, query)}</div>
+        <div class="session-item-stats">
+          <span>${topicCount} topics</span>
+          <span>${decisionCount} decisions</span>
+          <span>${actionCount} actions</span>
+        </div>
+        <div class="session-item-actions">
+          <button class="session-export-btn" data-session-id="${sanitizeDataAttr(s.id)}" title="Copy as Markdown">
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" x2="12" y1="15" y2="3"></line></svg>
+            Copy MD
+          </button>
+          <button class="session-export-btn session-download-btn" data-session-id="${sanitizeDataAttr(s.id)}" title="Download as Markdown">
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" x2="12" y1="15" y2="3"></line></svg>
+            Download
+          </button>
+          <button class="session-delete-btn" data-session-id="${sanitizeDataAttr(s.id)}" title="Delete session">
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
+            Delete
+          </button>
+        </div>
+      </div>`;
+  }
+
+  function sessionMatchesQuery(s: State, query: string): boolean {
+    if (!query.trim()) return true;
+    const q = query.toLowerCase();
+    return [
+      s.meetingUrl || "", s.meetingId || "", s.summary || "", s.currentTopic || "",
+      ...(s.topics?.map((t) => t.name) || []),
+      ...(s.decisions?.map((d) => d.text) || []),
+      ...(s.actionItems?.map((a) => a.task) || []),
+      ...(s.participants || []),
+    ].some((f) => f.toLowerCase().includes(q));
+  }
+
+  function sessionMatchesDateFilter(s: State, range: string): boolean {
+    if (range === "all") return true;
+    const d = new Date(s.savedAt || s.startTime || 0);
+    const now = new Date();
+    if (range === "today") return d.toDateString() === now.toDateString();
+    if (range === "week") { const w = new Date(now); w.setDate(now.getDate() - 7); return d >= w; }
+    if (range === "month") { const m = new Date(now); m.setMonth(now.getMonth() - 1); return d >= m; }
+    return true;
+  }
+
+  function sortSessions(sessions: State[], sort: string): State[] {
+    const arr = [...sessions];
+    if (sort === "oldest") arr.sort((a, b) => (a.savedAt || a.startTime || 0) - (b.savedAt || b.startTime || 0));
+    else if (sort === "longest") arr.sort((a, b) => ((b as State & { duration?: number }).duration || 0) - ((a as State & { duration?: number }).duration || 0));
+    else if (sort === "most-actions") arr.sort((a, b) => (b.actionItems?.length || 0) - (a.actionItems?.length || 0));
+    else arr.sort((a, b) => (b.savedAt || b.startTime || 0) - (a.savedAt || a.startTime || 0));
+    return arr;
+  }
+
+  function renderHistoryList(sessions: State[], query: string): void {
+    const container = document.getElementById("dash-history-list");
+    const countEl = document.getElementById("history-results-count");
+    if (!container) return;
+    if (sessions.length === 0) {
+      container.innerHTML = query.trim()
+        ? `<div class="history-no-results"><strong>No results found</strong>Try a different search term or clear the filters.</div>`
+        : getEmptyStateHTML("No history exists yet. Sessions are saved when you end them.");
+      if (countEl) countEl.textContent = "";
+      return;
+    }
+    if (countEl) countEl.textContent = sessions.length === allHistorySessions.length
+      ? `${sessions.length} session${sessions.length !== 1 ? "s" : ""}`
+      : `${sessions.length} of ${allHistorySessions.length}`;
+    container.innerHTML = sessions.map((s) => buildSessionCardHTML(s, query)).join("");
+    container.querySelectorAll<HTMLButtonElement>(".session-export-btn:not(.session-download-btn)").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const session = btn.dataset.sessionId ? await loadFullSavedSession(btn.dataset.sessionId) : null;
+        if (session) exportSessionMarkdown(session);
+      });
+    });
+    container.querySelectorAll<HTMLButtonElement>(".session-download-btn").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const session = btn.dataset.sessionId ? await loadFullSavedSession(btn.dataset.sessionId) : null;
+        if (session) downloadSessionMarkdown(session);
+      });
+    });
+    container.querySelectorAll<HTMLButtonElement>(".session-delete-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        sessionToDelete = btn.dataset.sessionId || null;
+        if (sessionToDelete) document.getElementById("delete-confirm-modal")?.classList.remove("hidden");
+      });
+    });
+    container.querySelectorAll<HTMLDivElement>(".session-item-summary").forEach((summary) => {
+      summary.addEventListener("click", () => summary.closest(".session-item")?.classList.toggle("expanded"));
+    });
+  }
+
+  function applyHistoryFilters(): void {
+    const query = (document.getElementById("history-search-input") as HTMLInputElement)?.value || "";
+    const dateRange = (document.getElementById("history-date-filter") as HTMLSelectElement)?.value || "all";
+    const sort = (document.getElementById("history-sort-select") as HTMLSelectElement)?.value || "newest";
+    const filtered = allHistorySessions
+      .filter((s) => sessionMatchesQuery(s, query))
+      .filter((s) => sessionMatchesDateFilter(s, dateRange));
+    renderHistoryList(sortSessions(filtered, sort), query);
+  }
+
+  function exportHistoryAsJSON(): void {
+    if (!allHistorySessions.length) { showToast("No sessions to export", "error"); return; }
+    const data = allHistorySessions.map((s) => ({
+      id: s.id, meetingUrl: s.meetingUrl, meetingId: s.meetingId,
+      savedAt: s.savedAt, startTime: s.startTime,
+      duration: (s as State & { duration?: number }).duration,
+      summary: s.summary, topics: s.topics, decisions: s.decisions,
+      actionItems: s.actionItems, participants: s.participants, keyInsights: s.keyInsights,
+    }));
+    downloadFile(JSON.stringify(data, null, 2), `late-meet-history-${new Date().toISOString().slice(0, 10)}.json`, "application/json");
+    showToast("History exported as JSON", "success");
+  }
+
+  function exportHistoryAsCSV(): void {
+    if (!allHistorySessions.length) { showToast("No sessions to export", "error"); return; }
+    const e = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const headers = ["ID","Date","Meeting URL","Duration (s)","Summary","Topics","Decisions","Action Items","Participants"];
+    const rows = allHistorySessions.map((s) => [
+      e(s.id),
+      e(s.savedAt || s.startTime ? new Date(s.savedAt || s.startTime || 0).toISOString() : ""),
+      e(s.meetingUrl || s.meetingId || ""),
+      e(Math.round(((s as State & { duration?: number }).duration || 0) / 1000)),
+      e(s.summary || ""),
+      e((s.topics || []).map((t) => t.name).join("; ")),
+      e((s.decisions || []).map((d) => d.text).join("; ")),
+      e((s.actionItems || []).map((a) => a.task).join("; ")),
+      e((s.participants || []).join("; ")),
+    ].join(","));
+    downloadFile([headers.join(","), ...rows].join("\r\n"), `late-meet-history-${new Date().toISOString().slice(0, 10)}.csv`, "text/csv");
+    showToast("History exported as CSV", "success");
+  }
+
   async function loadMeetingHistory() {
     try {
       const sessions: State[] = await chrome.runtime.sendMessage({ type: "GET_SAVED_SESSIONS" });
-      const container = document.getElementById("dash-history-list");
-      if (!container) return;
-      if (!sessions || sessions.length === 0) {
-        container.innerHTML = getEmptyStateHTML(
-          "No history exists yet. Sessions are saved when you end them.",
-        );
-        return;
-      }
-
-      container.innerHTML = sessions
-        .map((s: State) => {
-          const date = new Date(s.savedAt || s.startTime || Date.now()).toLocaleDateString(
-            "en-US",
-            { month: "short", day: "numeric", year: "numeric" },
-          );
-          const time = new Date(s.savedAt || s.startTime || Date.now()).toLocaleTimeString(
-            "en-US",
-            { hour: "2-digit", minute: "2-digit" },
-          );
-          const topicCount = s.topics?.length || 0;
-          const decisionCount = s.decisions?.length || 0;
-          const actionCount = s.actionItems?.length || 0;
-
-          return `
-          <div class="session-item" data-session-id="${sanitizeDataAttr(s.id)}">
-            <div class="session-item-header">
-              <div>
-                <div class="session-item-date">${escapeHtml(date)} at ${escapeHtml(time)}</div>
-                <div class="session-item-id" title="${escapeHtml(s.meetingUrl || "")}">${escapeHtml(s.meetingUrl || s.meetingId || "Unknown Meeting")}</div>
-              </div>
-              <div class="session-item-meta">
-                <span>${formatDuration((s as State & { duration?: number }).duration || 0)}</span>
-              </div>
-            </div>
-            <div class="session-item-summary" style="cursor: pointer;" title="Click to expand/collapse summary">${escapeHtml(s.summary || "No summary available")}</div>
-            <div class="session-item-stats">
-              <span>${topicCount} topics</span>
-              <span>${decisionCount} decisions</span>
-              <span>${actionCount} actions</span>
-            </div>
-            <div class="session-item-actions">
-              <button class="session-export-btn" data-session-id="${sanitizeDataAttr(s.id)}" title="Export as Markdown">
-                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" x2="12" y1="15" y2="3"></line></svg>
-                Export
-              </button>
-              <button class="session-export-btn session-download-btn" data-session-id="${sanitizeDataAttr(s.id)}" title="Download as Markdown File">
-                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" x2="12" y1="15" y2="3"></line></svg>
-                Download
-              </button>
-              <button class="session-delete-btn" data-session-id="${sanitizeDataAttr(s.id)}" title="Delete session">
-                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
-                Delete
-              </button>
-            </div>
-          </div>
-        `;
-        })
-        .join("");
-
-      // Wire up export buttons
-      container
-        .querySelectorAll<HTMLButtonElement>(".session-export-btn:not(.session-download-btn)")
-        .forEach((btn) => {
-          btn.addEventListener("click", async () => {
-            const sessionId = btn.dataset.sessionId;
-            const session = sessionId ? await loadFullSavedSession(sessionId) : null;
-            if (session) exportSessionMarkdown(session);
-          });
-        });
-
-      container.querySelectorAll<HTMLButtonElement>(".session-download-btn").forEach((btn) => {
-        btn.addEventListener("click", async () => {
-          const sessionId = btn.dataset.sessionId;
-          const session = sessionId ? await loadFullSavedSession(sessionId) : null;
-          if (session) downloadSessionMarkdown(session);
-        });
-      });
-
-      // Wire up delete buttons
-      container.querySelectorAll<HTMLButtonElement>(".session-delete-btn").forEach((btn) => {
-        btn.addEventListener("click", () => {
-          sessionToDelete = btn.dataset.sessionId || null;
-          if (sessionToDelete) {
-            document.getElementById("delete-confirm-modal")?.classList.remove("hidden");
-          }
-        });
-      });
-
-      // Wire up summary expand/collapse
-      container.querySelectorAll<HTMLDivElement>(".session-item-summary").forEach((summary) => {
-        summary.addEventListener("click", () => {
-          const item = summary.closest(".session-item");
-          if (item) item.classList.toggle("expanded");
-        });
-      });
+      allHistorySessions = sessions || [];
+      applyHistoryFilters();
+      const controls = document.getElementById("history-controls");
+      if (controls) controls.style.display = allHistorySessions.length === 0 ? "none" : "flex";
     } catch (err) {
       console.error("[Dashboard] Failed to load history:", err);
     }
   }
 
+  (() => {
+    const searchInput = document.getElementById("history-search-input") as HTMLInputElement | null;
+    const clearBtn = document.getElementById("history-search-clear") as HTMLButtonElement | null;
+    let debounce: ReturnType<typeof setTimeout> | null = null;
+    searchInput?.addEventListener("input", () => {
+      if (clearBtn) clearBtn.hidden = !searchInput.value.trim();
+      if (debounce) clearTimeout(debounce);
+      debounce = setTimeout(applyHistoryFilters, 200);
+    });
+    clearBtn?.addEventListener("click", () => {
+      if (searchInput) searchInput.value = "";
+      clearBtn.hidden = true;
+      applyHistoryFilters();
+    });
+    document.getElementById("history-sort-select")?.addEventListener("change", applyHistoryFilters);
+    document.getElementById("history-date-filter")?.addEventListener("change", applyHistoryFilters);
+    document.getElementById("history-export-json-btn")?.addEventListener("click", exportHistoryAsJSON);
+    document.getElementById("history-export-csv-btn")?.addEventListener("click", exportHistoryAsCSV);
+  })();
   // Modal logic
   document.getElementById("cancel-delete-btn")?.addEventListener("click", () => {
     sessionToDelete = null;

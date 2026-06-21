@@ -1020,6 +1020,52 @@
             </span>
             <span class="dash-card-title">Meeting History</span>
           </div>
+            <!-- Search & Filter Controls -->
+          <div class="history-controls" id="history-controls">
+            <div class="history-search-row">
+              <div class="history-search-wrap">
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="history-search-icon" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                <input id="history-search-input" type="search" class="history-search-input" placeholder="Search meetings, topics, decisions…" aria-label="Search meeting history" autocomplete="off" />
+                <button id="history-search-clear" class="history-search-clear" aria-label="Clear search" hidden>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                </button>
+              </div>
+            </div>
+            <div class="history-filter-row">
+              <div class="history-filter-group">
+                <label class="history-filter-label" for="history-sort-select">Sort</label>
+                <select id="history-sort-select" class="history-filter-select">
+                  <option value="newest">Newest first</option>
+                  <option value="oldest">Oldest first</option>
+                  <option value="longest">Longest first</option>
+                  <option value="most-actions">Most actions</option>
+                </select>
+              </div>
+              <div class="history-filter-group">
+                <label class="history-filter-label" for="history-date-filter">Date</label>
+                <select id="history-date-filter" class="history-filter-select">
+                  <option value="all">All time</option>
+                  <option value="today">Today</option>
+                  <option value="week">This week</option>
+                  <option value="month">This month</option>
+                </select>
+              </div>
+              <div class="history-filter-group history-filter-group--right">
+                <span id="history-results-count" class="history-results-count" aria-live="polite"></span>
+              </div>
+            </div>
+            <div class="history-export-row">
+              <span class="history-export-label">Export all</span>
+              <button id="history-export-json-btn" class="history-export-chip" title="Download all sessions as JSON">
+                <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+                JSON
+              </button>
+              <button id="history-export-csv-btn" class="history-export-chip" title="Download all sessions as CSV">
+                <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+                CSV
+              </button>
+            </div>
+          </div>
           <div id="dash-history-list" class="sessions-list">
             <div class="empty-msg">No history exists yet.</div>
           </div>
