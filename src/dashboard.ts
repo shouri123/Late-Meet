@@ -1600,17 +1600,24 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   let allHistorySessions: State[] = [];
 
- function highlightText(text: string, query: string): string {
-  if (!query.trim()) return escapeHtml(text);
-  const escapedText = escapeHtml(text);
-  const escapedQuery = escapeHtml(query).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const re = new RegExp(`(${escapedQuery})`, "gi");
-  return escapedText.replace(re, '<mark class="history-highlight">$1</mark>');
- }
+  function highlightText(text: string, query: string): string {
+    if (!query.trim()) return escapeHtml(text);
+    const escapedText = escapeHtml(text);
+    const escapedQuery = escapeHtml(query).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const re = new RegExp(`(${escapedQuery})`, "gi");
+    return escapedText.replace(re, '<mark class="history-highlight">$1</mark>');
+  }
 
   function buildSessionCardHTML(s: State, query = ""): string {
-    const date = new Date(s.savedAt || s.startTime || Date.now()).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-    const time = new Date(s.savedAt || s.startTime || Date.now()).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
+    const date = new Date(s.savedAt || s.startTime || Date.now()).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+    const time = new Date(s.savedAt || s.startTime || Date.now()).toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
     const topicCount = s.topics?.length || 0;
     const decisionCount = s.decisions?.length || 0;
     const actionCount = s.actionItems?.length || 0;
@@ -1654,7 +1661,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (!query.trim()) return true;
     const q = query.toLowerCase();
     return [
-      s.meetingUrl || "", s.meetingId || "", s.summary || "", s.currentTopic || "",
+      s.meetingUrl || "",
+      s.meetingId || "",
+      s.summary || "",
+      s.currentTopic || "",
       ...(s.topics?.map((t) => t.name) || []),
       ...(s.decisions?.map((d) => d.text) || []),
       ...(s.actionItems?.map((a) => a.task) || []),
@@ -1667,16 +1677,31 @@ document.addEventListener("DOMContentLoaded", async () => {
     const d = new Date(s.savedAt || s.startTime || 0);
     const now = new Date();
     if (range === "today") return d.toDateString() === now.toDateString();
-    if (range === "week") { const w = new Date(now); w.setDate(now.getDate() - 7); return d >= w; }
-    if (range === "month") { const m = new Date(now); m.setMonth(now.getMonth() - 1); return d >= m; }
+    if (range === "week") {
+      const w = new Date(now);
+      w.setDate(now.getDate() - 7);
+      return d >= w;
+    }
+    if (range === "month") {
+      const m = new Date(now);
+      m.setMonth(now.getMonth() - 1);
+      return d >= m;
+    }
     return true;
   }
 
   function sortSessions(sessions: State[], sort: string): State[] {
     const arr = [...sessions];
-    if (sort === "oldest") arr.sort((a, b) => (a.savedAt || a.startTime || 0) - (b.savedAt || b.startTime || 0));
-    else if (sort === "longest") arr.sort((a, b) => ((b as State & { duration?: number }).duration || 0) - ((a as State & { duration?: number }).duration || 0));
-    else if (sort === "most-actions") arr.sort((a, b) => (b.actionItems?.length || 0) - (a.actionItems?.length || 0));
+    if (sort === "oldest")
+      arr.sort((a, b) => (a.savedAt || a.startTime || 0) - (b.savedAt || b.startTime || 0));
+    else if (sort === "longest")
+      arr.sort(
+        (a, b) =>
+          ((b as State & { duration?: number }).duration || 0) -
+          ((a as State & { duration?: number }).duration || 0),
+      );
+    else if (sort === "most-actions")
+      arr.sort((a, b) => (b.actionItems?.length || 0) - (a.actionItems?.length || 0));
     else arr.sort((a, b) => (b.savedAt || b.startTime || 0) - (a.savedAt || a.startTime || 0));
     return arr;
   }
@@ -1692,37 +1717,51 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (countEl) countEl.textContent = "";
       return;
     }
-    if (countEl) countEl.textContent = sessions.length === allHistorySessions.length
-      ? `${sessions.length} session${sessions.length !== 1 ? "s" : ""}`
-      : `${sessions.length} of ${allHistorySessions.length}`;
+    if (countEl)
+      countEl.textContent =
+        sessions.length === allHistorySessions.length
+          ? `${sessions.length} session${sessions.length !== 1 ? "s" : ""}`
+          : `${sessions.length} of ${allHistorySessions.length}`;
     container.innerHTML = sessions.map((s) => buildSessionCardHTML(s, query)).join("");
-    container.querySelectorAll<HTMLButtonElement>(".session-export-btn:not(.session-download-btn)").forEach((btn) => {
-      btn.addEventListener("click", async () => {
-        const session = btn.dataset.sessionId ? await loadFullSavedSession(btn.dataset.sessionId) : null;
-        if (session) exportSessionMarkdown(session);
+    container
+      .querySelectorAll<HTMLButtonElement>(".session-export-btn:not(.session-download-btn)")
+      .forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          const session = btn.dataset.sessionId
+            ? await loadFullSavedSession(btn.dataset.sessionId)
+            : null;
+          if (session) exportSessionMarkdown(session);
+        });
       });
-    });
     container.querySelectorAll<HTMLButtonElement>(".session-download-btn").forEach((btn) => {
       btn.addEventListener("click", async () => {
-        const session = btn.dataset.sessionId ? await loadFullSavedSession(btn.dataset.sessionId) : null;
+        const session = btn.dataset.sessionId
+          ? await loadFullSavedSession(btn.dataset.sessionId)
+          : null;
         if (session) downloadSessionMarkdown(session);
       });
     });
     container.querySelectorAll<HTMLButtonElement>(".session-delete-btn").forEach((btn) => {
       btn.addEventListener("click", () => {
         sessionToDelete = btn.dataset.sessionId || null;
-        if (sessionToDelete) document.getElementById("delete-confirm-modal")?.classList.remove("hidden");
+        if (sessionToDelete)
+          document.getElementById("delete-confirm-modal")?.classList.remove("hidden");
       });
     });
     container.querySelectorAll<HTMLDivElement>(".session-item-summary").forEach((summary) => {
-      summary.addEventListener("click", () => summary.closest(".session-item")?.classList.toggle("expanded"));
+      summary.addEventListener("click", () =>
+        summary.closest(".session-item")?.classList.toggle("expanded"),
+      );
     });
   }
 
   function applyHistoryFilters(): void {
-    const query = (document.getElementById("history-search-input") as HTMLInputElement)?.value || "";
-    const dateRange = (document.getElementById("history-date-filter") as HTMLSelectElement)?.value || "all";
-    const sort = (document.getElementById("history-sort-select") as HTMLSelectElement)?.value || "newest";
+    const query =
+      (document.getElementById("history-search-input") as HTMLInputElement)?.value || "";
+    const dateRange =
+      (document.getElementById("history-date-filter") as HTMLSelectElement)?.value || "all";
+    const sort =
+      (document.getElementById("history-sort-select") as HTMLSelectElement)?.value || "newest";
     const filtered = allHistorySessions
       .filter((s) => sessionMatchesQuery(s, query))
       .filter((s) => sessionMatchesDateFilter(s, dateRange));
@@ -1730,34 +1769,67 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   function exportHistoryAsJSON(): void {
-    if (!allHistorySessions.length) { showToast("No sessions to export", "error"); return; }
+    if (!allHistorySessions.length) {
+      showToast("No sessions to export", "error");
+      return;
+    }
     const data = allHistorySessions.map((s) => ({
-      id: s.id, meetingUrl: s.meetingUrl, meetingId: s.meetingId,
-      savedAt: s.savedAt, startTime: s.startTime,
+      id: s.id,
+      meetingUrl: s.meetingUrl,
+      meetingId: s.meetingId,
+      savedAt: s.savedAt,
+      startTime: s.startTime,
       duration: (s as State & { duration?: number }).duration,
-      summary: s.summary, topics: s.topics, decisions: s.decisions,
-      actionItems: s.actionItems, participants: s.participants, keyInsights: s.keyInsights,
+      summary: s.summary,
+      topics: s.topics,
+      decisions: s.decisions,
+      actionItems: s.actionItems,
+      participants: s.participants,
+      keyInsights: s.keyInsights,
     }));
-    downloadFile(JSON.stringify(data, null, 2), `late-meet-history-${new Date().toISOString().slice(0, 10)}.json`, "application/json");
+    downloadFile(
+      JSON.stringify(data, null, 2),
+      `late-meet-history-${new Date().toISOString().slice(0, 10)}.json`,
+      "application/json",
+    );
     showToast("History exported as JSON", "success");
   }
 
   function exportHistoryAsCSV(): void {
-    if (!allHistorySessions.length) { showToast("No sessions to export", "error"); return; }
+    if (!allHistorySessions.length) {
+      showToast("No sessions to export", "error");
+      return;
+    }
     const e = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
-    const headers = ["ID","Date","Meeting URL","Duration (s)","Summary","Topics","Decisions","Action Items","Participants"];
-    const rows = allHistorySessions.map((s) => [
-      e(s.id),
-      e(s.savedAt || s.startTime ? new Date(s.savedAt || s.startTime || 0).toISOString() : ""),
-      e(s.meetingUrl || s.meetingId || ""),
-      e(Math.round(((s as State & { duration?: number }).duration || 0) / 1000)),
-      e(s.summary || ""),
-      e((s.topics || []).map((t) => t.name).join("; ")),
-      e((s.decisions || []).map((d) => d.text).join("; ")),
-      e((s.actionItems || []).map((a) => a.task).join("; ")),
-      e((s.participants || []).join("; ")),
-    ].join(","));
-    downloadFile([headers.join(","), ...rows].join("\r\n"), `late-meet-history-${new Date().toISOString().slice(0, 10)}.csv`, "text/csv");
+    const headers = [
+      "ID",
+      "Date",
+      "Meeting URL",
+      "Duration (s)",
+      "Summary",
+      "Topics",
+      "Decisions",
+      "Action Items",
+      "Participants",
+    ];
+    const rows = allHistorySessions.map((s) =>
+      [
+        e(s.id),
+        e(s.savedAt || s.startTime ? new Date(s.savedAt || s.startTime || 0).toISOString() : ""),
+        e(s.meetingUrl || s.meetingId || ""),
+        e(Math.round(((s as State & { duration?: number }).duration || 0) / 1000)),
+        e(s.summary || ""),
+        e((s.topics || []).map((t) => t.name).join("; ")),
+        e((s.decisions || []).map((d) => d.text).join("; ")),
+        e((s.actionItems || []).map((a) => a.task).join("; ")),
+        e((s.participants || []).join("; ")),
+      ].join(","),
+    );
+    downloadFile(
+      [headers.join(","), ...rows].join("\r\n"),
+      `late-meet-history-${new Date().toISOString().slice(0, 10)}.csv`,
+      "text/csv",
+    );
     showToast("History exported as CSV", "success");
   }
 
@@ -1789,8 +1861,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
     document.getElementById("history-sort-select")?.addEventListener("change", applyHistoryFilters);
     document.getElementById("history-date-filter")?.addEventListener("change", applyHistoryFilters);
-    document.getElementById("history-export-json-btn")?.addEventListener("click", exportHistoryAsJSON);
-    document.getElementById("history-export-csv-btn")?.addEventListener("click", exportHistoryAsCSV);
+    document
+      .getElementById("history-export-json-btn")
+      ?.addEventListener("click", exportHistoryAsJSON);
+    document
+      .getElementById("history-export-csv-btn")
+      ?.addEventListener("click", exportHistoryAsCSV);
   })();
   // Modal logic
   document.getElementById("cancel-delete-btn")?.addEventListener("click", () => {

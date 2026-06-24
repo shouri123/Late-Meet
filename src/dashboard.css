@@ -1480,15 +1480,21 @@ body::-webkit-scrollbar-thumb,
   font-family: inherit;
   font-size: 12px;
   outline: none;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
   box-sizing: border-box;
 }
 
-.history-search-input::placeholder { color: var(--text-muted); }
-.history-search-input::-webkit-search-cancel-button { display: none; }
+.history-search-input::placeholder {
+  color: var(--text-muted);
+}
+.history-search-input::-webkit-search-cancel-button {
+  display: none;
+}
 .history-search-input:focus {
   border-color: var(--accent-blue, #60a5fa);
-  box-shadow: 0 0 0 2px rgba(96,165,250,0.15);
+  box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.15);
 }
 
 .history-search-clear {
@@ -1504,7 +1510,9 @@ body::-webkit-scrollbar-thumb,
   border-radius: 3px;
   transition: color 0.15s ease;
 }
-.history-search-clear:hover { color: var(--text-main); }
+.history-search-clear:hover {
+  color: var(--text-main);
+}
 
 .history-filter-row {
   display: flex;
@@ -1519,7 +1527,9 @@ body::-webkit-scrollbar-thumb,
   gap: 5px;
 }
 
-.history-filter-group--right { margin-left: auto; }
+.history-filter-group--right {
+  margin-left: auto;
+}
 
 .history-filter-label {
   font-size: 11px;
@@ -1544,7 +1554,9 @@ body::-webkit-scrollbar-thumb,
   background-position: right 6px center;
   transition: border-color 0.15s ease;
 }
-.history-filter-select:focus { border-color: var(--accent-blue, #60a5fa); }
+.history-filter-select:focus {
+  border-color: var(--accent-blue, #60a5fa);
+}
 
 .history-results-count {
   font-size: 11px;
@@ -1580,7 +1592,10 @@ body::-webkit-scrollbar-thumb,
   font-size: 11px;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
 }
 .history-export-chip:hover {
   background: var(--bg-base);
@@ -1589,7 +1604,7 @@ body::-webkit-scrollbar-thumb,
 }
 
 .history-highlight {
-  background: rgba(250,204,21,0.28);
+  background: rgba(250, 204, 21, 0.28);
   color: var(--text-main);
   border-radius: 2px;
   padding: 0 1px;
