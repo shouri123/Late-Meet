@@ -198,19 +198,19 @@ test("encrypted credentials survive simulated restart with same passphrase", asy
   assert.equal(creds.openai_api_key, "survive-key");
 });
 
-test(\"wrong passphrase after restart returns no credentials\", async () => {
+test("wrong passphrase after restart returns no credentials", async () => {
   const session1: StorageArea = {};
   const local1: StorageArea = {};
   setupChromeStorage(session1, local1);
 
-  await unlockCredentials(\"correct-passphrase\");
-  await saveApiCredentials({ openai_api_key: \"my-secret-key\" });
+  await unlockCredentials("correct-passphrase");
+  await saveApiCredentials({ openai_api_key: "my-secret-key" });
 
   lockCredentials();
   const session2: StorageArea = {};
   setupChromeStorage(session2, local1);
 
-  const result = await unlockCredentials(\"wrong-passphrase\");
+  const result = await unlockCredentials("wrong-passphrase");
   assert.equal(result, false);
 
   const creds = await getApiCredentials();
@@ -223,63 +223,63 @@ test(\"wrong passphrase after restart returns no credentials\", async () => {
 // Vault sentinel fix — see credentials.ts unlockCredentials() for details.
 // ---------------------------------------------------------------------------
 
-test(\"wrong passphrase rejected on empty vault (sentinel fix)\", async () => {
+test("wrong passphrase rejected on empty vault (sentinel fix)", async () => {
   const { local } = setupChromeStorage();
 
   // First-time setup with correct passphrase — no API keys saved.
-  await unlockCredentials(\"correct-passphrase\");
+  await unlockCredentials("correct-passphrase");
   assert.equal(isUnlocked(), true);
-  assert.ok(local[\"vault_sentinel\"], \"sentinel must be written on first-time setup\");
+  assert.ok(local["vault_sentinel"], "sentinel must be written on first-time setup");
   lockCredentials();
 
   // Attempt to unlock with a wrong passphrase — must be rejected.
-  const result = await unlockCredentials(\"WRONG-passphrase\");
-  assert.equal(result, false, \"wrong passphrase must return false even when no API keys are saved\");
+  const result = await unlockCredentials("WRONG-passphrase");
+  assert.equal(result, false, "wrong passphrase must return false even when no API keys are saved");
   assert.equal(isUnlocked(), false);
 });
 
-test(\"correct passphrase accepted on empty vault after sentinel written\", async () => {
+test("correct passphrase accepted on empty vault after sentinel written", async () => {
   setupChromeStorage();
 
-  await unlockCredentials(\"my-passphrase\");
+  await unlockCredentials("my-passphrase");
   lockCredentials();
 
   // Should accept the correct passphrase even with no API credentials saved.
-  const result = await unlockCredentials(\"my-passphrase\");
+  const result = await unlockCredentials("my-passphrase");
   assert.equal(result, true);
   assert.equal(isUnlocked(), true);
 });
 
-test(\"credentials saved after empty-vault unlock are recoverable with correct passphrase\", async () => {
+test("credentials saved after empty-vault unlock are recoverable with correct passphrase", async () => {
   const { local } = setupChromeStorage();
 
   // Setup vault, save no credentials, lock.
-  await unlockCredentials(\"secure-pass\");
+  await unlockCredentials("secure-pass");
   lockCredentials();
 
   // Unlock again (sentinel path), save credentials, lock.
-  await unlockCredentials(\"secure-pass\");
-  await saveApiCredentials({ openai_api_key: \"sk-sentinel-test\" });
+  await unlockCredentials("secure-pass");
+  await saveApiCredentials({ openai_api_key: "sk-sentinel-test" });
   lockCredentials();
 
   // Fresh session — credentials must be recoverable with correct passphrase.
   setupChromeStorage({}, local);
-  const result = await unlockCredentials(\"secure-pass\");
+  const result = await unlockCredentials("secure-pass");
   assert.equal(result, true);
 
   const creds = await getApiCredentials();
-  assert.equal(creds.openai_api_key, \"sk-sentinel-test\");
+  assert.equal(creds.openai_api_key, "sk-sentinel-test");
 });
 
-test(\"unlock on first run writes vault_sentinel to local storage\", async () => {
+test("unlock on first run writes vault_sentinel to local storage", async () => {
   const { local } = setupChromeStorage();
 
-  await unlockCredentials(\"test-passphrase\");
+  await unlockCredentials("test-passphrase");
 
-  assert.ok(typeof local[\"vault_sentinel\"] === \"string\", \"vault_sentinel must exist after first unlock\");
+  assert.ok(typeof local["vault_sentinel"] === "string", "vault_sentinel must exist after first unlock");
   assert.ok(
-    (local[\"vault_sentinel\"] as string).startsWith(\"enc:\"),
-    \"vault_sentinel must be encrypted (enc: prefix)\",
+    (local["vault_sentinel"] as string).startsWith("enc:"),
+    "vault_sentinel must be encrypted (enc: prefix)",
   );
 });
 
