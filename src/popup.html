@@ -35,14 +35,19 @@
         </p>
 
         <div class="setup-form">
+          <!-- Passphrase Input -->
           <label class="setup-label" for="passphrase-input">Encryption Passphrase</label>
-          <div class="input-group">
+          <div class="input-group tooltip-trigger">
             <input
               type="password"
               id="passphrase-input"
               class="setup-input"
               placeholder="Passphrase to unlock encryption..."
             />
+            <span class="tooltip-box tooltip-bottom">
+              <span class="tooltip-title">Encryption Passphrase</span>
+              <span class="tooltip-desc">Required to encrypt/decrypt your stored data</span>
+            </span>
           </div>
           <div
             id="passphrase-status"
@@ -51,8 +56,9 @@
             Locked — enter passphrase first
           </div>
 
+          <!-- OpenAI API Key -->
           <label class="setup-label">OpenAI API Key</label>
-          <div class="input-group">
+          <div class="input-group tooltip-trigger">
             <input type="password" id="api-key-input" class="setup-input" placeholder="sk-..." />
             <button
               id="toggle-key"
@@ -62,11 +68,20 @@
             >
               👁
             </button>
+            <span class="tooltip-box tooltip-bottom">
+              <span class="tooltip-title">OpenAI API Key</span>
+              <span class="tooltip-desc">Get from platform.openai.com — costs ~$0.01/hour</span>
+            </span>
           </div>
 
-          <button id="save-keys" class="setup-btn">
+          <!-- Save Button -->
+          <button id="save-keys" class="setup-btn tooltip-trigger">
             <span>Save Configuration</span>
             <span class="btn-icon">→</span>
+            <span class="tooltip-box tooltip-bottom">
+              <span class="tooltip-title">Save Settings</span>
+              <span class="tooltip-desc">Store encrypted keys in your browser</span>
+            </span>
           </button>
         </div>
       </div>
@@ -77,7 +92,7 @@
       <!-- Header -->
       <header class="header">
         <div class="header-left">
-          <span class="logo-icon">
+          <span class="logo-icon tooltip-trigger">
             <svg
               aria-hidden="true"
               xmlns="http://www.w3.org/2000/svg"
@@ -94,6 +109,10 @@
                 d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"
               />
             </svg>
+            <span class="tooltip-box tooltip-bottom">
+              <span class="tooltip-title">Late Meet</span>
+              <span class="tooltip-desc">AI-powered meeting copilot</span>
+            </span>
           </span>
           <div>
             <div class="header-title">Meeting Copilot</div>
@@ -103,7 +122,13 @@
             </div>
           </div>
         </div>
-        <button id="settings-btn" class="icon-btn" aria-label="Settings">⚙️</button>
+        <button id="settings-btn" class="icon-btn tooltip-trigger" aria-label="Settings">
+          ⚙️
+          <span class="tooltip-box tooltip-bottom">
+            <span class="tooltip-title">Settings</span>
+            <span class="tooltip-desc">Configure API keys & preferences</span>
+          </span>
+        </button>
       </header>
 
       <!-- Content Sections -->
@@ -111,9 +136,21 @@
         <!-- Duration & ID -->
         <div class="duration-bar">
           <span class="duration-icon">⏱</span>
-          <span id="meeting-duration" class="duration-text">00:00:00</span>
-          <span id="meeting-id" class="meeting-id-badge">...</span>
-          <button id="meeting-start-audio-btn" class="mini-copilot-btn">
+          <span id="meeting-duration" class="duration-text tooltip-trigger">
+            00:00:00
+            <span class="tooltip-box tooltip-bottom">
+              <span class="tooltip-title">Meeting Duration</span>
+              <span class="tooltip-desc">Elapsed time since recording started</span>
+            </span>
+          </span>
+          <span id="meeting-id" class="meeting-id-badge tooltip-trigger">
+            ...
+            <span class="tooltip-box tooltip-bottom">
+              <span class="tooltip-title">Meeting ID</span>
+              <span class="tooltip-desc">Unique identifier for this session</span>
+            </span>
+          </span>
+          <button id="meeting-start-audio-btn" class="mini-copilot-btn tooltip-trigger">
             <svg
               aria-hidden="true"
               xmlns="http://www.w3.org/2000/svg"
@@ -131,6 +168,11 @@
               <line x1="12" x2="12" y1="19" y2="22" />
             </svg>
             Start Audio
+            <span class="tooltip-box tooltip-bottom">
+              <span class="tooltip-title">Start Audio Capture</span>
+              <span class="tooltip-shortcut">Ctrl + Shift + S</span>
+              <span class="tooltip-desc">Begin recording meeting audio</span>
+            </span>
           </button>
         </div>
 
@@ -139,7 +181,13 @@
           <div class="card-header">
             <span class="card-icon">📄</span>
             <span class="card-title">Live Summary</span>
-            <span class="live-badge">LIVE</span>
+            <span class="live-badge tooltip-trigger">
+              LIVE
+              <span class="tooltip-box tooltip-bottom">
+                <span class="tooltip-title">Live Updates</span>
+                <span class="tooltip-desc">Summary refreshes every 30 seconds</span>
+              </span>
+            </span>
           </div>
           <div id="summary-text" class="card-body">Waiting for conversation...</div>
         </div>
@@ -155,25 +203,45 @@
 
         <!-- Stats Grid -->
         <div class="stats-row">
-          <div class="stat-item">
+          <!-- Participants -->
+          <div class="stat-item tooltip-trigger">
             <div class="stat-icon">👥</div>
             <div id="participant-count" class="stat-value">0</div>
             <div class="stat-label">People</div>
+            <span class="tooltip-box tooltip-bottom">
+              <span class="tooltip-title">Active Participants</span>
+              <span class="tooltip-desc">Number of people in the meeting</span>
+            </span>
           </div>
-          <div class="stat-item">
+          <!-- Decisions -->
+          <div class="stat-item tooltip-trigger">
             <div class="stat-icon">✅</div>
             <div id="decision-count" class="stat-value">0</div>
             <div class="stat-label">Decisions</div>
+            <span class="tooltip-box tooltip-bottom">
+              <span class="tooltip-title">Decisions Made</span>
+              <span class="tooltip-desc">Key decisions detected in conversation</span>
+            </span>
           </div>
-          <div class="stat-item">
+          <!-- Actions -->
+          <div class="stat-item tooltip-trigger">
             <div class="stat-icon">📝</div>
             <div id="action-count" class="stat-value">0</div>
             <div class="stat-label">Actions</div>
+            <span class="tooltip-box tooltip-bottom">
+              <span class="tooltip-title">Action Items</span>
+              <span class="tooltip-desc">Tasks & action items extracted from meeting</span>
+            </span>
           </div>
-          <div class="stat-item">
+          <!-- Sentiment -->
+          <div class="stat-item tooltip-trigger">
             <div class="stat-icon" id="sentiment-icon">😐</div>
             <div class="stat-value">Mood</div>
             <div class="stat-label">Sentiment</div>
+            <span class="tooltip-box tooltip-bottom">
+              <span class="tooltip-title">Meeting Sentiment</span>
+              <span class="tooltip-desc">Overall emotional tone of the conversation</span>
+            </span>
           </div>
         </div>
 
@@ -209,7 +277,7 @@
           <div class="supported-platforms">
             <span class="platform-tag active">Google Meet</span>
           </div>
-          <button id="start-copilot-btn" class="copilot-btn">
+          <button id="start-copilot-btn" class="copilot-btn tooltip-trigger">
             <span class="copilot-btn-icon">
               <svg
                 aria-hidden="true"
@@ -229,13 +297,24 @@
               </svg>
             </span>
             <span class="copilot-btn-text">Start Copilot</span>
+            <span class="tooltip-box tooltip-bottom">
+              <span class="tooltip-title">Start Copilot</span>
+              <span class="tooltip-shortcut">Ctrl + Shift + S</span>
+              <span class="tooltip-desc">Activate AI meeting assistant</span>
+            </span>
           </button>
         </div>
       </div>
 
-      <button id="open-dashboard" class="dashboard-btn">
+      <!-- Open Dashboard Button -->
+      <button id="open-dashboard" class="dashboard-btn tooltip-trigger">
         <span>Open Full Dashboard</span>
         <span class="btn-arrow">↗</span>
+        <span class="tooltip-box tooltip-bottom">
+          <span class="tooltip-title">Full Dashboard</span>
+          <span class="tooltip-shortcut">Ctrl + Shift + P</span>
+          <span class="tooltip-desc">Open detailed meeting analytics</span>
+        </span>
       </button>
     </div>
 
@@ -257,8 +336,23 @@
         </p>
         <p id="session-modal-error" class="session-modal-error" hidden></p>
         <div class="session-modal-actions">
-          <button id="discard-session-btn" class="session-btn discard">Discard</button>
-          <button id="save-session-btn" class="session-btn save">Save Session</button>
+          <!-- Discard Button -->
+          <button id="discard-session-btn" class="session-btn discard tooltip-trigger">
+            Discard
+            <span class="tooltip-box tooltip-bottom">
+              <span class="tooltip-title">Discard Session</span>
+              <span class="tooltip-desc">⚠️ Permanently delete all meeting data</span>
+            </span>
+          </button>
+          <!-- Save Button -->
+          <button id="save-session-btn" class="session-btn save tooltip-trigger">
+            Save Session
+            <span class="tooltip-box tooltip-bottom">
+              <span class="tooltip-title">Save Session</span>
+              <span class="tooltip-shortcut">Ctrl + Shift + Y</span>
+              <span class="tooltip-desc">Store meeting data in your browser</span>
+            </span>
+          </button>
         </div>
       </div>
     </div>

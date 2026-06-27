@@ -14,6 +14,87 @@
         display: inline-block;
         vertical-align: middle;
       }
+      /* Tooltip styles - ensure they work in dashboard */
+      .tooltip-trigger {
+        position: relative;
+        cursor: help;
+        display: inline-flex;
+        align-items: center;
+      }
+      .tooltip-trigger .tooltip-box {
+        visibility: hidden;
+        opacity: 0;
+        position: absolute;
+        bottom: calc(100% + 10px);
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(20, 20, 40, 0.95);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(108, 99, 255, 0.3);
+        border-radius: 10px;
+        padding: 8px 14px;
+        min-width: 160px;
+        color: #e0e0f0;
+        font-size: 12px;
+        font-family: "Inter", sans-serif;
+        line-height: 1.5;
+        text-align: center;
+        white-space: nowrap;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+        z-index: 10000;
+        transition:
+          opacity 0.25s ease,
+          visibility 0.25s ease;
+        pointer-events: none;
+      }
+      .tooltip-trigger .tooltip-box::after {
+        content: "";
+        position: absolute;
+        top: 100%;
+        left: 50%;
+        transform: translateX(-50%);
+        border: 6px solid transparent;
+        border-top-color: rgba(108, 99, 255, 0.3);
+      }
+      .tooltip-trigger .tooltip-box .tooltip-title {
+        display: block;
+        font-weight: 600;
+        font-size: 13px;
+        color: #ffffff;
+        margin-bottom: 2px;
+      }
+      .tooltip-trigger .tooltip-box .tooltip-shortcut {
+        display: block;
+        font-size: 10px;
+        color: #6c63ff;
+        font-weight: 500;
+        letter-spacing: 0.5px;
+        margin-top: 2px;
+      }
+      .tooltip-trigger .tooltip-box .tooltip-desc {
+        display: block;
+        font-size: 11px;
+        color: #a0a0c0;
+        margin-top: 2px;
+        white-space: normal;
+        max-width: 200px;
+      }
+      .tooltip-trigger:hover .tooltip-box,
+      .tooltip-trigger:focus .tooltip-box {
+        visibility: visible;
+        opacity: 1;
+      }
+      .tooltip-trigger.tooltip-bottom .tooltip-box {
+        bottom: auto;
+        top: calc(100% + 10px);
+      }
+      .tooltip-trigger.tooltip-bottom .tooltip-box::after {
+        top: auto;
+        bottom: 100%;
+        border-top-color: transparent;
+        border-bottom-color: rgba(108, 99, 255, 0.3);
+      }
     </style>
   </head>
 
@@ -21,7 +102,7 @@
     <!-- Header -->
     <header class="dash-header">
       <div class="dash-header-left">
-        <span class="dash-logo">
+        <span class="dash-logo tooltip-trigger">
           <svg
             xmlns="http://www.w3.org/2000/svg"
             width="28"
@@ -40,6 +121,10 @@
             <line x1="9" x2="9.01" y1="9" y2="9"></line>
             <line x1="15" x2="15.01" y1="9" y2="9"></line>
           </svg>
+          <span class="tooltip-box tooltip-bottom">
+            <span class="tooltip-title">Late Meet</span>
+            <span class="tooltip-desc">AI-powered meeting copilot dashboard</span>
+          </span>
         </span>
         <div>
           <div class="dash-title">Meeting Intelligence</div>
@@ -52,10 +137,10 @@
       <div class="dash-header-right">
         <!-- Export Controls -->
         <div class="export-controls" style="margin-right: 12px; display: inline-flex; gap: 8px">
+          <!-- Export MD -->
           <button
             id="header-export-md-btn"
-            class="btn-glass"
-            title="Export as Markdown"
+            class="btn-glass tooltip-trigger"
             style="
               display: inline-flex;
               align-items: center;
@@ -86,11 +171,15 @@
               <line x1="12" y1="15" x2="12" y2="3"></line>
             </svg>
             .MD
+            <span class="tooltip-box tooltip-bottom">
+              <span class="tooltip-title">Export as Markdown</span>
+              <span class="tooltip-desc">Download meeting summary as .md file</span>
+            </span>
           </button>
+          <!-- Export PDF -->
           <button
             id="header-export-pdf-btn"
-            class="btn-glass"
-            title="Export as PDF"
+            class="btn-glass tooltip-trigger"
             style="
               display: inline-flex;
               align-items: center;
@@ -123,9 +212,18 @@
               <polyline points="10 9 9 9 8 9"></polyline>
             </svg>
             .PDF
+            <span class="tooltip-box tooltip-bottom">
+              <span class="tooltip-title">Export as PDF</span>
+              <span class="tooltip-desc">Download meeting summary as PDF</span>
+            </span>
           </button>
         </div>
-        <button id="dash-start-audio-btn" class="dash-audio-btn" title="Start audio capture">
+        <!-- Start Audio Button -->
+        <button
+          id="dash-start-audio-btn"
+          class="dash-audio-btn tooltip-trigger"
+          title="Start audio capture"
+        >
           <svg
             xmlns="http://www.w3.org/2000/svg"
             width="14"
@@ -145,8 +243,20 @@
             <line x1="12" x2="12" y1="19" y2="22"></line>
           </svg>
           Start Audio
+          <span class="tooltip-box tooltip-bottom">
+            <span class="tooltip-title">Start Audio Capture</span>
+            <span class="tooltip-shortcut">Ctrl + Shift + S</span>
+            <span class="tooltip-desc">Begin recording meeting audio</span>
+          </span>
         </button>
-        <div id="dash-timer" class="dash-timer">00:00:00</div>
+        <!-- Timer -->
+        <div id="dash-timer" class="dash-timer tooltip-trigger">
+          00:00:00
+          <span class="tooltip-box tooltip-bottom">
+            <span class="tooltip-title">Meeting Duration</span>
+            <span class="tooltip-desc">Elapsed time since recording started</span>
+          </span>
+        </div>
       </div>
     </header>
 
@@ -285,7 +395,13 @@
               </svg>
             </span>
             <span class="dash-card-title">Audio Input</span>
-            <span id="waveform-status" class="waveform-status-badge">IDLE</span>
+            <span id="waveform-status" class="waveform-status-badge tooltip-trigger">
+              IDLE
+              <span class="tooltip-box tooltip-bottom">
+                <span class="tooltip-title">Audio Status</span>
+                <span class="tooltip-desc">IDLE = Not recording, LIVE = Capturing audio</span>
+              </span>
+            </span>
           </div>
           <canvas id="waveform-canvas" class="waveform-canvas"></canvas>
         </div>
@@ -312,7 +428,13 @@
               </svg>
             </span>
             <span class="dash-card-title">Live Session Usage</span>
-            <span class="usage-badge-live">TRACKING</span>
+            <span class="usage-badge-live tooltip-trigger">
+              TRACKING
+              <span class="tooltip-box tooltip-bottom">
+                <span class="tooltip-title">Usage Tracking</span>
+                <span class="tooltip-desc">Real-time token and cost monitoring</span>
+              </span>
+            </span>
           </div>
           <div class="usage-metric-row">
             <div class="usage-metric">
@@ -356,7 +478,7 @@
             <button
               type="button"
               id="copy-summary-btn"
-              class="copy-item-btn"
+              class="copy-item-btn tooltip-trigger"
               title="Copy entire summary"
               aria-label="Copy entire summary"
               style="
@@ -391,8 +513,18 @@
                   d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"
                 ></path>
               </svg>
+              <span class="tooltip-box tooltip-bottom">
+                <span class="tooltip-title">Copy Summary</span>
+                <span class="tooltip-desc">Copy entire summary to clipboard</span>
+              </span>
             </button>
-            <span class="live-indicator"> <span class="live-dot"></span>LIVE </span>
+            <span class="live-indicator tooltip-trigger">
+              <span class="live-dot"></span>LIVE
+              <span class="tooltip-box tooltip-bottom">
+                <span class="tooltip-title">Live Updates</span>
+                <span class="tooltip-desc">Summary refreshes every 30 seconds</span>
+              </span>
+            </span>
           </div>
           <div id="dash-summary" class="dash-summary-text">
             Waiting for conversation to begin...
@@ -428,7 +560,8 @@
 
         <!-- Quick Stats Grid -->
         <div class="stats-grid">
-          <div class="stat-card" id="stat-topics">
+          <!-- Topics -->
+          <div class="stat-card tooltip-trigger" id="stat-topics">
             <div class="stat-card-icon">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -448,8 +581,13 @@
             </div>
             <div class="stat-card-value" id="dash-topic-count">0</div>
             <div class="stat-card-label">Topics</div>
+            <span class="tooltip-box tooltip-bottom">
+              <span class="tooltip-title">Topics Discussed</span>
+              <span class="tooltip-desc">Key themes identified in conversation</span>
+            </span>
           </div>
-          <div class="stat-card" id="stat-decisions">
+          <!-- Decisions -->
+          <div class="stat-card tooltip-trigger" id="stat-decisions">
             <div class="stat-card-icon">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -470,8 +608,13 @@
             </div>
             <div class="stat-card-value" id="dash-decision-count">0</div>
             <div class="stat-card-label">Decisions</div>
+            <span class="tooltip-box tooltip-bottom">
+              <span class="tooltip-title">Decisions Made</span>
+              <span class="tooltip-desc">Key decisions from the meeting</span>
+            </span>
           </div>
-          <div class="stat-card" id="stat-actions">
+          <!-- Actions -->
+          <div class="stat-card tooltip-trigger" id="stat-actions">
             <div class="stat-card-icon">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -498,8 +641,13 @@
             </div>
             <div class="stat-card-value" id="dash-action-count">0</div>
             <div class="stat-card-label">Actions</div>
+            <span class="tooltip-box tooltip-bottom">
+              <span class="tooltip-title">Action Items</span>
+              <span class="tooltip-desc">Tasks and follow-ups extracted</span>
+            </span>
           </div>
-          <div class="stat-card" id="stat-people">
+          <!-- People -->
+          <div class="stat-card tooltip-trigger" id="stat-people">
             <div class="stat-card-icon">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -522,6 +670,10 @@
             </div>
             <div class="stat-card-value" id="dash-people-count">0</div>
             <div class="stat-card-label">People</div>
+            <span class="tooltip-box tooltip-bottom">
+              <span class="tooltip-title">Active Participants</span>
+              <span class="tooltip-desc">People currently in the meeting</span>
+            </span>
           </div>
         </div>
 
@@ -868,7 +1020,13 @@
               </svg>
             </span>
             <span class="dash-card-title">Live Transcript</span>
-            <span class="live-indicator"> <span class="live-dot"></span>LIVE </span>
+            <span class="live-indicator tooltip-trigger">
+              <span class="live-dot"></span>LIVE
+              <span class="tooltip-box tooltip-bottom">
+                <span class="tooltip-title">Live Transcript</span>
+                <span class="tooltip-desc">Real-time transcription updates</span>
+              </span>
+            </span>
           </div>
 
           <!-- Transcript Search Header -->
@@ -935,7 +1093,7 @@
               <div class="search-nav-buttons">
                 <button
                   id="search-prev"
-                  class="search-action-btn"
+                  class="search-action-btn tooltip-trigger"
                   type="button"
                   title="Previous match"
                   aria-label="Previous transcript match"
@@ -956,11 +1114,15 @@
                   >
                     <polyline points="18 15 12 9 6 15"></polyline>
                   </svg>
+                  <span class="tooltip-box tooltip-bottom">
+                    <span class="tooltip-title">Previous Match</span>
+                    <span class="tooltip-desc">Go to previous search result</span>
+                  </span>
                 </button>
 
                 <button
                   id="search-next"
-                  class="search-action-btn"
+                  class="search-action-btn tooltip-trigger"
                   type="button"
                   title="Next match"
                   aria-label="Next transcript match"
@@ -981,6 +1143,10 @@
                   >
                     <polyline points="6 9 12 15 18 9"></polyline>
                   </svg>
+                  <span class="tooltip-box tooltip-bottom">
+                    <span class="tooltip-title">Next Match</span>
+                    <span class="tooltip-desc">Go to next search result</span>
+                  </span>
                 </button>
               </div>
             </div>
@@ -994,6 +1160,8 @@
           </div>
         </div>
       </section>
+
+      <!-- HISTORY TAB -->
       <section id="tab-history" class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-history">
         <div class="dash-card">
           <div class="dash-card-head">
@@ -1025,6 +1193,7 @@
           </div>
         </div>
       </section>
+
       <!-- USAGE TAB -->
       <section id="tab-usage" class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-usage">
         <div id="sidepanel-usage-container"></div>
@@ -1034,7 +1203,12 @@
     <!-- Footer -->
     <footer class="dash-footer">
       <div class="export-wrapper" id="export-wrapper">
-        <button id="export-btn" class="export-btn" aria-haspopup="true" aria-expanded="false">
+        <button
+          id="export-btn"
+          class="export-btn tooltip-trigger"
+          aria-haspopup="true"
+          aria-expanded="false"
+        >
           <svg
             xmlns="http://www.w3.org/2000/svg"
             width="14"
@@ -1054,6 +1228,10 @@
             <line x1="12" x2="12" y1="15" y2="3"></line>
           </svg>
           Export Summary
+          <span class="tooltip-box tooltip-bottom">
+            <span class="tooltip-title">Export Summary</span>
+            <span class="tooltip-desc">Download meeting summary in various formats</span>
+          </span>
         </button>
 
         <div class="export-dropdown" id="export-dropdown" role="menu" hidden>
@@ -1182,10 +1360,16 @@
           <p>Are you sure you want to delete this session? This action cannot be undone.</p>
         </div>
         <div class="modal-actions">
-          <button id="cancel-delete-btn" class="dash-tab">Cancel</button>
+          <button id="cancel-delete-btn" class="dash-tab tooltip-trigger">
+            Cancel
+            <span class="tooltip-box tooltip-bottom">
+              <span class="tooltip-title">Cancel</span>
+              <span class="tooltip-desc">Keep session data</span>
+            </span>
+          </button>
           <button
             id="confirm-delete-btn"
-            class="session-delete-btn"
+            class="session-delete-btn tooltip-trigger"
             style="
               background: rgba(239, 68, 68, 0.15);
               color: #fca5a5;
@@ -1193,6 +1377,10 @@
             "
           >
             Delete
+            <span class="tooltip-box tooltip-bottom">
+              <span class="tooltip-title">Confirm Delete</span>
+              <span class="tooltip-desc">⚠️ Permanently delete this session</span>
+            </span>
           </button>
         </div>
       </div>

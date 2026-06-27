@@ -9,11 +9,125 @@
     <link rel="stylesheet" href="storageDashboard.css" />
     <link rel="stylesheet" href="apiUsageDashboard.css" />
     <link rel="stylesheet" href="onboarding.css" />
+    <style>
+      /* Tooltip styles */
+      .tooltip-trigger {
+        position: relative;
+        cursor: help;
+        display: inline-flex;
+        align-items: center;
+      }
+      .tooltip-trigger .tooltip-box {
+        visibility: hidden;
+        opacity: 0;
+        position: absolute;
+        bottom: calc(100% + 10px);
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(20, 20, 40, 0.95);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(108, 99, 255, 0.3);
+        border-radius: 10px;
+        padding: 8px 14px;
+        min-width: 160px;
+        color: #e0e0f0;
+        font-size: 12px;
+        font-family: "Inter", sans-serif;
+        line-height: 1.5;
+        text-align: center;
+        white-space: nowrap;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+        z-index: 10000;
+        transition:
+          opacity 0.25s ease,
+          visibility 0.25s ease;
+        pointer-events: none;
+      }
+      .tooltip-trigger .tooltip-box::after {
+        content: "";
+        position: absolute;
+        top: 100%;
+        left: 50%;
+        transform: translateX(-50%);
+        border: 6px solid transparent;
+        border-top-color: rgba(108, 99, 255, 0.3);
+      }
+      .tooltip-trigger .tooltip-box .tooltip-title {
+        display: block;
+        font-weight: 600;
+        font-size: 13px;
+        color: #ffffff;
+        margin-bottom: 2px;
+      }
+      .tooltip-trigger .tooltip-box .tooltip-shortcut {
+        display: block;
+        font-size: 10px;
+        color: #6c63ff;
+        font-weight: 500;
+        letter-spacing: 0.5px;
+        margin-top: 2px;
+      }
+      .tooltip-trigger .tooltip-box .tooltip-desc {
+        display: block;
+        font-size: 11px;
+        color: #a0a0c0;
+        margin-top: 2px;
+        white-space: normal;
+        max-width: 220px;
+      }
+      .tooltip-trigger:hover .tooltip-box,
+      .tooltip-trigger:focus .tooltip-box {
+        visibility: visible;
+        opacity: 1;
+      }
+      .tooltip-trigger.tooltip-bottom .tooltip-box {
+        bottom: auto;
+        top: calc(100% + 10px);
+      }
+      .tooltip-trigger.tooltip-bottom .tooltip-box::after {
+        top: auto;
+        bottom: 100%;
+        border-top-color: transparent;
+        border-bottom-color: rgba(108, 99, 255, 0.3);
+      }
+      .tooltip-trigger.tooltip-left .tooltip-box {
+        bottom: auto;
+        top: 50%;
+        right: calc(100% + 10px);
+        left: auto;
+        transform: translateY(-50%);
+      }
+      .tooltip-trigger.tooltip-left .tooltip-box::after {
+        top: 50%;
+        left: 100%;
+        bottom: auto;
+        transform: translateY(-50%);
+        border-top-color: transparent;
+        border-left-color: rgba(108, 99, 255, 0.3);
+      }
+      .tooltip-trigger.tooltip-right .tooltip-box {
+        bottom: auto;
+        top: 50%;
+        left: calc(100% + 10px);
+        right: auto;
+        transform: translateY(-50%);
+      }
+      .tooltip-trigger.tooltip-right .tooltip-box::after {
+        top: 50%;
+        right: 100%;
+        left: auto;
+        bottom: auto;
+        transform: translateY(-50%);
+        border-top-color: transparent;
+        border-right-color: rgba(108, 99, 255, 0.3);
+      }
+    </style>
   </head>
   <body class="no-transitions">
     <div class="options-container">
       <header class="options-header">
-        <div class="options-logo">
+        <div class="options-logo tooltip-trigger">
           <svg
             xmlns="http://www.w3.org/2000/svg"
             width="40"
@@ -40,6 +154,10 @@
             <path d="M6 18a4 4 0 0 1-1.967-.516" />
             <path d="M19.967 17.484A4 4 0 0 1 18 18" />
           </svg>
+          <span class="tooltip-box tooltip-bottom">
+            <span class="tooltip-title">Late Meet</span>
+            <span class="tooltip-desc">AI-powered meeting copilot settings</span>
+          </span>
         </div>
         <div>
           <h1 class="options-title">AI Meeting Copilot</h1>
@@ -48,8 +166,12 @@
       </header>
       <div id="onboarding-root" hidden></div>
       <div class="options-actions">
-        <button id="view-onboarding" class="btn" aria-label="View onboarding">
+        <button id="view-onboarding" class="btn tooltip-trigger" aria-label="View onboarding">
           View Onboarding
+          <span class="tooltip-box tooltip-bottom">
+            <span class="tooltip-title">View Onboarding</span>
+            <span class="tooltip-desc">Walk through the setup guide again</span>
+          </span>
         </button>
       </div>
       <!-- Theme Section-->
@@ -76,7 +198,13 @@
           </div>
 
           <div class="form-group">
-            <label class="form-label" for="theme-select">Interface Theme</label>
+            <label class="form-label tooltip-trigger" for="theme-select">
+              Interface Theme
+              <span class="tooltip-box tooltip-bottom">
+                <span class="tooltip-title">Theme Selection</span>
+                <span class="tooltip-desc">Choose light, dark, or system default theme</span>
+              </span>
+            </label>
             <div class="form-hint">
               Choose how the Copilot interface handles background lighting profiles.
             </div>
@@ -93,51 +221,76 @@
               Pick a custom highlight token for active components, key metric fields, and buttons.
             </div>
             <div class="accent-picker-grid">
+              <!-- Blue -->
               <button
                 type="button"
-                class="color-dot"
+                class="color-dot tooltip-trigger"
                 data-color="210, 100%, 50%"
                 aria-label="Accent color: Blue"
                 aria-pressed="false"
                 style="background-color: hsl(210, 100%, 50%)"
-              ></button>
-              <!-- Blue -->
+              >
+                <span class="tooltip-box tooltip-bottom">
+                  <span class="tooltip-title">Blue</span>
+                  <span class="tooltip-desc">Default accent color</span>
+                </span>
+              </button>
+              <!-- Green -->
               <button
                 type="button"
-                class="color-dot"
+                class="color-dot tooltip-trigger"
                 data-color="145, 65%, 45%"
                 aria-label="Accent color: Green"
                 aria-pressed="false"
                 style="background-color: hsl(145, 65%, 45%)"
-              ></button>
-              <!-- Green -->
+              >
+                <span class="tooltip-box tooltip-bottom">
+                  <span class="tooltip-title">Green</span>
+                  <span class="tooltip-desc">Fresh and natural accent</span>
+                </span>
+              </button>
+              <!-- Purple -->
               <button
                 type="button"
-                class="color-dot"
+                class="color-dot tooltip-trigger"
                 data-color="280, 75%, 60%"
                 aria-label="Accent color: Purple"
                 aria-pressed="false"
                 style="background-color: hsl(280, 75%, 60%)"
-              ></button>
-              <!-- Purple -->
+              >
+                <span class="tooltip-box tooltip-bottom">
+                  <span class="tooltip-title">Purple</span>
+                  <span class="tooltip-desc">Creative and bold accent</span>
+                </span>
+              </button>
+              <!-- Orange -->
               <button
                 type="button"
-                class="color-dot"
+                class="color-dot tooltip-trigger"
                 data-color="15, 95%, 55%"
                 aria-label="Accent color: Orange"
                 aria-pressed="false"
                 style="background-color: hsl(15, 95%, 55%)"
-              ></button>
-              <!-- Orange -->
+              >
+                <span class="tooltip-box tooltip-bottom">
+                  <span class="tooltip-title">Orange</span>
+                  <span class="tooltip-desc">Warm and energetic accent</span>
+                </span>
+              </button>
+              <!-- Pink -->
               <button
                 type="button"
-                class="color-dot"
+                class="color-dot tooltip-trigger"
                 data-color="340, 85%, 55%"
                 aria-label="Accent color: Pink"
                 aria-pressed="false"
                 style="background-color: hsl(340, 85%, 55%)"
-              ></button>
-              <!-- Pink -->
+              >
+                <span class="tooltip-box tooltip-bottom">
+                  <span class="tooltip-title">Pink</span>
+                  <span class="tooltip-desc">Playful and vibrant accent</span>
+                </span>
+              </button>
             </div>
           </div>
         </div>
@@ -163,7 +316,13 @@
             Encryption Passphrase
           </h2>
           <div class="form-group">
-            <label class="form-label" for="passphrase-input">Passphrase</label>
+            <label class="form-label tooltip-trigger" for="passphrase-input">
+              Passphrase
+              <span class="tooltip-box tooltip-bottom">
+                <span class="tooltip-title">Encryption Passphrase</span>
+                <span class="tooltip-desc">Required to encrypt/decrypt API keys at rest</span>
+              </span>
+            </label>
             <p class="form-hint">
               Required to encrypt API keys at rest. Enter it each browser session to unlock.
             </p>
@@ -175,7 +334,7 @@
                 placeholder="Enter encryption passphrase..."
               />
               <button
-                class="toggle-vis"
+                class="toggle-vis tooltip-trigger"
                 data-target="passphrase-input"
                 aria-label="Toggle passphrase visibility"
                 title="Show/Hide Passphrase"
@@ -197,6 +356,10 @@
                   />
                   <circle cx="12" cy="12" r="3" />
                 </svg>
+                <span class="tooltip-box tooltip-bottom">
+                  <span class="tooltip-title">Toggle Visibility</span>
+                  <span class="tooltip-desc">Show or hide passphrase</span>
+                </span>
               </button>
             </div>
             <div id="passphrase-status" class="form-hint" style="margin-top: 8px"></div>
@@ -224,15 +387,28 @@
             <circle cx="7.5" cy="15.5" r="5.5" />
           </svg>
           API Keys
+          <span class="section-badge tooltip-trigger">
+            BYOK
+            <span class="tooltip-box tooltip-bottom">
+              <span class="tooltip-title">Bring Your Own Key</span>
+              <span class="tooltip-desc">Your keys stay local — never sent to our servers</span>
+            </span>
+          </span>
         </h2>
 
         <div class="form-group">
-          <label class="form-label">OpenAI API Key <span class="required">*</span></label>
+          <label class="form-label tooltip-trigger">
+            OpenAI API Key <span class="required">*</span>
+            <span class="tooltip-box tooltip-bottom">
+              <span class="tooltip-title">OpenAI API Key</span>
+              <span class="tooltip-desc">Get from platform.openai.com — used for summaries</span>
+            </span>
+          </label>
           <p class="form-hint">Required for AI summarization</p>
           <div class="input-row">
             <input type="password" id="openai-key" class="form-input" placeholder="sk-..." />
             <button
-              class="toggle-vis"
+              class="toggle-vis tooltip-trigger"
               data-target="openai-key"
               aria-label="Toggle API key visibility"
               title="Show/Hide Key"
@@ -254,17 +430,34 @@
                 />
                 <circle cx="12" cy="12" r="3" />
               </svg>
+              <span class="tooltip-box tooltip-bottom">
+                <span class="tooltip-title">Toggle Visibility</span>
+                <span class="tooltip-desc">Show or hide API key</span>
+              </span>
             </button>
+          </div>
+          <div class="form-hint tooltip-trigger">
+            <span>💰 Costs ~$0.01-0.05 per 1-hour meeting with gpt-4o-mini</span>
+            <span class="tooltip-box tooltip-bottom">
+              <span class="tooltip-title">Cost Estimate</span>
+              <span class="tooltip-desc">Very affordable — less than a coffee per month</span>
+            </span>
           </div>
         </div>
 
         <div class="form-group">
-          <label class="form-label">ElevenLabs API Key <span class="required">*</span></label>
+          <label class="form-label tooltip-trigger">
+            ElevenLabs API Key <span class="required">*</span>
+            <span class="tooltip-box tooltip-bottom">
+              <span class="tooltip-title">ElevenLabs API Key</span>
+              <span class="tooltip-desc">Get from elevenlabs.io — used for transcription</span>
+            </span>
+          </label>
           <p class="form-hint">Required for Speech-to-Text transcription</p>
           <div class="input-row">
             <input type="password" id="elevenlabs-key" class="form-input" placeholder="sk_..." />
             <button
-              class="toggle-vis"
+              class="toggle-vis tooltip-trigger"
               data-target="elevenlabs-key"
               aria-label="Toggle API key visibility"
               title="Show/Hide Key"
@@ -286,7 +479,18 @@
                 />
                 <circle cx="12" cy="12" r="3" />
               </svg>
+              <span class="tooltip-box tooltip-bottom">
+                <span class="tooltip-title">Toggle Visibility</span>
+                <span class="tooltip-desc">Show or hide API key</span>
+              </span>
             </button>
+          </div>
+          <div class="form-hint tooltip-trigger">
+            <span>💡 Free tier available — 30+ languages supported</span>
+            <span class="tooltip-box tooltip-bottom">
+              <span class="tooltip-title">Free Tier</span>
+              <span class="tooltip-desc">ElevenLabs offers free transcription minutes monthly</span>
+            </span>
           </div>
         </div>
       </section>
@@ -314,7 +518,13 @@
         </h2>
 
         <div class="form-group">
-          <label class="form-label">Summarization Interval</label>
+          <label class="form-label tooltip-trigger">
+            Summarization Interval
+            <span class="tooltip-box tooltip-bottom">
+              <span class="tooltip-title">Summary Frequency</span>
+              <span class="tooltip-desc">How often the AI summarizes the meeting</span>
+            </span>
+          </label>
           <p class="form-hint">
             Choose how often AI summarizes the meeting transcript (5–15 minutes)
           </p>
@@ -334,7 +544,13 @@
         </div>
 
         <div class="form-group">
-          <label class="form-label">Voice Activity Threshold</label>
+          <label class="form-label tooltip-trigger">
+            Voice Activity Threshold
+            <span class="tooltip-box tooltip-bottom">
+              <span class="tooltip-title">VAD Threshold</span>
+              <span class="tooltip-desc">Lower values detect quieter voices</span>
+            </span>
+          </label>
           <p class="form-hint">
             Lower values detect quieter voices. Higher values filter more silence.
           </p>
@@ -354,7 +570,13 @@
         </div>
 
         <div class="form-group">
-          <label class="form-label">AI Model</label>
+          <label class="form-label tooltip-trigger">
+            AI Model
+            <span class="tooltip-box tooltip-bottom">
+              <span class="tooltip-title">Model Selection</span>
+              <span class="tooltip-desc">Choose which OpenAI model to use</span>
+            </span>
+          </label>
           <select id="ai-model" class="form-select">
             <option value="gpt-4o-mini">GPT-4o Mini (Fast, Affordable)</option>
             <option value="gpt-4o">GPT-4o (Best Quality)</option>
@@ -386,9 +608,16 @@
         </h2>
 
         <div class="toggle-group">
+          <!-- Late Joiner Briefing -->
           <div class="toggle-item">
             <div>
-              <div class="toggle-label">Late Joiner Briefing</div>
+              <div class="toggle-label tooltip-trigger">
+                Late Joiner Briefing
+                <span class="tooltip-box tooltip-bottom">
+                  <span class="tooltip-title">Late Joiner Briefing</span>
+                  <span class="tooltip-desc">Auto-generate context summary for late arrivals</span>
+                </span>
+              </div>
               <div class="toggle-hint">
                 Automatically generate a private local context brief when someone joins late
               </div>
@@ -399,9 +628,18 @@
             </label>
           </div>
 
+          <!-- Public Chat Briefings -->
           <div class="toggle-item">
             <div>
-              <div class="toggle-label">Public Chat Briefings</div>
+              <div class="toggle-label tooltip-trigger">
+                Public Chat Briefings
+                <span class="tooltip-box tooltip-bottom">
+                  <span class="tooltip-title">Public Chat Briefings</span>
+                  <span class="tooltip-desc"
+                    >Post briefings to Google Meet chat for all to see</span
+                  >
+                </span>
+              </div>
               <div class="toggle-hint">
                 Also post late-joiner briefs into Google Meet chat for everyone to see
               </div>
@@ -416,9 +654,16 @@
             </label>
           </div>
 
+          <!-- Topic Detection -->
           <div class="toggle-item">
             <div>
-              <div class="toggle-label">Topic Detection</div>
+              <div class="toggle-label tooltip-trigger">
+                Topic Detection
+                <span class="tooltip-box tooltip-bottom">
+                  <span class="tooltip-title">Topic Detection</span>
+                  <span class="tooltip-desc">Automatically identify discussion themes</span>
+                </span>
+              </div>
               <div class="toggle-hint">Automatically detect and track discussion topics</div>
             </div>
             <label class="toggle-switch">
@@ -427,9 +672,16 @@
             </label>
           </div>
 
+          <!-- Decision Detection -->
           <div class="toggle-item">
             <div>
-              <div class="toggle-label">Decision Detection</div>
+              <div class="toggle-label tooltip-trigger">
+                Decision Detection
+                <span class="tooltip-box tooltip-bottom">
+                  <span class="tooltip-title">Decision Detection</span>
+                  <span class="tooltip-desc">Extract key decisions from conversation</span>
+                </span>
+              </div>
               <div class="toggle-hint">Extract decisions made during the meeting</div>
             </div>
             <label class="toggle-switch">
@@ -438,9 +690,16 @@
             </label>
           </div>
 
+          <!-- Action Item Extraction -->
           <div class="toggle-item">
             <div>
-              <div class="toggle-label">Action Item Extraction</div>
+              <div class="toggle-label tooltip-trigger">
+                Action Item Extraction
+                <span class="tooltip-box tooltip-bottom">
+                  <span class="tooltip-title">Action Item Extraction</span>
+                  <span class="tooltip-desc">Detect tasks, owners, and deadlines</span>
+                </span>
+              </div>
               <div class="toggle-hint">Detect tasks, owners, and deadlines</div>
             </div>
             <label class="toggle-switch">
@@ -449,9 +708,16 @@
             </label>
           </div>
 
+          <!-- Sentiment Analysis -->
           <div class="toggle-item">
             <div>
-              <div class="toggle-label">Sentiment Analysis</div>
+              <div class="toggle-label tooltip-trigger">
+                Sentiment Analysis
+                <span class="tooltip-box tooltip-bottom">
+                  <span class="tooltip-title">Sentiment Analysis</span>
+                  <span class="tooltip-desc">Track meeting mood and engagement levels</span>
+                </span>
+              </div>
               <div class="toggle-hint">Track meeting mood and engagement</div>
             </div>
             <label class="toggle-switch">
@@ -460,9 +726,18 @@
             </label>
           </div>
 
+          <!-- Transcript Refinement -->
           <div class="toggle-item">
             <div>
-              <div class="toggle-label">Transcript Refinement</div>
+              <div class="toggle-label tooltip-trigger">
+                Transcript Refinement
+                <span class="tooltip-box tooltip-bottom">
+                  <span class="tooltip-title">Transcript Refinement</span>
+                  <span class="tooltip-desc"
+                    >AI cleanup of filler words and errors (extra API call)</span
+                  >
+                </span>
+              </div>
               <div class="toggle-hint">
                 Use AI to clean up filler words and correct transcription errors (uses an additional
                 API call per audio chunk)
@@ -547,13 +822,21 @@
           Data Management
         </h2>
         <div class="form-group">
-          <div class="form-label">Clear Local Storage</div>
+          <div class="form-label tooltip-trigger">
+            Clear Local Storage
+            <span class="tooltip-box tooltip-bottom">
+              <span class="tooltip-title">Clear Storage</span>
+              <span class="tooltip-desc"
+                >⚠️ Permanently delete all data — this cannot be undone</span
+              >
+            </span>
+          </div>
           <p class="form-hint">
             Permanently delete all saved sessions, API keys, and settings from this browser.
           </p>
           <button
             id="clear-data-btn"
-            class="save-btn"
+            class="save-btn tooltip-trigger"
             style="background-color: #ef4444; margin-top: 10px"
           >
             <span class="save-text">Clear All Data</span>
@@ -574,13 +857,17 @@
                 <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
               </svg>
             </span>
+            <span class="tooltip-box tooltip-bottom">
+              <span class="tooltip-title">Clear All Data</span>
+              <span class="tooltip-desc">⚠️ This action is permanent and cannot be undone</span>
+            </span>
           </button>
         </div>
       </section>
 
       <!-- Save Button -->
       <div class="save-section">
-        <button id="save-btn" class="save-btn">
+        <button id="save-btn" class="save-btn tooltip-trigger">
           <span class="save-text">Save Settings</span>
           <span class="save-icon">
             <svg
@@ -601,6 +888,10 @@
               <path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7" />
               <path d="M7 3v4a1 1 0 0 0 1 1h7" />
             </svg>
+          </span>
+          <span class="tooltip-box tooltip-bottom">
+            <span class="tooltip-title">Save Settings</span>
+            <span class="tooltip-desc">Save all configuration changes</span>
           </span>
         </button>
         <div id="save-status" class="save-status"></div>
