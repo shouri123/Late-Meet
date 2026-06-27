@@ -178,16 +178,27 @@ export async function unlockCredentials(passphrase: string): Promise<boolean> {
 
       if (Object.keys(encryptedCreds).length > 0) {
         // Path 2: encrypted credentials exist — verify via credential decryption.
+        // Require a key whose ciphertext is non-empty. If every stored ciphertext
+        // is empty/malformed ("enc:" with no payload), we cannot verify the
+        // passphrase and must reject — accepting here would let an attacker write
+        // a sentinel encrypted with a wrong passphrase, silently locking the user out.
+        const sampleKey = CREDENTIAL_KEYS.find(
+          (k) => encryptedCreds[k] && encryptedCreds[k]!.length > 0
+        );
+
+        if (!sampleKey) {
+          // Storage has credential keys but all ciphertexts are empty/malformed.
+          // Fail closed — do not write sentinel with an unverified passphrase.
+          return false;
+        }
+
         try {
-          const sampleKey = CREDENTIAL_KEYS.find((k) => encryptedCreds[k]);
-          if (sampleKey && encryptedCreds[sampleKey]) {
-            const combined = base64ToArrayBuffer(encryptedCreds[sampleKey]!);
-            const iv = new Uint8Array(combined.slice(0, IV_LENGTH));
-            const ciphertext = combined.slice(IV_LENGTH);
-            await crypto.subtle.decrypt({ name: AES_ALGORITHM, iv }, key, ciphertext);
-          }
+          const combined = base64ToArrayBuffer(encryptedCreds[sampleKey]!);
+          const iv = new Uint8Array(combined.slice(0, IV_LENGTH));
+          const ciphertext = combined.slice(IV_LENGTH);
+          await crypto.subtle.decrypt({ name: AES_ALGORITHM, iv }, key, ciphertext);
         } catch {
-          return false; // Wrong passphrase.
+          return false; // Wrong passphrase — decryption failed.
         }
       }
       // Path 2 fall-through OR Path 3: write sentinel now so all future unlocks
