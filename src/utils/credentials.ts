@@ -39,6 +39,8 @@ const IV_LENGTH = 12;
 const PBKDF2_ITERATIONS = 100_000;
 const SALT_LENGTH = 16;
 const SALT_STORAGE_KEY = "credential_encryption_salt";
+const VAULT_SENTINEL_KEY = "vault_sentinel";
+const VAULT_SENTINEL_PLAINTEXT = "late-meet-vault-v1";
 
 let derivedKey: CryptoKey | null = null;
 
@@ -136,29 +138,76 @@ export async function unlockCredentials(passphrase: string): Promise<boolean> {
 
   if (typeof storedSalt === "string") {
     const key = await deriveKeyFromPassphrase(passphrase, base64ToArrayBuffer(storedSalt));
-    const encryptedLocal = await chrome.storage.local.get(CREDENTIAL_KEYS);
-    const encryptedCreds = unmarkEncrypted(encryptedLocal);
-    if (Object.keys(encryptedCreds).length > 0) {
+
+    // -------------------------------------------------------------------------
+    // Passphrase verification strategy (in priority order):
+    //
+    // 1. Vault sentinel  — preferred. Written by unlockCredentials() on every
+    //    first-time setup (new code path). A small known-plaintext encrypted
+    //    with the derived key; decryption succeeds iff the passphrase is correct.
+    //    This works even when no API credentials have been saved yet, closing the
+    //    "empty vault accepts any passphrase" vulnerability.
+    //
+    // 2. Legacy fallback — for vaults created before the sentinel was introduced.
+    //    If no sentinel exists but encrypted credentials do, decrypt a sample
+    //    credential to verify. Also writes the sentinel for future unlocks.
+    //
+    // 3. Unverifiable empty vault — sentinel absent AND no credentials (old vault,
+    //    no keys ever saved). Cannot verify the passphrase; accept and write a
+    //    sentinel immediately so the very next unlock is always verifiable.
+    // -------------------------------------------------------------------------
+
+    const localData = await chrome.storage.local.get([VAULT_SENTINEL_KEY, ...CREDENTIAL_KEYS]);
+    const rawSentinel = localData[VAULT_SENTINEL_KEY];
+
+    if (typeof rawSentinel === "string" && rawSentinel.startsWith(ENCRYPTED_MARKER)) {
+      // Path 1 — sentinel present: verify passphrase via sentinel decryption.
       try {
-        const sampleKey = CREDENTIAL_KEYS.find((k) => encryptedCreds[k]);
-        if (sampleKey && encryptedCreds[sampleKey]) {
-          const combined = base64ToArrayBuffer(encryptedCreds[sampleKey]);
-          const iv = new Uint8Array(combined.slice(0, IV_LENGTH));
-          const ciphertext = combined.slice(IV_LENGTH);
-          await crypto.subtle.decrypt({ name: AES_ALGORITHM, iv }, key, ciphertext);
-        }
+        const combined = base64ToArrayBuffer(rawSentinel.slice(ENCRYPTED_MARKER.length));
+        const iv = new Uint8Array(combined.slice(0, IV_LENGTH));
+        const ciphertext = combined.slice(IV_LENGTH);
+        const decrypted = await crypto.subtle.decrypt({ name: AES_ALGORITHM, iv }, key, ciphertext);
+        const plaintext = new TextDecoder().decode(decrypted);
+        if (plaintext !== VAULT_SENTINEL_PLAINTEXT) return false;
       } catch {
-        return false;
+        return false; // Wrong passphrase — decryption failed.
       }
+    } else {
+      // Path 2 or 3 — legacy vault without sentinel.
+      const encryptedCreds = unmarkEncrypted(localData);
+
+      if (Object.keys(encryptedCreds).length > 0) {
+        // Path 2: encrypted credentials exist — verify via credential decryption.
+        try {
+          const sampleKey = CREDENTIAL_KEYS.find((k) => encryptedCreds[k]);
+          if (sampleKey && encryptedCreds[sampleKey]) {
+            const combined = base64ToArrayBuffer(encryptedCreds[sampleKey]!);
+            const iv = new Uint8Array(combined.slice(0, IV_LENGTH));
+            const ciphertext = combined.slice(IV_LENGTH);
+            await crypto.subtle.decrypt({ name: AES_ALGORITHM, iv }, key, ciphertext);
+          }
+        } catch {
+          return false; // Wrong passphrase.
+        }
+      }
+      // Path 2 fall-through OR Path 3: write sentinel now so all future unlocks
+      // use it. For Path 3 (unverifiable empty vault) we trust the passphrase
+      // once and then lock it in — any subsequent mistyped passphrase will be
+      // caught by the sentinel on the very next unlock attempt.
+      derivedKey = key;
+      const sentinelCiphertext = ENCRYPTED_MARKER + (await encrypt(VAULT_SENTINEL_PLAINTEXT));
+      await chrome.storage.local.set({ [VAULT_SENTINEL_KEY]: sentinelCiphertext });
+      resetAutoLockTimer();
+      return true;
     }
+
     derivedKey = key;
     resetAutoLockTimer();
     return true;
   }
 
-  // First-time setup: enforce the minimum passphrase strength at the boundary so
+  // First-time setup: enforce minimum passphrase strength at the boundary so
   // every caller (options, popup, onboarding) is covered, not just the UI (#655).
-  // Only applies to setup — unlocking an existing vault above is never gated.
   if (!evaluatePassphraseStrength(passphrase).meetsMinimum) {
     return false;
   }
@@ -166,6 +215,12 @@ export async function unlockCredentials(passphrase: string): Promise<boolean> {
   const salt = crypto.getRandomValues(new Uint8Array(SALT_LENGTH));
   await chrome.storage.local.set({ [SALT_STORAGE_KEY]: arrayBufferToBase64(salt.buffer) });
   derivedKey = await deriveKeyFromPassphrase(passphrase, salt.buffer);
+
+  // Write vault sentinel immediately on first-time setup so all future unlocks
+  // can verify the passphrase even before any API credentials are saved.
+  const sentinelCiphertext = ENCRYPTED_MARKER + (await encrypt(VAULT_SENTINEL_PLAINTEXT));
+  await chrome.storage.local.set({ [VAULT_SENTINEL_KEY]: sentinelCiphertext });
+
   resetAutoLockTimer();
   return true;
 }
