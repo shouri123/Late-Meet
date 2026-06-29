@@ -1,14 +1,4 @@
-/**
- * @fileoverview API credential storage with AES-GCM encryption.
- *
- * Credentials are stored in two layers:
- * - **`chrome.storage.local`** – encrypted ciphertext (AES-256-GCM), persisted across sessions.
- * - **`chrome.storage.session`** – plaintext cache, cleared on browser close or explicit lock.
- *
- * Encryption uses a passphrase-derived key (PBKDF2 + SHA-256, 100 000 iterations) with a
- * random 16-byte salt stored in local storage. The derived `CryptoKey` is held only in memory
- * and auto-expires after 30 minutes of inactivity.
- */
+import { CURRENT_PBKDF2_ITERATIONS, resolveKdfIterations } from "./kdf";
 
 import { evaluatePassphraseStrength } from "../passphraseStrength";
 
@@ -36,9 +26,11 @@ function normalizedCredential(value: unknown): string | undefined {
 const AES_ALGORITHM = "AES-GCM";
 const AES_KEY_LENGTH = 256;
 const IV_LENGTH = 12;
-const PBKDF2_ITERATIONS = 100_000;
 const SALT_LENGTH = 16;
 const SALT_STORAGE_KEY = "credential_encryption_salt";
+// Stores the PBKDF2 iteration count used for this install so it can be raised
+// over time while keeping existing data decryptable (#656).
+const ITERATIONS_STORAGE_KEY = "credential_encryption_iterations";
 
 let derivedKey: CryptoKey | null = null;
 
@@ -50,7 +42,11 @@ function arrayBufferToBase64(buf: ArrayBuffer): string {
   return btoa(String.fromCodePoint(...new Uint8Array(buf)));
 }
 
-async function deriveKeyFromPassphrase(passphrase: string, salt: ArrayBuffer): Promise<CryptoKey> {
+async function deriveKeyFromPassphrase(
+  passphrase: string,
+  salt: ArrayBuffer,
+  iterations: number,
+): Promise<CryptoKey> {
   const encoder = new TextEncoder();
   const keyMaterial = await crypto.subtle.importKey(
     "raw",
@@ -60,7 +56,7 @@ async function deriveKeyFromPassphrase(passphrase: string, salt: ArrayBuffer): P
     ["deriveKey"],
   );
   return crypto.subtle.deriveKey(
-    { name: "PBKDF2", salt, iterations: PBKDF2_ITERATIONS, hash: "SHA-256" },
+    { name: "PBKDF2", salt, iterations, hash: "SHA-256" },
     keyMaterial,
     { name: AES_ALGORITHM, length: AES_KEY_LENGTH },
     false,
@@ -132,10 +128,16 @@ export async function isVaultInitialized(): Promise<boolean> {
  *   passphrase is incorrect.
  */
 export async function unlockCredentials(passphrase: string): Promise<boolean> {
-  const { [SALT_STORAGE_KEY]: storedSalt } = await chrome.storage.local.get([SALT_STORAGE_KEY]);
+  const { [SALT_STORAGE_KEY]: storedSalt, [ITERATIONS_STORAGE_KEY]: storedIterations } =
+    await chrome.storage.local.get([SALT_STORAGE_KEY, ITERATIONS_STORAGE_KEY]);
 
   if (typeof storedSalt === "string") {
-    const key = await deriveKeyFromPassphrase(passphrase, base64ToArrayBuffer(storedSalt));
+    const iterations = resolveKdfIterations(storedIterations);
+    const key = await deriveKeyFromPassphrase(
+      passphrase,
+      base64ToArrayBuffer(storedSalt),
+      iterations,
+    );
     const encryptedLocal = await chrome.storage.local.get(CREDENTIAL_KEYS);
     const encryptedCreds = unmarkEncrypted(encryptedLocal);
     if (Object.keys(encryptedCreds).length > 0) {
@@ -164,8 +166,11 @@ export async function unlockCredentials(passphrase: string): Promise<boolean> {
   }
 
   const salt = crypto.getRandomValues(new Uint8Array(SALT_LENGTH));
-  await chrome.storage.local.set({ [SALT_STORAGE_KEY]: arrayBufferToBase64(salt.buffer) });
-  derivedKey = await deriveKeyFromPassphrase(passphrase, salt.buffer);
+  await chrome.storage.local.set({
+    [SALT_STORAGE_KEY]: arrayBufferToBase64(salt.buffer),
+    [ITERATIONS_STORAGE_KEY]: CURRENT_PBKDF2_ITERATIONS,
+  });
+  derivedKey = await deriveKeyFromPassphrase(passphrase, salt.buffer, CURRENT_PBKDF2_ITERATIONS);
   resetAutoLockTimer();
   return true;
 }
