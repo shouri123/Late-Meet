@@ -354,12 +354,22 @@
         </div>
 
         <div class="form-group">
-          <label class="form-label">AI Model</label>
+          <label for="ai-model" class="form-label">AI Model</label>
           <select id="ai-model" class="form-select">
             <option value="gpt-4o-mini">GPT-4o Mini (Fast, Affordable)</option>
             <option value="gpt-4o">GPT-4o (Best Quality)</option>
             <option value="gpt-3.5-turbo">GPT-3.5 Turbo (Budget)</option>
           </select>
+        </div>
+
+        <div class="form-group">
+          <label for="translation-language" class="form-label">Transcript Translation</label>
+          <select id="translation-language" class="form-select">
+            <option value="">Off (original language)</option>
+          </select>
+          <p class="form-hint">
+            Translate each transcript segment into the selected language in real time.
+          </p>
         </div>
       </section>
 
