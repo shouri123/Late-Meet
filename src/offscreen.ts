@@ -350,6 +350,24 @@ async function getMicrophoneStream() {
   }
 }
 
+function setMicrophoneMuted(muted: boolean): boolean {
+  if (!microphoneStream) return false;
+
+  let applied = false;
+  microphoneStream.getAudioTracks().forEach((track) => {
+    if (track.enabled === muted) {
+      track.enabled = !muted;
+      applied = true;
+    }
+  });
+
+  if (applied) {
+    relay(`microphone track ${muted ? "muted" : "unmuted"}`);
+  }
+
+  return applied;
+}
+
 async function stopMediaRecorder() {
   if (mediaRecorder && mediaRecorder.state !== "inactive") {
     const recorder = mediaRecorder;
@@ -666,6 +684,12 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   (async () => {
     if (message.type === "OFFSCREEN_PING") {
       sendResponse({ success: true });
+      return;
+    }
+
+    if (message.type === "OFFSCREEN_SET_MIC_MUTED") {
+      const applied = setMicrophoneMuted(message.muted === true);
+      sendResponse({ success: true, applied });
       return;
     }
 
