@@ -14,6 +14,7 @@ import {
   connectMicrophoneToOffscreenAudioGraph,
   createOffscreenAudioGraph,
 } from "./offscreenAudioGraph";
+import { buildMicrophoneConstraints } from "./microphoneDevices";
 
 let mediaStream: MediaStream | null = null;
 let microphoneStream: MediaStream | null = null;

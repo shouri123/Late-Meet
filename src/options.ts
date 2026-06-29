@@ -10,6 +10,7 @@ import { renderStorageDashboard } from "./storageDashboard";
 import { renderApiUsageDashboard } from "./apiUsageDashboard";
 import { MIN_PASSPHRASE_LENGTH, evaluatePassphraseStrength } from "./passphraseStrength";
 import { getSettings } from "./settings";
+import { toMicrophoneOptions, normalizeMicrophoneId, AudioInputOption } from "./microphoneDevices";
 
 /**
  * Strongly-typed map of all recognized extension settings keys and their
@@ -195,7 +196,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         micSelect.value = selected;
       }
 
-      if (micHint && options.some((option) => option.label.startsWith("Microphone "))) {
+      if (
+        micHint &&
+        options.some((option: AudioInputOption) => option.label.startsWith("Microphone "))
+      ) {
         micHint.textContent = "Click Refresh and allow microphone access to see device names.";
       } else if (micHint) {
         micHint.textContent = "Choose which microphone is captured during meetings.";
