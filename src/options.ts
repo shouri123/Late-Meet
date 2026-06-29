@@ -7,6 +7,7 @@ import {
 } from "./utils/credentials";
 import { validateOpenAIKey, validateElevenLabsKey } from "./utils/api.js";
 import { renderStorageDashboard } from "./storageDashboard";
+import { renderApiUsageDashboard } from "./apiUsageDashboard";
 import { MIN_PASSPHRASE_LENGTH, evaluatePassphraseStrength } from "./passphraseStrength";
 import { getSettings } from "./settings";
 import {
@@ -112,10 +113,11 @@ document.addEventListener("DOMContentLoaded", async () => {
   const intervalSlider = document.getElementById("summary-interval") as HTMLInputElement | null;
   const intervalValue = document.getElementById("interval-value");
   if (intervalSlider && intervalValue) {
-    intervalSlider.value = String(settings.summarizationInterval || 30);
-    intervalValue.textContent = `${intervalSlider.value}s`;
+    intervalSlider.value = String(settings.summarizationInterval || 300);
+    intervalValue.textContent = `${Number(intervalSlider.value) / 60} min`;
+
     intervalSlider.addEventListener("input", () => {
-      intervalValue.textContent = `${intervalSlider.value}s`;
+      intervalValue.textContent = `${Number(intervalSlider.value) / 60} min`;
     });
   }
 
@@ -370,13 +372,19 @@ document.addEventListener("DOMContentLoaded", async () => {
     const originalText = saveBtn.textContent?.trim() || "Save Settings";
     saveBtn.disabled = true;
     try {
-      const validatedInterval = clampSummarizationInterval(
-        intervalSlider ? Number.parseInt(intervalSlider.value, 10) : SUMMARIZATION_INTERVAL_DEFAULT,
-      );
+      const parsedInterval = intervalSlider ? parseInt(intervalSlider.value, 10) : 300;
+      let validatedInterval =
+        Number.isNaN(parsedInterval) || !Number.isFinite(parsedInterval) ? 300 : parsedInterval;
+      if (validatedInterval < 300) validatedInterval = 300;
+      if (validatedInterval > 900) validatedInterval = 900;
 
-      const validatedVadThreshold = clampVadThreshold(
-        vadSlider ? Number.parseFloat(vadSlider.value) : VAD_THRESHOLD_DEFAULT,
-      );
+      const parsedVadThreshold = vadSlider ? parseFloat(vadSlider.value) : 0.012;
+      let validatedVadThreshold =
+        Number.isNaN(parsedVadThreshold) || !Number.isFinite(parsedVadThreshold)
+          ? 0.012
+          : parsedVadThreshold;
+      if (validatedVadThreshold < 0.001) validatedVadThreshold = 0.001;
+      if (validatedVadThreshold > 1.0) validatedVadThreshold = 1.0;
 
       const newSettings: Settings = {
         ...settings, // Retain existing unmapped fields
@@ -417,15 +425,27 @@ document.addEventListener("DOMContentLoaded", async () => {
           elevenlabsKey ? validateElevenLabsKey(elevenlabsKey) : Promise.resolve(true),
         ]);
 
-        if (isOpenAIValid && isElevenLabsValid) {
-          await saveApiCredentials({
-            openai_api_key: openaiKey,
-            elevenlabs_api_key: elevenlabsKey,
-          });
-          credentialsSaved = true;
-        } else {
-          invalidKey = isOpenAIValid ? "elevenlabs" : "openai";
+        if (!isOpenAIValid || !isElevenLabsValid) {
+          if (status) {
+            status.style.color = "red";
+            status.textContent = !isOpenAIValid
+              ? "Invalid OpenAI API key. Please check and try again."
+              : "Invalid ElevenLabs API key. Please check and try again.";
+            status.classList.add("visible");
+            setTimeout(() => status.classList.remove("visible"), 4000);
+          }
+          saveBtn.disabled = false;
+          saveBtn.textContent = originalText;
+          return;
         }
+
+        const credentialsToSave: { openai_api_key?: string; elevenlabs_api_key?: string } = {};
+        if (openaiKey) credentialsToSave.openai_api_key = openaiKey;
+        if (elevenlabsKey) credentialsToSave.elevenlabs_api_key = elevenlabsKey;
+        if (Object.keys(credentialsToSave).length > 0) {
+          await saveApiCredentials(credentialsToSave);
+        }
+        credentialsSaved = true;
       }
 
       // Settings are always persisted; the message reflects the credential outcome.
@@ -461,5 +481,11 @@ document.addEventListener("DOMContentLoaded", async () => {
   const storageContainer = document.getElementById("storage-dashboard-container");
   if (storageContainer) {
     await renderStorageDashboard(storageContainer);
+  }
+
+  // ——— API Usage Dashboard ———
+  const usageContainer = document.getElementById("api-usage-dashboard-container");
+  if (usageContainer) {
+    await renderApiUsageDashboard(usageContainer);
   }
 });
