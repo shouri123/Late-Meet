@@ -668,17 +668,20 @@ document.addEventListener("DOMContentLoaded", async () => {
       const topicsList = document.getElementById("topics-list");
       if (topicsList) {
         if (state.topics && state.topics.length > 0) {
-          topicsList.innerHTML = state.topics
-            .map(
-              (t) => `
-            <div class="topic-item">
+          topicsList.innerHTML =
+            `<ul class="topics-items-list">` +
+            state.topics
+              .map(
+                (t) => `
+            <li class="topic-item">
               <div class="topic-dot ${sanitizeTopicStatus(t.status)}"></div>
               <span class="topic-name">${escapeHtml(t.name || "")}</span>
               <span class="topic-status ${sanitizeTopicStatus(t.status)}">${escapeHtml(t.status || "active")}</span>
-            </div>
+            </li>
           `,
-            )
-            .join("");
+              )
+              .join("") +
+            `</ul>`;
         } else {
           topicsList.innerHTML = '<div class="empty-state">No topics detected yet</div>';
         }

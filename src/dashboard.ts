@@ -12,6 +12,7 @@ import { resolveManualMeetTab } from "./meetingTabs";
 import { startDashboardAudioCapture } from "./dashboardCapture";
 import { escapeHtml, formatDuration, sanitizeTopicStatus } from "./utils/domHelpers";
 import { sanitizeDataAttr } from "./utils/sanitize";
+import { renderApiUsageDashboard } from "./apiUsageDashboard";
 
 const UI_TRUNCATION_MAX = 50;
 
@@ -278,6 +279,10 @@ document.addEventListener("DOMContentLoaded", async () => {
           else if (tabId === "timeline") updateTimeline(lastState?.timeline || []);
           else if (tabId === "transcript") updateTranscript(lastState?.transcript || []);
           else if (tabId === "history" || tabId === "sessions") loadMeetingHistory();
+          else if (tabId === "usage") {
+            const usageContainer = document.getElementById("sidepanel-usage-container");
+            if (usageContainer) renderApiUsageDashboard(usageContainer);
+          }
         }, 150);
       }
     });
@@ -561,6 +566,20 @@ document.addEventListener("DOMContentLoaded", async () => {
     // Transcript Tab
     if (loadedTabs.has("transcript")) updateTranscript(state.transcript);
     attachTimestampLinkListeners();
+
+    // Live Session Token & Cost Tracker
+    const trackerCard = document.getElementById("live-tracker-card");
+    const liveTokensEl = document.getElementById("live-tokens");
+    const liveCostEl = document.getElementById("live-cost");
+    if (trackerCard) {
+      if (state.isActive) {
+        trackerCard.style.display = "";
+        if (liveTokensEl) liveTokensEl.textContent = (state.tokensUsed ?? 0).toLocaleString();
+        if (liveCostEl) liveCostEl.textContent = `$${(state.estimatedCost ?? 0).toFixed(4)}`;
+      } else {
+        trackerCard.style.display = "none";
+      }
+    }
   }
 
   // ——— Sentiment ———

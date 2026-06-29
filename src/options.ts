@@ -7,7 +7,7 @@ import {
 } from "./utils/credentials";
 import { validateOpenAIKey, validateElevenLabsKey } from "./utils/api.js";
 import { renderStorageDashboard } from "./storageDashboard";
-import { normalizeMicrophoneId, toMicrophoneOptions } from "./microphoneDevices";
+import { renderApiUsageDashboard } from "./apiUsageDashboard";
 import { MIN_PASSPHRASE_LENGTH, evaluatePassphraseStrength } from "./passphraseStrength";
 import { getSettings } from "./settings";
 
@@ -106,10 +106,11 @@ document.addEventListener("DOMContentLoaded", async () => {
   const intervalSlider = document.getElementById("summary-interval") as HTMLInputElement | null;
   const intervalValue = document.getElementById("interval-value");
   if (intervalSlider && intervalValue) {
-    intervalSlider.value = String(settings.summarizationInterval || 30);
-    intervalValue.textContent = `${intervalSlider.value}s`;
+    intervalSlider.value = String(settings.summarizationInterval || 300);
+    intervalValue.textContent = `${Number(intervalSlider.value) / 60} min`;
+
     intervalSlider.addEventListener("input", () => {
-      intervalValue.textContent = `${intervalSlider.value}s`;
+      intervalValue.textContent = `${Number(intervalSlider.value) / 60} min`;
     });
   }
 
@@ -423,11 +424,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     const originalText = saveBtn.textContent?.trim() || "Save Settings";
     saveBtn.disabled = true;
     try {
-      const parsedInterval = intervalSlider ? parseInt(intervalSlider.value, 10) : 30;
+      const parsedInterval = intervalSlider ? parseInt(intervalSlider.value, 10) : 300;
       let validatedInterval =
-        Number.isNaN(parsedInterval) || !Number.isFinite(parsedInterval) ? 30 : parsedInterval;
-      if (validatedInterval < 10) validatedInterval = 10;
-      if (validatedInterval > 300) validatedInterval = 300;
+        Number.isNaN(parsedInterval) || !Number.isFinite(parsedInterval) ? 300 : parsedInterval;
+      if (validatedInterval < 300) validatedInterval = 300;
+      if (validatedInterval > 900) validatedInterval = 900;
 
       const parsedVadThreshold = vadSlider ? parseFloat(vadSlider.value) : 0.012;
       let validatedVadThreshold =
@@ -479,15 +480,22 @@ document.addEventListener("DOMContentLoaded", async () => {
           if (status) {
             status.style.color = "red";
             status.textContent = !isOpenAIValid
-              ? "Settings saved, but the OpenAI API key is invalid."
-              : "Settings saved, but the ElevenLabs API key is invalid.";
+              ? "Invalid OpenAI API key. Please check and try again."
+              : "Invalid ElevenLabs API key. Please check and try again.";
             status.classList.add("visible");
             setTimeout(() => status.classList.remove("visible"), 4000);
           }
+          saveBtn.disabled = false;
+          saveBtn.textContent = originalText;
           return;
         }
 
-        await saveApiCredentials({ openai_api_key: openaiKey, elevenlabs_api_key: elevenlabsKey });
+        const credentialsToSave: { openai_api_key?: string; elevenlabs_api_key?: string } = {};
+        if (openaiKey) credentialsToSave.openai_api_key = openaiKey;
+        if (elevenlabsKey) credentialsToSave.elevenlabs_api_key = elevenlabsKey;
+        if (Object.keys(credentialsToSave).length > 0) {
+          await saveApiCredentials(credentialsToSave);
+        }
         credentialsSaved = true;
       }
 
@@ -520,5 +528,11 @@ document.addEventListener("DOMContentLoaded", async () => {
   const storageContainer = document.getElementById("storage-dashboard-container");
   if (storageContainer) {
     await renderStorageDashboard(storageContainer);
+  }
+
+  // ——— API Usage Dashboard ———
+  const usageContainer = document.getElementById("api-usage-dashboard-container");
+  if (usageContainer) {
+    await renderApiUsageDashboard(usageContainer);
   }
 });

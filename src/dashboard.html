@@ -6,6 +6,7 @@
     <title>Meeting Dashboard — AI Copilot</title>
     <link rel="stylesheet" href="fonts/fonts.css" />
     <link rel="stylesheet" href="dashboard.css" />
+    <link rel="stylesheet" href="apiUsageDashboard.css" />
     <style>
       .icon {
         width: 1em;
@@ -230,6 +231,17 @@
       </button>
       <button
         class="dash-tab"
+        data-tab="usage"
+        role="tab"
+        id="tab-btn-usage"
+        aria-controls="tab-usage"
+        aria-selected="false"
+        tabindex="-1"
+      >
+        Usage
+      </button>
+      <button
+        class="dash-tab"
         data-tab="history"
         role="tab"
         id="tab-btn-history"
@@ -276,6 +288,42 @@
             <span id="waveform-status" class="waveform-status-badge">IDLE</span>
           </div>
           <canvas id="waveform-canvas" class="waveform-canvas"></canvas>
+        </div>
+
+        <!-- Live Session Token & Cost Tracker -->
+        <div class="dash-card live-tracker-card" id="live-tracker-card" style="display: none">
+          <div class="dash-card-head">
+            <span class="dash-card-icon">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="icon"
+                aria-hidden="true"
+              >
+                <line x1="12" y1="1" x2="12" y2="23"></line>
+                <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+              </svg>
+            </span>
+            <span class="dash-card-title">Live Session Usage</span>
+            <span class="usage-badge-live">TRACKING</span>
+          </div>
+          <div class="usage-metric-row">
+            <div class="usage-metric">
+              <span class="usage-metric-label">Tokens Consumed</span>
+              <span class="usage-metric-value" id="live-tokens">0</span>
+            </div>
+            <div class="usage-metric" style="text-align: right">
+              <span class="usage-metric-label">Est. Cost (USD)</span>
+              <span class="usage-metric-value accent" id="live-cost">$0.0000</span>
+            </div>
+          </div>
         </div>
 
         <!-- Live Summary -->
@@ -976,6 +1024,10 @@
             <div class="empty-msg">No history exists yet.</div>
           </div>
         </div>
+      </section>
+      <!-- USAGE TAB -->
+      <section id="tab-usage" class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-usage">
+        <div id="sidepanel-usage-container"></div>
       </section>
     </main>
 

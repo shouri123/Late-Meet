@@ -1,4 +1,4 @@
-If you are new to Late Meet, start with the README first, then use this FAQ for common setup, privacy, and contribution questions.
+If you are new to Late Meet, start with the README first, then use this FAQ for common setup, troubleshooting, privacy, and contribution questions.
 
 # Frequently Asked Questions
 
@@ -73,6 +73,62 @@ Before opening a pull request, check the existing provider integration patterns 
 Find an open issue labeled for GSSoC or suitable for contributors, then comment clearly that you would like to work on it.
 
 Mention your intended approach if the issue needs implementation decisions. Wait for a maintainer to assign the issue before opening a pull request, unless the repository's contribution guidelines say otherwise.
+
+## Troubleshooting
+
+### Why am I getting an "Invalid OpenAI API key" error?
+
+This usually means the key saved in the extension's options page does not match an active OpenAI key.
+
+Open the OpenAI dashboard, confirm the key has not been revoked or regenerated, and re-paste it into Late Meet's options page without leading or trailing spaces. Also confirm the OpenAI account has billing enabled, since accounts with no usable credit can return errors that look like an invalid key.
+
+### Why am I getting an "Invalid ElevenLabs API key" error?
+
+This usually means the key was not copied correctly or was regenerated after it was first saved.
+
+ElevenLabs only displays a key in full at the time it is created. Open your ElevenLabs profile settings, generate a fresh key if needed, and re-save it in Late Meet's options page.
+
+### Why am I seeing API rate limit errors?
+
+Rate limit errors come from OpenAI or ElevenLabs, not from Late Meet itself.
+
+Both providers cap usage based on your account tier. Check the usage and limits page on the relevant provider's dashboard. Late Meet does not automatically retry failed requests, so you will need to wait for your quota to reset or upgrade your plan before trying again.
+
+### Why is Late Meet not getting the permissions it needs?
+
+This is usually because the permission grant did not apply to a tab that was already open before installation.
+
+Go to `chrome://extensions`, open Late Meet's details, and confirm site access is allowed for `meet.google.com`. Then reload any Google Meet tab that was open before installing or updating the extension, since permission changes do not apply retroactively to existing tabs.
+
+### Why is audio capture not working?
+
+This is most often caused by tab focus or a conflict with another extension.
+
+Late Meet uses Chrome's `tabCapture` API, which only works on the active, focused tab when capture starts. Make sure no other extension, such as a separate recorder or note-taker, is also requesting tab audio, since only one extension can hold tab capture at a time. If capture still fails, disable and re-enable Late Meet and restart the Meet tab.
+
+### Why is my Google Meet session not being detected?
+
+This is usually a timing issue between joining the call and the extension recognizing the session.
+
+Late Meet detects sessions based on the Meet call URL, so detection may not trigger until you have actually joined the call rather than while on the pre-join lobby screen. If the dashboard does not appear after joining, refresh the tab. Also confirm you are running the latest version of the extension, since changes to Meet's interface can occasionally affect detection until the extension is updated.
+
+### Why is my transcript empty or incomplete?
+
+This is usually related to API key issues or audio conditions during the meeting.
+
+Confirm your ElevenLabs key is valid and has remaining quota. Background noise and multiple overlapping speakers can also reduce transcription quality. If your internet connection dropped during the meeting, transcription may be incomplete since it depends on a live connection to the ElevenLabs API.
+
+### Why is summary generation failing?
+
+This is usually caused by an OpenAI key or billing issue, or a meeting that was too short to summarize.
+
+Confirm your OpenAI key is valid and the account has available credit. Very short captured meetings may not contain enough content to generate a meaningful summary, which is expected behavior rather than a bug. For unexplained failures, check the service worker logs by going to `chrome://extensions`, opening Late Meet's details, and selecting "Inspect views: service worker."
+
+### What are common installation and setup mistakes?
+
+Most setup issues come from skipping a step in the unpacked extension install process.
+
+Make sure Developer mode is enabled in `chrome://extensions` before loading an unpacked build. Load the built `dist/` folder rather than the repository root, and build the project first if installing from source. Finally, reload any Google Meet tabs that were already open before installing the extension.
 
 ## Related Links
 
