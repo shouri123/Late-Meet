@@ -10,14 +10,7 @@ import { renderStorageDashboard } from "./storageDashboard";
 import { renderApiUsageDashboard } from "./apiUsageDashboard";
 import { MIN_PASSPHRASE_LENGTH, evaluatePassphraseStrength } from "./passphraseStrength";
 import { getSettings } from "./settings";
-import {
-  SUMMARIZATION_INTERVAL_DEFAULT,
-  VAD_THRESHOLD_DEFAULT,
-  clampSummarizationInterval,
-  clampVadThreshold,
-  resolveSaveStatus,
-  shouldSaveCredentials,
-} from "./optionsSettings";
+import { resolveSaveStatus, shouldSaveCredentials } from "./optionsSettings";
 
 /**
  * Strongly-typed map of all recognized extension settings keys and their
@@ -413,7 +406,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       await chrome.storage.local.set({ settings: newSettings });
 
       let credentialsSaved = false;
-      let invalidKey: "openai" | "elevenlabs" | null = null;
+      const invalidKey: "openai" | "elevenlabs" | null = null;
       if (pendingUnlock) await pendingUnlock;
       const unlocked = isUnlocked();
       // Credentials are only written while encryption is unlocked, so non-secret
