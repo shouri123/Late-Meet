@@ -10,6 +10,7 @@ import { renderStorageDashboard } from "./storageDashboard";
 import { renderApiUsageDashboard } from "./apiUsageDashboard";
 import { MIN_PASSPHRASE_LENGTH, evaluatePassphraseStrength } from "./passphraseStrength";
 import { getSettings } from "./settings";
+import { resolveSaveStatus, shouldSaveCredentials } from "./optionsSettings";
 
 /**
  * Strongly-typed map of all recognized extension settings keys and their
@@ -405,8 +406,12 @@ document.addEventListener("DOMContentLoaded", async () => {
       await chrome.storage.local.set({ settings: newSettings });
 
       let credentialsSaved = false;
+      const invalidKey: "openai" | "elevenlabs" | null = null;
       if (pendingUnlock) await pendingUnlock;
-      if (isUnlocked()) {
+      const unlocked = isUnlocked();
+      // Credentials are only written while encryption is unlocked, so non-secret
+      // settings (already persisted above) save regardless of lock state (#526).
+      if (unlocked && shouldSaveCredentials(unlocked)) {
         saveBtn.textContent = "Validating Keys...";
         const [isOpenAIValid, isElevenLabsValid] = await Promise.all([
           openaiKey ? validateOpenAIKey(openaiKey) : Promise.resolve(true),
@@ -436,17 +441,21 @@ document.addEventListener("DOMContentLoaded", async () => {
         credentialsSaved = true;
       }
 
-      // Show success
+      // Settings are always persisted; the message reflects the credential outcome.
       if (status) {
-        status.style.color = credentialsSaved ? "" : "var(--accent-color, #22C55E)";
-        status.textContent = credentialsSaved
-          ? "Settings saved successfully!"
-          : "Settings saved. Unlock credential encryption to update API keys.";
+        const saveStatus = resolveSaveStatus({ unlocked, credentialsSaved, invalidKey });
+        let statusColor = "";
+        if (saveStatus.tone === "error") {
+          statusColor = "red";
+        } else if (saveStatus.tone === "info") {
+          statusColor = "var(--accent-color, #22C55E)";
+        }
+        status.style.color = statusColor;
+        status.textContent = saveStatus.message;
         status.classList.add("visible");
 
-        setTimeout(() => {
-          status.classList.remove("visible");
-        }, 3000);
+        const hideAfterMs = saveStatus.tone === "error" ? 4000 : 3000;
+        setTimeout(() => status.classList.remove("visible"), hideAfterMs);
       }
     } catch (error) {
       console.error("Error saving settings:", error);
