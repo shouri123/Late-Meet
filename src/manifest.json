@@ -24,9 +24,15 @@
   },
   "content_scripts": [
     {
-      "matches": ["https://meet.google.com/*"],
-      "js": ["src/content.ts"],
-      "css": ["src/content.css"],
+      "matches": [
+        "https://meet.google.com/*"
+      ],
+      "js": [
+        "src/content.ts"
+      ],
+      "css": [
+        "src/content.css"
+      ],
       "run_at": "document_idle"
     }
   ],
