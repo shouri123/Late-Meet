@@ -776,6 +776,7 @@ interface Settings {
   actionExtraction?: boolean;
   sentimentAnalysis?: boolean;
   transcriptRefinement?: boolean;
+  customVocabulary?: string;
 }
 
 // getSettings is imported from theme.js at the top of the file
@@ -832,14 +833,28 @@ async function closeOffscreenDocumentIfPresent() {
   }
 }
 
-function getTranscriptionPrompt() {
+const MAX_CUSTOM_VOCAB_LENGTH = 200;
+
+function getTranscriptionPrompt(settings: Settings) {
+  let customVocab = settings.customVocabulary ? String(settings.customVocabulary).trim() : "";
+  if (customVocab) {
+    customVocab = customVocab
+      .replace(/\s+/g, " ")
+      .replace(/[\u0000-\u001F\u007F]/g, "")
+      .slice(0, MAX_CUSTOM_VOCAB_LENGTH)
+      .trim();
+  }
+
   const recentTexts = state.transcript
     .slice(-3)
     .map((e) => e.text)
     .join(" ");
-  if (!recentTexts) return "";
-  // Provide last ~200 characters to Whisper to help with context/names
-  return recentTexts.slice(-200);
+
+  let prompt = recentTexts ? recentTexts.slice(-200) : "";
+  if (customVocab) {
+    prompt = customVocab + (prompt ? ", " + prompt : "");
+  }
+  return prompt;
 }
 
 async function transcribeChunk(base64Audio: string, mimeType = "audio/webm", prompt = "") {
@@ -1301,7 +1316,8 @@ async function processQueuedAudioChunk({ id, item }: AudioChunkQueueItem<QueuedA
     );
   }
 
-  const prompt = getTranscriptionPrompt();
+  const settings = await getSettings();
+  const prompt = getTranscriptionPrompt(settings);
   const rawText = await transcribeChunk(item.audioBase64, item.mimeType, prompt);
 
   if (!rawText) {
@@ -1312,7 +1328,6 @@ async function processQueuedAudioChunk({ id, item }: AudioChunkQueueItem<QueuedA
   if (DEBUG) {
     console.log(`[LateMeet] transcript received for chunk ${id} — ${rawText.length} chars`);
   }
-  const settings = await getSettings();
   const refinedText =
     settings.transcriptRefinement === true ? await refineTranscription(rawText) : rawText;
   if (settings.transcriptRefinement) {

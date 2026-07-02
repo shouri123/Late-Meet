@@ -46,6 +46,9 @@ function normalizeTimestamp(value: unknown): number | null {
  */
 function asStoredSession(value: unknown): StoredSession | null {
   if (!value || typeof value !== "object") return null;
+  if (Object.getPrototypeOf(value) !== Object.prototype && Object.getPrototypeOf(value) !== null) {
+    return null;
+  }
   const session = value as Partial<StoredSession> & { savedAt?: unknown };
   if (typeof session.id !== "string" || session.id.trim() === "") {
     return null;

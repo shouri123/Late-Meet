@@ -34,7 +34,16 @@ export function getTodayKey(): string {
 /** Reads the entire usageStats map from local storage. */
 export async function getUsageStats(): Promise<Record<string, DayStats>> {
   const result = await chrome.storage.local.get("usageStats");
-  return (result.usageStats as Record<string, DayStats>) || {};
+  const stats = result.usageStats;
+  if (
+    typeof stats === "object" &&
+    stats !== null &&
+    !Array.isArray(stats) &&
+    (Object.getPrototypeOf(stats) === Object.prototype || Object.getPrototypeOf(stats) === null)
+  ) {
+    return stats as Record<string, DayStats>;
+  }
+  return {};
 }
 
 export interface UsageDelta {
