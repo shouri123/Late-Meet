@@ -10,36 +10,25 @@ export interface OffscreenAudioGraph {
   recorderDestination: MediaStreamAudioDestinationNode;
   analyser: AnalyserNode;
   tabSource: MediaStreamAudioSourceNode;
+  compressor: DynamicsCompressorNode;
 }
 
 /**
- * Connects a media stream to the shared recorder and analyser nodes.
- *
- * Only the tab stream receives a playback destination. The microphone must
- * never be routed to AudioContext.destination because that would create local
- * monitoring and potentially audible feedback.
+ * Connects a media stream to the target node (which will be the compressor).
  */
 function connectCaptureSource(
   context: AudioContext,
   stream: MediaStream,
-  recorderDestination: MediaStreamAudioDestinationNode,
-  analyser: AnalyserNode,
-  playbackDestination?: AudioDestinationNode,
+  targetNode: AudioNode,
 ): MediaStreamAudioSourceNode {
   const source = context.createMediaStreamSource(stream);
-
-  source.connect(recorderDestination);
-  source.connect(analyser);
-
-  if (playbackDestination) {
-    source.connect(playbackDestination);
-  }
-
+  source.connect(targetNode);
   return source;
 }
 
 /**
- * Creates the base offscreen Web Audio graph for tab audio capture.
+ * Creates the base offscreen Web Audio graph for tab audio capture, with an added
+ * dynamics compressor to prevent clipping.
  */
 export function createOffscreenAudioGraph(
   context: AudioContext,
@@ -50,18 +39,28 @@ export function createOffscreenAudioGraph(
 
   analyser.fftSize = OFFSCREEN_ANALYSER_FFT_SIZE;
 
-  const tabSource = connectCaptureSource(
-    context,
-    tabStream,
-    recorderDestination,
-    analyser,
-    context.destination,
-  );
+  // Add limiter (compressor) to prevent audio clipping
+  const compressor = context.createDynamicsCompressor();
+  compressor.threshold.value = -3;
+  compressor.knee.value = 0;
+  compressor.ratio.value = 20;
+  compressor.attack.value = 0.005;
+  compressor.release.value = 0.1;
+
+  // Route the compressor to all destinations
+  compressor.connect(recorderDestination);
+  compressor.connect(analyser);
+  // The tab audio gets played back locally through the offscreen document
+  // so the user can still hear the tab while recording.
+  compressor.connect(context.destination);
+
+  const tabSource = connectCaptureSource(context, tabStream, compressor);
 
   return {
     recorderDestination,
     analyser,
     tabSource,
+    compressor,
   };
 }
 
@@ -69,12 +68,16 @@ export function createOffscreenAudioGraph(
  * Adds an optional microphone stream to the existing offscreen audio graph.
  *
  * The microphone is recorded and analysed but intentionally not played
- * through the local output destination.
+ * through the local output destination. It bypasses the tab audio compressor
+ * to avoid local echo, relying on native AGC.
  */
 export function connectMicrophoneToOffscreenAudioGraph(
   context: AudioContext,
   microphoneStream: MediaStream,
   graph: Pick<OffscreenAudioGraph, "recorderDestination" | "analyser">,
 ): MediaStreamAudioSourceNode {
-  return connectCaptureSource(context, microphoneStream, graph.recorderDestination, graph.analyser);
+  const source = context.createMediaStreamSource(microphoneStream);
+  source.connect(graph.recorderDestination);
+  source.connect(graph.analyser);
+  return source;
 }
