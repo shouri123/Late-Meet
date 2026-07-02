@@ -1677,7 +1677,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const d = new Date(s.savedAt || s.startTime || 0);
     const now = new Date();
     if (range === "today") return d.toDateString() === now.toDateString();
-   if (range === "week") {
+    if (range === "week") {
       const w = new Date(now);
       w.setDate(now.getDate() - now.getDay());
       w.setHours(0, 0, 0, 0);
@@ -1722,8 +1722,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         sessions.length === 0
           ? `No sessions found`
           : sessions.length === allHistorySessions.length
-          ? `${sessions.length} session${sessions.length !== 1 ? "s" : ""}`
-          : `${sessions.length} of ${allHistorySessions.length}`;
+            ? `${sessions.length} session${sessions.length !== 1 ? "s" : ""}`
+            : `${sessions.length} of ${allHistorySessions.length}`;
     container.innerHTML = sessions.map((s) => buildSessionCardHTML(s, query)).join("");
     container
       .querySelectorAll<HTMLButtonElement>(".session-export-btn:not(.session-download-btn)")
