@@ -979,20 +979,48 @@ _Made with 🖤 by the Late Meet community · [Report Bug](https://github.com/sh
 
 ---
 
-## Troubleshooting
+## 🔍 Troubleshooting & Common Errors
 
-| Issue                                    | Cause                                     | Fix                                                          |
-| ---------------------------------------- | ----------------------------------------- | ------------------------------------------------------------ |
-| Transcription not starting               | Microphone permission denied              | Click the lock icon in Chrome address bar → Allow Microphone |
-| Extension popup shows "Not in a meeting" | Tab is not a Google Meet tab              | Navigate to meet.google.com first                            |
-| API key error                            | Key not set or expired                    | Open extension Options and re-enter your API key             |
-| Transcript stops mid-meeting             | Chrome service worker restarted           | Refresh the Meet tab and restart recording                   |
-| Speaker names show as "Unknown"          | Non-ASCII names or Google Meet DOM change | Update the extension to the latest version                   |
-| Storage quota exceeded                   | Too many saved meetings                   | Open the dashboard and delete old sessions                   |
+If you encounter issues while setting up or running **Late-Meet**, check the common scenarios below before opening a new issue.
+
+### 1. Tab Capture & Audio Failures
+
+- **Symptom:** The extension states it is active, but audio isn't being captured or transcribed.
+- **Fix:**
+  - Click the lock icon in the Chrome address bar and ensure **Microphone** permission is set to **Allow**.
+  - Ensure you have granted the active tab permission when prompted by Chrome.
+  - Check if you have other aggressive audio-routing or volume-boosting extensions active, as they can conflict with Chrome's `tabCapture` API. Try disabling them temporarily.
+
+### 2. Invalid API Key Errors (`401 Unauthorized`)
+
+- **Symptom:** Summaries or transcriptions fail to generate, or extension shows API key errors.
+- **Fix:**
+  - Open the extension **Options** and re-enter your **OpenAI** and **ElevenLabs** API keys. Ensure there are no accidental spaces at the beginning or end of the text strings.
+  - Log into your OpenAI / ElevenLabs dashboards to verify that your account has a remaining usage quota/credits.
+
+### 3. Extension Shows "Not in a meeting"
+
+- **Symptom:** The popup dashboard does not recognize the session.
+- **Fix:** Late-Meet tracks native active sessions. Navigate to `meet.google.com` and click **Start Copilot** _after_ joining the Meet call—not before.
+
+### 4. Changes Don't Reflect (For Contributors)
+
+- **Symptom:** You updated the source code files, but the extension behaves exactly the same way in the browser.
+- **Fix:**
+  - Go to `chrome://extensions/` in your browser.
+  - Find the **Late-Meet** card.
+  - Click the **Reload (🔄)** icon in the bottom right corner of the card to clear the old build cache and apply your latest updates.
+
+### 5. How to Inspect Extension Error Logs
+
+If an error persists or you run into a transcript drop mid-meeting, check the hidden developer logs to find the exact error code:
+
+- **Popup Errors:** Right-click anywhere inside the extension popup window and select **Inspect**. Look at the _Console_ tab.
+- **Background Script Errors:** Go to `chrome://extensions/`, enable **Developer mode** (top right toggle), find **Late-Meet**, and click on the `background.ts` / `background.js` link next to "Inspect views".
 
 ---
 
-## Global Shortcuts
+## ⌨️ Global Shortcuts
 
 | Shortcut      | Action                       |
 | ------------- | ---------------------------- |
@@ -1001,4 +1029,4 @@ _Made with 🖤 by the Late Meet community · [Report Bug](https://github.com/sh
 | `Alt+Shift+S` | Generate meeting summary     |
 | `Alt+Shift+E` | Export transcript            |
 
-> **Note:** Shortcuts can be customized at `chrome://extensions/shortcuts`
+> **Note:** Control Late Meet without touching your mouse! Shortcuts can be customized anytime at `chrome://extensions/shortcuts`.
