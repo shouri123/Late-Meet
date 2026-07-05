@@ -536,11 +536,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   function shakeElement(el: HTMLElement | null) {
     if (!el) return;
-    el.style.borderColor = "#EF4444";
-    el.style.animation = "shake 0.4s ease";
+    el.classList.add("shake", "border-danger");
     setTimeout(() => {
-      el.style.borderColor = "";
-      el.style.animation = "";
+      el.classList.remove("shake", "border-danger");
     }, 400);
   }
 });
