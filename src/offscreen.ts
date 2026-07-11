@@ -223,6 +223,12 @@ async function postChunk(blob: Blob) {
       mimeType,
     });
 
+    if (response?.ignored) {
+      relay("chunk ignored by background because session is inactive — stopping capture");
+      await stopCapture();
+      return;
+    }
+
     if (!response?.success) {
       relay(`chunk rejected by background — ${response?.error || "unknown error"}`);
     }
@@ -710,6 +716,14 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 
       sendResponse({ success: true });
 
+      return;
+    }
+
+    if (message.type === "OFFSCREEN_GET_REMAINING_CHUNKS") {
+      sendResponse({
+        pending: pendingChunks.length,
+        isDrainingQueue: isDrainingQueue || isFlushInProgress,
+      });
       return;
     }
 

@@ -25,6 +25,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     "session-modal-error",
   ) as HTMLParagraphElement | null;
 
+  const errorBanner = document.getElementById("error-banner") as HTMLDivElement | null;
+  const errorMessage = document.getElementById("error-message") as HTMLSpanElement | null;
+  const errorRetryBtn = document.getElementById("error-retry-btn") as HTMLButtonElement | null;
+  const errorCloseBtn = document.getElementById("error-close-btn") as HTMLButtonElement | null;
+
   let lastState: State | null = null;
 
   // ——— Passphrase management ———
@@ -385,6 +390,33 @@ document.addEventListener("DOMContentLoaded", async () => {
     handleStartAudio(btn);
   });
 
+  errorRetryBtn?.addEventListener("click", () => {
+    if (errorBanner) errorBanner.style.display = "none";
+    const startBtn = (meetingSection && meetingSection.style.display === "block")
+      ? (document.getElementById("meeting-start-audio-btn") as HTMLButtonElement | null)
+      : copilotBtn;
+    if (startBtn) {
+      handleStartAudio(startBtn);
+    }
+  });
+
+  errorCloseBtn?.addEventListener("click", async () => {
+    if (errorBanner) errorBanner.style.display = "none";
+    try {
+      await chrome.storage.local.get("activeMeetingState", async (data) => {
+        if (data && data.activeMeetingState) {
+          data.activeMeetingState.captureError = null;
+          await chrome.storage.local.set({ activeMeetingState: data.activeMeetingState });
+        }
+      });
+      if (lastState) {
+        lastState.captureError = null;
+      }
+    } catch (err) {
+      console.error("[LateMeet] Failed to clear captureError:", err);
+    }
+  });
+
   function setCopilotActive(active: boolean) {
     if (!copilotBtn) return;
     const miniBtn = document.getElementById("meeting-start-audio-btn");
@@ -413,7 +445,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         miniBtn.classList.add("active");
         miniBtn.title = "Stop audio capture";
         const labelNode = getMiniBtnLabelNode();
-        if (labelNode) labelNode.textContent = " Stop Audio";
+        if (labelNode) labelNode.textContent = " Stop Recording";
       }
     } else {
       copilotBtn.classList.remove("active");
@@ -627,6 +659,15 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // ——— Update UI ———
   function updateUI(state: State) {
+    if (errorBanner && errorMessage) {
+      if (state.captureError) {
+        errorMessage.textContent = state.captureError;
+        errorBanner.style.display = "flex";
+      } else {
+        errorBanner.style.display = "none";
+      }
+    }
+
     if (state.isActive) {
       if (meetingSection) meetingSection.style.display = "block";
       if (noMeetingSection) noMeetingSection.style.display = "none";

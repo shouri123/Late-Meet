@@ -909,3 +909,49 @@ body::-webkit-scrollbar-thumb {
   cursor: wait;
   pointer-events: none;
 }
+
+/* --- ERROR BANNER --- */
+.error-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid #ef4444;
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin: 10px 12px;
+  font-size: 12px;
+  color: #ef4444;
+  gap: 8px;
+}
+
+.error-banner .error-message {
+  flex-grow: 1;
+}
+
+.error-banner .error-retry-btn {
+  background: #ef4444;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 4px 8px;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.error-banner .error-retry-btn:hover {
+  background: #dc2626;
+}
+
+.error-banner .error-close-btn {
+  background: transparent;
+  color: #ef4444;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0 4px;
+}
+

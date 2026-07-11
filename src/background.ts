@@ -274,6 +274,7 @@ const state: State = {
   participantCount: 0,
   tokensUsed: 0,
   estimatedCost: 0,
+  captureError: null,
 };
 
 async function trackUsage(delta: UsageDelta) {
@@ -533,6 +534,7 @@ function resetState() {
   selfParticipantName = null;
   state.tokensUsed = 0;
   state.estimatedCost = 0;
+  state.captureError = null;
 }
 
 function addTimeline(event: string) {
@@ -578,6 +580,7 @@ function snapshot() {
     pendingJoiners: [...(state.pendingJoiners ?? [])],
     tokensUsed: state.tokensUsed ?? 0,
     estimatedCost: state.estimatedCost ?? 0,
+    captureError: state.captureError,
   };
 }
 
@@ -1657,76 +1660,101 @@ async function startAudioCapture(
 
   const createdSession = !state.isActive || !state.meetingId;
 
-  try {
-    await ensureOffscreenDocument();
+  if (createdSession) {
+    resetState();
+    await chrome.storage.local.remove("activeMeetingState");
+    state.isActive = true;
+    state.startTime = Date.now();
+    state.meetingId = meetingId || "unknown";
+    state.meetingUrl = meetingUrl || null;
+    state.targetTabId = tabId;
+    addTimeline(`Meeting started (${state.meetingId})`);
+  }
 
-    if (createdSession) {
-      resetState();
-      await chrome.storage.local.remove("activeMeetingState");
-      state.isActive = true;
-      state.startTime = Date.now();
-      state.meetingId = meetingId || "unknown";
-      state.meetingUrl = meetingUrl || null;
-      state.targetTabId = tabId;
-      addTimeline(`Meeting started (${state.meetingId})`);
-    }
+  let attempts = 0;
+  const maxAttempts = 3;
+  const baseDelay = 1000;
+  let success = false;
+  let lastErr: any = null;
 
-    let streamId = providedStreamId;
+  while (attempts < maxAttempts) {
+    try {
+      await ensureOffscreenDocument();
 
-    if (!streamId) {
-      streamId = await new Promise<string | null>((resolve) => {
-        chrome.tabCapture.getMediaStreamId({ targetTabId: tabId }, (id) => {
-          if (chrome.runtime.lastError) {
-            console.error(
-              "[LateMeet] getMediaStreamId error (background):",
-              chrome.runtime.lastError.message || chrome.runtime.lastError,
-            );
-            resolve(null);
-          } else {
-            resolve(id);
-          }
+      let streamId = providedStreamId;
+
+      if (!streamId) {
+        streamId = await new Promise<string | null>((resolve) => {
+          chrome.tabCapture.getMediaStreamId({ targetTabId: tabId }, (id) => {
+            if (chrome.runtime.lastError) {
+              console.error(
+                `[LateMeet] getMediaStreamId error (attempt ${attempts + 1}):`,
+                chrome.runtime.lastError.message || chrome.runtime.lastError,
+              );
+              resolve(null);
+            } else {
+              resolve(id);
+            }
+          });
         });
+      }
+
+      if (!streamId) {
+        throw new Error(
+          "Failed to get media stream ID for tab capture. Ensure you have given permission.",
+        );
+      }
+
+      const settings = await getSettings();
+      const raw = settings.vadThreshold;
+      const vadThreshold =
+        typeof raw === "number" && Number.isFinite(raw) && raw >= 0.001 && raw <= 1.0 ? raw : 0.012;
+      const response = await chrome.runtime.sendMessage({
+        type: "OFFSCREEN_START_CAPTURE",
+        streamId,
+        tabId,
+        includeMicrophone,
+        vadThreshold,
       });
-    }
 
-    if (!streamId) {
-      throw new Error(
-        "Failed to get media stream ID for tab capture. Ensure you have given permission.",
-      );
-    }
+      if (!response?.success) {
+        throw new Error(response?.error || "Failed to start offscreen capture");
+      }
 
-    const settings = await getSettings();
-    const raw = settings.vadThreshold;
-    const vadThreshold =
-      typeof raw === "number" && Number.isFinite(raw) && raw >= 0.001 && raw <= 1.0 ? raw : 0.012;
-    const response = await chrome.runtime.sendMessage({
-      type: "OFFSCREEN_START_CAPTURE",
-      streamId,
-      tabId,
-      includeMicrophone,
-      vadThreshold,
-    });
-
-    if (!response?.success) {
-      throw new Error(response?.error || "Failed to start offscreen capture");
+      state.audioActive = true;
+      addTimeline("Audio capture started");
+      if (response.microphoneActive === false) {
+        addTimeline("Microphone capture unavailable; recording tab audio only");
+      }
+      state.captureError = null;
+      await broadcastStateUpdate(true);
+      success = true;
+      break;
+    } catch (err: any) {
+      attempts++;
+      lastErr = err;
+      console.warn(`[LateMeet] Audio capture start attempt ${attempts} failed:`, err.message || err);
+      if (attempts < maxAttempts) {
+        const delay = baseDelay * Math.pow(2, attempts - 1) + Math.random() * 200;
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
     }
+  }
 
-    state.audioActive = true;
-    addTimeline("Audio capture started");
-    if (response.microphoneActive === false) {
-      addTimeline("Microphone capture unavailable; recording tab audio only");
-    }
-    await broadcastStateUpdate(true);
-  } catch (err) {
+  if (!success) {
+    state.captureError = lastErr?.message || "Audio capture failed";
     state.audioActive = false;
     if (createdSession) {
       resetState();
-      await broadcastStateUpdate(true);
+      // Keep captureError preserved even after resetState()
+      state.captureError = lastErr?.message || "Audio capture failed";
     }
-    throw err;
-  } finally {
+    await broadcastStateUpdate(true);
     isStartingAudio = false;
+    throw lastErr || new Error("Audio capture failed after retries");
   }
+
+  isStartingAudio = false;
 }
 
 async function scanForMeetTabs() {
@@ -1782,7 +1810,7 @@ async function pollRemainingChunks(): Promise<void> {
   while (Date.now() - pollStart < POLL_TIMEOUT) {
     try {
       const pollResponse = await chrome.runtime.sendMessage({
-        type: "GET_REMAINING_CHUNKS",
+        type: "OFFSCREEN_GET_REMAINING_CHUNKS",
       });
       if (pollResponse && typeof pollResponse === "object") {
         const pending = pollResponse.pending ?? 0;
@@ -1846,6 +1874,26 @@ async function stopAudioCapture(reason = "Stopped") {
 }
 
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
+  // If the target tab being captured updates its URL or completes loading:
+  if (tabId === state.targetTabId) {
+    const newUrl = changeInfo.url || (changeInfo.status === "complete" ? tab.url : undefined);
+    if (newUrl) {
+      await hydrateState();
+      if (state.isActive) {
+        const newMeetingId = getMeetingIdFromUrl(newUrl);
+        if (!newMeetingId || newMeetingId !== state.meetingId) {
+          let reason = "Left meeting";
+          if (newMeetingId && newMeetingId !== state.meetingId) {
+            reason = "Meeting code changed";
+          } else if (!newUrl.includes("meet.google.com")) {
+            reason = "Navigated away from Google Meet";
+          }
+          await stopAudioCapture(reason);
+        }
+      }
+    }
+  }
+
   if (changeInfo.status !== "complete" || !tab.url) return;
   await hydrateState();
   try {

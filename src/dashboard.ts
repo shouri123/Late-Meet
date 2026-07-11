@@ -353,6 +353,34 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // ——— Start Audio Capture (User Gesture via tabCapture) ———
   const audioBtn = document.getElementById("dash-start-audio-btn") as HTMLButtonElement | null;
+  const errorBanner = document.getElementById("dash-error-banner") as HTMLDivElement | null;
+  const errorMessage = document.getElementById("dash-error-message") as HTMLSpanElement | null;
+  const errorRetryBtn = document.getElementById("dash-error-retry-btn") as HTMLButtonElement | null;
+  const errorCloseBtn = document.getElementById("dash-error-close-btn") as HTMLButtonElement | null;
+
+  errorRetryBtn?.addEventListener("click", () => {
+    if (errorBanner) errorBanner.style.display = "none";
+    if (audioBtn) {
+      audioBtn.click();
+    }
+  });
+
+  errorCloseBtn?.addEventListener("click", async () => {
+    if (errorBanner) errorBanner.style.display = "none";
+    try {
+      await chrome.storage.local.get("activeMeetingState", async (data) => {
+        if (data && data.activeMeetingState) {
+          data.activeMeetingState.captureError = null;
+          await chrome.storage.local.set({ activeMeetingState: data.activeMeetingState });
+        }
+      });
+      if (lastState) {
+        lastState.captureError = null;
+      }
+    } catch (err) {
+      console.error("[LateMeet] Failed to clear captureError:", err);
+    }
+  });
 
   function getDashboardMediaStreamId(tabId: number): Promise<string> {
     return new Promise((resolve, reject) => {
@@ -445,7 +473,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       audioBtn.classList.add("active");
       audioBtn.disabled = false;
       audioBtn.innerHTML =
-        '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon" style="margin-right: 6px;"><rect width="18" height="18" x="3" y="3" rx="2"></rect><path d="M9 12h6"></path></svg> Stop Audio';
+        '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon" style="margin-right: 6px;"><rect width="18" height="18" x="3" y="3" rx="2"></rect><path d="M9 12h6"></path></svg> Stop Recording';
     } else {
       audioBtn.classList.remove("active");
       audioBtn.disabled = false;
@@ -469,6 +497,16 @@ document.addEventListener("DOMContentLoaded", async () => {
   // ——— Update Dashboard ———
   function updateDashboard(state: State) {
     currentMeetingId = state.meetingId || "unknown";
+
+    // Error banner
+    if (errorBanner && errorMessage) {
+      if (state.captureError) {
+        errorMessage.textContent = state.captureError;
+        errorBanner.style.display = "flex";
+      } else {
+        errorBanner.style.display = "none";
+      }
+    }
     // Status
     const statusDot = document.querySelector(".dash-status-dot");
     const statusText = document.getElementById("dash-status-text");

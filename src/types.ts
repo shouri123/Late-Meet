@@ -101,6 +101,7 @@ export interface State {
   truncatedCounts?: Record<string, number>;
   tokensUsed?: number;
   estimatedCost?: number;
+  captureError?: string | null;
 }
 
 /** Storage metadata summary for a single saved meeting, used in storage usage reports. */
