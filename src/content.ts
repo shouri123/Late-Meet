@@ -6,6 +6,7 @@ import {
 
 import { initTheme } from "./theme.js";
 import "./content.css";
+import { debugLog } from "./utils/logger";
 
 initTheme();
 
@@ -169,7 +170,7 @@ initTheme();
   }
 
   async function sendChatMessage(message: string): Promise<boolean> {
-    console.log(`${COPILOT_PREFIX} Attempting to send chat message.`);
+    debugLog(`${COPILOT_PREFIX} Attempting to send chat message.`);
 
     try {
       const chatInput = await ensureChatPanelOpen();
@@ -199,7 +200,7 @@ initTheme();
         );
       }
 
-      console.log(`${COPILOT_PREFIX} Chat message send attempted.`);
+      debugLog(`${COPILOT_PREFIX} Chat message send attempted.`);
       return true;
     } catch (err) {
       console.error(`${COPILOT_PREFIX} Error sending chat message:`, err);

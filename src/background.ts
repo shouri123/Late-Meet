@@ -13,6 +13,7 @@ import {
   StoredSession,
 } from "./sessionStorage";
 import { AudioChunkQueue, AudioChunkQueueItem } from "./audioChunkQueue";
+import { debugLog } from "./utils/logger";
 import { normalizeActiveSpeakerName, resolveTranscriptSpeaker } from "./speakerAttribution";
 
 const OPENAI_CHAT_URL = "https://api.openai.com/v1/chat/completions";
@@ -82,7 +83,7 @@ class ApiTransactionManager {
     // Resume (and immediately flush) when connectivity returns.
     self.addEventListener("online", () => {
       if (this.paused) {
-        console.info("[LateMeet][Queue] Network back online — resuming queue");
+        debugLog("[LateMeet][Queue] Network back online — resuming queue");
         this.paused = false;
         this.drain();
       }
@@ -744,7 +745,7 @@ async function processQueuedAudioChunk({ id, item }: AudioChunkQueueItem<QueuedA
     return;
   }
 
-  console.log(
+  debugLog(
     `[LateMeet] processing queued chunk ${id} — ~${item.approxBytes} bytes  mimeType=${item.mimeType}`,
   );
 
@@ -756,9 +757,9 @@ async function processQueuedAudioChunk({ id, item }: AudioChunkQueueItem<QueuedA
     return;
   }
 
-  console.log(`[LateMeet] transcript received for chunk ${id} — ${rawText.length} chars`);
+  debugLog(`[LateMeet] transcript received for chunk ${id} — ${rawText.length} chars`);
   const refinedText = await refineTranscription(rawText);
-  console.log(`[LateMeet] transcript refined for chunk ${id} — ${refinedText.length} chars`);
+  debugLog(`[LateMeet] transcript refined for chunk ${id} — ${refinedText.length} chars`);
 
   state.transcript.push({
     speaker: resolveTranscriptSpeaker(item.speaker || state.currentSpeaker),
@@ -951,7 +952,7 @@ let inMemoryPendingSession: StoredSession | null = null;
 
 async function persistSession() {
   if (isProcessingSession) {
-    console.log("[LateMeet] Already processing session, ignoring duplicate save request.");
+    debugLog("[LateMeet] Already processing session, ignoring duplicate save request.");
     return;
   }
   isProcessingSession = true;
@@ -964,7 +965,7 @@ async function persistSession() {
       session = await persistMeetingSession(chrome.storage.local, inMemoryPendingSession);
     }
     inMemoryPendingSession = null;
-    console.log("[LateMeet] Session successfully saved:", session.id);
+    debugLog("[LateMeet] Session successfully saved:", session.id);
   } catch (err) {
     console.error("[LateMeet] Error persisting session:", err);
     throw err;
@@ -975,14 +976,14 @@ async function persistSession() {
 
 async function discardPendingSession() {
   if (isProcessingSession) {
-    console.log("[LateMeet] Already processing session, ignoring duplicate discard request.");
+    debugLog("[LateMeet] Already processing session, ignoring duplicate discard request.");
     return;
   }
   isProcessingSession = true;
   try {
     inMemoryPendingSession = null;
     await discardPendingMeetingSession(chrome.storage.local);
-    console.log("[LateMeet] Pending session discarded.");
+    debugLog("[LateMeet] Pending session discarded.");
   } catch (err) {
     console.error("[LateMeet] Error discarding session:", err);
     throw err;
@@ -1002,11 +1003,11 @@ async function startAudioCapture(
 ) {
   if (!tabId) throw new Error("Missing target tab id");
   if (state.audioActive) {
-    console.log("[LateMeet] Audio already active, skipping start request.");
+    debugLog("[LateMeet] Audio already active, skipping start request.");
     return;
   }
   if (isStartingAudio) {
-    console.log("[LateMeet] Audio start already in progress, skipping start request.");
+    debugLog("[LateMeet] Audio start already in progress, skipping start request.");
     return;
   }
   isStartingAudio = true;
@@ -1100,7 +1101,7 @@ async function scanForMeetTabs() {
             state.targetTabId = tab.id || null;
             state.startTime = Date.now();
             state.participants = ["You"];
-            console.log("[LateMeet] Proactively detected meeting:", meetingId);
+            debugLog("[LateMeet] Proactively detected meeting:", meetingId);
             await broadcastStateUpdate();
           }
           return;
@@ -1116,7 +1117,7 @@ let isStoppingAudio = false;
 
 async function stopAudioCapture(reason = "Stopped") {
   if (isStoppingAudio) {
-    console.log("[LateMeet] stop already in progress, skipping duplicate request.");
+    debugLog("[LateMeet] stop already in progress, skipping duplicate request.");
     return;
   }
   isStoppingAudio = true;
@@ -1183,7 +1184,7 @@ chrome.tabs.onActivated.addListener(async (activeInfo) => {
       }
     }
   } catch (err) {
-    console.debug("[LateMeet] tab activation handler failed:", err);
+    debugLog("[LateMeet] tab activation handler failed:", err);
   }
 });
 
@@ -1256,7 +1257,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       }
 
       case "OFFSCREEN_LOG": {
-        console.log("[LateMeet][offscreen]", message.message);
+        debugLog("[LateMeet][offscreen]", message.message);
         sendResponse({ success: true });
         return;
       }
@@ -1282,9 +1283,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
         const base64Len = message.audioBase64?.length ?? 0;
         const approxBytes = Math.round((base64Len * 3) / 4);
-        console.log(
-          `[LateMeet] chunk received — ~${approxBytes} bytes  mimeType=${message.mimeType}`,
-        );
+        debugLog(`[LateMeet] chunk received — ~${approxBytes} bytes  mimeType=${message.mimeType}`);
 
         const result = audioChunkQueue.enqueue({
           audioBase64: message.audioBase64,

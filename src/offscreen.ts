@@ -1,4 +1,5 @@
 import { VoiceActivityTracker, isChunkViable } from "./audioProcessing";
+import { debugLog } from "./utils/logger";
 
 let mediaStream: MediaStream | null = null;
 let microphoneStream: MediaStream | null = null;
@@ -35,7 +36,7 @@ let voiceActivity = new VoiceActivityTracker({
 // SW console (chrome://extensions → service worker), which is far easier to
 // open than the offscreen DevTools.
 function relay(message: string) {
-  console.log(`[LateMeet][offscreen] ${message}`);
+  debugLog(`[LateMeet][offscreen] ${message}`);
   chrome.runtime.sendMessage({ type: "OFFSCREEN_LOG", message }).catch(() => {});
 }
 
@@ -81,7 +82,7 @@ function pickSupportedMimeType(): string {
 
   const supported = candidates.find((type) => MediaRecorder.isTypeSupported(type));
 
-  console.log("[LateMeet][offscreen] Selected MIME type:", supported);
+  debugLog("[LateMeet][offscreen] Selected MIME type:", supported);
 
   return supported || "";
 }
@@ -307,7 +308,7 @@ async function startCapture(
   vadThreshold?: number,
 ) {
   if (mediaRecorder && mediaRecorder.state === "recording") {
-    console.log("[LateMeet][offscreen] Capture already running");
+    debugLog("[LateMeet][offscreen] Capture already running");
 
     return {
       microphoneActive: Boolean(microphoneStream),
@@ -380,7 +381,7 @@ async function startCapture(
     : new MediaRecorder(recorderStream);
 
   mediaRecorder.addEventListener("dataavailable", (event: BlobEvent) => {
-    console.log("[LateMeet][offscreen] Chunk received:", {
+    debugLog("[LateMeet][offscreen] Chunk received:", {
       type: event.data?.type,
       size: event.data?.size,
     });
