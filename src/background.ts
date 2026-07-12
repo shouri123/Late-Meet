@@ -274,6 +274,7 @@ const state: State = {
   participantCount: 0,
   tokensUsed: 0,
   estimatedCost: 0,
+  speakerStats: {},
 };
 
 async function trackUsage(delta: UsageDelta) {
@@ -533,6 +534,7 @@ function resetState() {
   selfParticipantName = null;
   state.tokensUsed = 0;
   state.estimatedCost = 0;
+  state.speakerStats = {};
 }
 
 function addTimeline(event: string) {
@@ -548,13 +550,41 @@ function getDuration() {
   return Math.round((Date.now() - state.startTime) / 1000);
 }
 
+function computeSpeakerStats(transcript: any[], totalDuration: number): Record<string, number> {
+  const stats: Record<string, number> = {};
+  if (!transcript || transcript.length === 0) return stats;
+
+  let lastTimestamp = 0;
+  for (let i = 0; i < transcript.length; i++) {
+    const entry = transcript[i];
+    const speaker = entry.speaker || "Unknown";
+    const currentTimestamp = entry.timestamp || 0;
+    const duration = Math.max(0, currentTimestamp - lastTimestamp);
+    stats[speaker] = (stats[speaker] || 0) + duration;
+    lastTimestamp = currentTimestamp;
+  }
+
+  const lastEntry = transcript[transcript.length - 1];
+  if (lastEntry && totalDuration > lastTimestamp) {
+    const speaker = lastEntry.speaker || "Unknown";
+    const duration = totalDuration - lastTimestamp;
+    stats[speaker] = (stats[speaker] || 0) + duration;
+  }
+
+  return stats;
+}
+
 function snapshot() {
+  const duration = getDuration();
+  const speakerStats = computeSpeakerStats(state.transcript, duration);
+  state.speakerStats = speakerStats;
+
   return {
     isActive: state.isActive,
     meetingId: state.meetingId,
     meetingUrl: state.meetingUrl,
     startTime: state.startTime,
-    duration: getDuration(),
+    duration,
     summary: state.summary,
     summaryItems: state.summaryItems,
     topics: state.topics,
@@ -578,6 +608,7 @@ function snapshot() {
     pendingJoiners: [...(state.pendingJoiners ?? [])],
     tokensUsed: state.tokensUsed ?? 0,
     estimatedCost: state.estimatedCost ?? 0,
+    speakerStats,
   };
 }
 
@@ -656,6 +687,7 @@ async function loadTabState(tabId: number) {
   state.participantCount = tabState.participantCount ?? 0;
   state.tokensUsed = tabState.tokensUsed ?? 0;
   state.estimatedCost = tabState.estimatedCost ?? 0;
+  state.speakerStats = tabState.speakerStats ?? {};
   pendingJoinersInFlight.clear();
 }
 
@@ -898,6 +930,14 @@ async function transcribeChunk(base64Audio: string, mimeType = "audio/webm", pro
         "[LateMeet] ElevenLabs transcription failed. Aborting fallback to Whisper for privacy reasons:",
         err,
       );
+      const isOffline = typeof navigator !== "undefined" && !navigator.onLine;
+      if (
+        isOffline ||
+        err instanceof TypeError ||
+        String(err).toLowerCase().includes("failed to fetch")
+      ) {
+        throw err;
+      }
       return null;
     }
   }
@@ -1302,7 +1342,31 @@ async function processQueuedAudioChunk({ id, item }: AudioChunkQueueItem<QueuedA
   }
 
   const prompt = getTranscriptionPrompt();
-  const rawText = await transcribeChunk(item.audioBase64, item.mimeType, prompt);
+  let rawText: string | null;
+  try {
+    rawText = await transcribeChunk(item.audioBase64, item.mimeType, prompt);
+  } catch (err) {
+    const isOffline = typeof navigator !== "undefined" && !navigator.onLine;
+    if (
+      isOffline ||
+      err instanceof TypeError ||
+      String(err).toLowerCase().includes("failed to fetch")
+    ) {
+      console.warn(
+        `[LateMeet] Network error processing chunk ${id}, pushing to pendingChunks queue`,
+      );
+      try {
+        const data = await chrome.storage.local.get("pendingChunks");
+        const queue = (data.pendingChunks || []) as QueuedAudioChunk[];
+        queue.push(item);
+        await chrome.storage.local.set({ pendingChunks: queue });
+      } catch (storageErr) {
+        console.error("[LateMeet] Failed to save pending chunk:", storageErr);
+      }
+      return;
+    }
+    throw err;
+  }
 
   if (!rawText) {
     console.warn(`[LateMeet] STT returned empty for queued chunk ${id}`);
@@ -1845,6 +1909,97 @@ async function stopAudioCapture(reason = "Stopped") {
   }
 }
 
+async function handleLayoutChangeOrMute(reason: string) {
+  if (!state.isActive || !state.audioActive || !state.targetTabId) {
+    if (DEBUG) {
+      console.log(
+        `[LateMeet] Layout change or track mute ignored (meeting or audio not active). State: active=${state.isActive}, audioActive=${state.audioActive}`,
+      );
+    }
+    return;
+  }
+
+  console.log(`[LateMeet] Stream drop detected (${reason}). Attempting auto-recovery...`);
+
+  try {
+    // Query UI for new stream ID
+    const response = await chrome.runtime
+      .sendMessage({
+        type: "REQUEST_NEW_STREAM_ID",
+        tabId: state.targetTabId,
+      })
+      .catch((err) => {
+        console.warn("[LateMeet] Failed to send REQUEST_NEW_STREAM_ID to UI:", err);
+        return null;
+      });
+
+    if (response?.success && response.streamId) {
+      console.log("[LateMeet] Received new stream ID from UI. Restarting capture...");
+
+      // Stop/close the current offscreen document cleanly
+      await closeOffscreenDocumentIfPresent();
+
+      // Mark audioActive as false to bypass startAudioCapture duplicate check
+      state.audioActive = false;
+
+      await startAudioCapture(
+        state.targetTabId,
+        state.meetingId,
+        state.meetingUrl,
+        response.streamId,
+        true, // includeMicrophone
+      );
+
+      // Broadcast success toasts
+      await chrome.runtime
+        .sendMessage({
+          type: "SHOW_TOAST",
+          text: "Audio capture reconnected successfully",
+          toastType: "success",
+        })
+        .catch(() => {});
+
+      await chrome.tabs
+        .sendMessage(state.targetTabId, {
+          type: "SHOW_PAGE_TOAST",
+          text: "Audio capture reconnected successfully",
+        })
+        .catch(() => {});
+
+      return;
+    }
+  } catch (err) {
+    console.error("[LateMeet] Auto-recovery failed:", err);
+  }
+
+  console.warn(
+    "[LateMeet] Auto-recovery failed or was unavailable. Gracefully stopping capture and alerting user.",
+  );
+
+  // Clean up offscreen and update state to reflect true capture status
+  await closeOffscreenDocumentIfPresent();
+  state.audioActive = false;
+  await broadcastStateUpdate(true);
+
+  // Broadcast error toasts
+  await chrome.runtime
+    .sendMessage({
+      type: "SHOW_TOAST",
+      text: "Audio capture lost due to layout change. Click 'Start Audio' to reconnect.",
+      toastType: "error",
+    })
+    .catch(() => {});
+
+  if (state.targetTabId) {
+    await chrome.tabs
+      .sendMessage(state.targetTabId, {
+        type: "SHOW_PAGE_TOAST",
+        text: "Audio capture lost due to layout change. Click 'Start Audio' in Copilot to reconnect.",
+      })
+      .catch(() => {});
+  }
+}
+
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   if (changeInfo.status !== "complete" || !tab.url) return;
   await hydrateState();
@@ -1995,7 +2150,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       }
 
       case "UNEXPECTED_TRACK_END": {
-        await stopAudioCapture(message.reason || "Unexpected track end");
+        if (message.reason && message.reason.includes("muted")) {
+          handleLayoutChangeOrMute(message.reason);
+        } else {
+          await stopAudioCapture(message.reason || "Unexpected track end");
+        }
+        sendResponse({ success: true });
+        return;
+      }
+
+      case "LAYOUT_CHANGED": {
+        handleLayoutChangeOrMute("Layout changed");
         sendResponse({ success: true });
         return;
       }
@@ -2355,6 +2520,34 @@ chrome.runtime.onSuspend.addListener(() => {
   };
   chrome.storage.local.set({ activeMeetingGuards: guards }).catch(() => {});
 });
+
+async function flushPendingChunks() {
+  if (typeof navigator !== "undefined" && !navigator.onLine) return;
+
+  try {
+    const data = await chrome.storage.local.get("pendingChunks");
+    const queue = (data.pendingChunks || []) as QueuedAudioChunk[];
+    if (queue.length === 0) return;
+
+    console.log(`[LateMeet] Online! Flushing ${queue.length} pending chunks.`);
+
+    for (const item of queue) {
+      if (state.isActive) {
+        audioChunkQueue.enqueue(item);
+      }
+    }
+
+    await chrome.storage.local.remove("pendingChunks");
+
+    chrome.runtime.sendMessage({ type: "RECOVERY_TOAST", count: queue.length }).catch(() => {});
+  } catch (err) {
+    console.error("[LateMeet] Failed to flush pending chunks:", err);
+  }
+}
+
+if (typeof self !== "undefined") {
+  self.addEventListener("online", flushPendingChunks);
+}
 
 // Proactive scan on startup/load
 hydrateState()

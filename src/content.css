@@ -276,6 +276,27 @@
   font-style: italic;
 }
 
+/* ——— Page Toast ——— */
+.mc-page-toast {
+  position: fixed;
+  bottom: 24px;
+  left: 24px;
+  background-color: #1e1e2e;
+  color: #cdd6f4;
+  padding: 12px 16px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 9999999;
+  font-family: system-ui, sans-serif;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #f38ba8;
+  transition: opacity 0.3s ease;
+  opacity: 1;
+}
+
 @media (prefers-reduced-motion: reduce) {
   [id^="mc-"],
   [id^="mc-"]::before,

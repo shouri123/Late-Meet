@@ -459,6 +459,41 @@ function createRecorder(): MediaRecorder {
   return recorder;
 }
 
+async function handleUnexpectedTrackClosure(logMsg: string, reason: string) {
+  console.warn(logMsg);
+
+  if (isStopping) return;
+
+  isStopping = true;
+
+  try {
+    if (vadTimer) {
+      clearInterval(vadTimer);
+      vadTimer = null;
+    }
+
+    if (waveformTimer) {
+      clearInterval(waveformTimer);
+      waveformTimer = null;
+    }
+
+    await stopMediaRecorder();
+
+    await drainPendingChunks();
+    await cleanupResources();
+  } catch (err) {
+    console.error(`${logMsg} cleanup failed:`, err);
+    await cleanupResources();
+  } finally {
+    await chrome.runtime
+      .sendMessage({
+        type: "UNEXPECTED_TRACK_END",
+        reason,
+      })
+      .catch(() => {});
+  }
+}
+
 async function startCapture(
   streamId: string,
   _tabId: number,
@@ -483,39 +518,18 @@ async function startCapture(
   }
 
   mediaStream.getTracks().forEach((track) => {
-    track.onended = async () => {
-      console.warn("[LateMeet][offscreen] Media track ended unexpectedly");
+    track.onended = () => {
+      void handleUnexpectedTrackClosure(
+        "[LateMeet][offscreen] Media track ended unexpectedly",
+        "Track ended unexpectedly (tab closed or mic disconnected)",
+      );
+    };
 
-      if (isStopping) return;
-
-      isStopping = true;
-
-      try {
-        if (vadTimer) {
-          clearInterval(vadTimer);
-          vadTimer = null;
-        }
-
-        if (waveformTimer) {
-          clearInterval(waveformTimer);
-          waveformTimer = null;
-        }
-
-        await stopMediaRecorder();
-
-        await drainPendingChunks();
-        await cleanupResources();
-      } catch (err) {
-        console.error("[LateMeet][offscreen] Cleanup after track end failed:", err);
-        await cleanupResources();
-      } finally {
-        await chrome.runtime
-          .sendMessage({
-            type: "UNEXPECTED_TRACK_END",
-            reason: "Track ended unexpectedly (tab closed or mic disconnected)",
-          })
-          .catch(() => {});
-      }
+    track.onmute = () => {
+      void handleUnexpectedTrackClosure(
+        "[LateMeet][offscreen] Media track muted",
+        "MediaTrack muted (possible layout change)",
+      );
     };
   });
 
