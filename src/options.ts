@@ -29,6 +29,7 @@ interface KnownSettings {
   transcriptRefinement?: boolean;
   theme?: "system" | "light" | "dark";
   accent?: string;
+  transcriptionLanguage?: string;
 }
 
 /**
@@ -153,6 +154,14 @@ document.addEventListener("DOMContentLoaded", async () => {
   const aiModelSelect = document.getElementById("ai-model") as HTMLSelectElement | null;
   if (aiModelSelect && settings.aiModel) {
     aiModelSelect.value = settings.aiModel;
+  }
+
+  // Transcription Language
+  const languageSelect = document.getElementById(
+    "transcription-language",
+  ) as HTMLSelectElement | null;
+  if (languageSelect && settings.transcriptionLanguage !== undefined) {
+    languageSelect.value = settings.transcriptionLanguage;
   }
 
   // Feature toggles
@@ -400,6 +409,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         // Save theme selections into the global config tree bundle block
         theme: (themeSelect?.value as Settings["theme"]) || "system",
         accent: selectedAccentColor,
+        transcriptionLanguage:
+          (document.getElementById("transcription-language") as HTMLSelectElement)?.value || "",
       };
 
       await chrome.storage.local.set({ settings: newSettings });

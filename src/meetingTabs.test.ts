@@ -23,6 +23,32 @@ function mockChromeTabs(tabs: MockTab[]) {
           ) as chrome.tabs.Tab[];
         }
 
+        if (queryInfo.url === "https://*.zoom.us/wc/*") {
+          return tabs.filter((tab) => {
+            try {
+              if (!tab.url) return false;
+              const parsed = new URL(tab.url);
+              return (
+                parsed.hostname.endsWith(".zoom.us") && parsed.pathname.split("/").includes("wc")
+              );
+            } catch {
+              return false;
+            }
+          }) as chrome.tabs.Tab[];
+        }
+
+        if (queryInfo.url === "https://zoom.us/wc/*") {
+          return tabs.filter((tab) => {
+            try {
+              if (!tab.url) return false;
+              const parsed = new URL(tab.url);
+              return parsed.hostname === "zoom.us" && parsed.pathname.split("/").includes("wc");
+            } catch {
+              return false;
+            }
+          }) as chrome.tabs.Tab[];
+        }
+
         return [];
       },
     },
@@ -38,6 +64,17 @@ test("meeting id extraction accepts real Meet rooms and rejects non-room URLs", 
   assert.equal(getMeetingIdFromUrl("https://meet.google.com/new"), null);
   assert.equal(getMeetingIdFromUrl("https://example.com/abc-defg-hij"), null);
   assert.equal(getMeetingIdFromUrl(undefined), null);
+});
+
+test("meeting id extraction accepts real Zoom rooms and rejects non-room URLs", () => {
+  assert.equal(getMeetingIdFromUrl("https://zoom.us/wc/123456789/join"), "123456789");
+  assert.equal(getMeetingIdFromUrl("https://us02web.zoom.us/wc/98765432101/join"), "98765432101");
+  assert.equal(getMeetingIdFromUrl("https://us04web.zoom.us/wc/123456789012/join"), "123456789012");
+  assert.equal(getMeetingIdFromUrl("https://zoom.us/wc/join/123456789"), "123456789");
+  assert.equal(getMeetingIdFromUrl("https://zoom.us/wc/12345/join"), null); // too short
+  assert.equal(getMeetingIdFromUrl("https://zoom.us/wc/1234567890123/join"), null); // too long
+  assert.equal(getMeetingIdFromUrl("https://zoom.us/wc/abc123xyz/join"), null); // non-numeric
+  assert.equal(getMeetingIdFromUrl("https://zoom.us/wc/"), null);
 });
 
 test("meeting id extraction rejects non-meeting paths under meet.google.com", () => {
@@ -126,7 +163,7 @@ test("manual Meet tab resolution rejects ambiguous background meetings", async (
   ]);
 
   try {
-    await assert.rejects(resolveManualMeetTab(), /Multiple Meet tabs/);
+    await assert.rejects(resolveManualMeetTab(), /Multiple Meet or Zoom tabs/);
   } finally {
     cleanup();
   }

@@ -36,6 +36,12 @@ void initTheme().catch((err) => console.error(err));
       "[data-self-name]", // The tile for the local user
       'div[jsname="NfX98"]', // Common class for names on video tiles
       '[aria-label^="Participant:"]', // Tile aria-labels
+      ".participant-name",
+      ".participant-item__name",
+      ".participant-item-name",
+      ".participant-item",
+      ".participant-profile__name",
+      ".avatar-name",
     ],
     participantTile: [
       "[data-participant-id]",
@@ -43,6 +49,12 @@ void initTheme().catch((err) => console.error(err));
       "[data-self-name]",
       '[role="listitem"]',
       '[role="gridcell"]',
+      ".participant-item",
+      ".participant-item__name",
+      ".participant-name",
+      ".participant-item-name",
+      ".participant-profile__name",
+      ".avatar-name",
     ],
     activeSpeakerIndicators: [
       '[aria-label*="speaking" i]',
@@ -66,6 +78,10 @@ void initTheme().catch((err) => console.error(err));
       '[data-is-speaking="true"]',
       '[data-speaking="true"]',
       '[data-active-speaker="true"]',
+      ".active-speaker",
+      ".speaking",
+      ".active-main",
+      "#sv-active-speaker-view",
     ],
     showEveryoneBtn: '[aria-label*="Show everyone"]',
   };

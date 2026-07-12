@@ -17,14 +17,16 @@
   "host_permissions": [
     "https://meet.google.com/*",
     "https://api.openai.com/*",
-    "https://api.elevenlabs.io/*"
+    "https://api.elevenlabs.io/*",
+    "https://*.zoom.us/wc/*",
+    "https://zoom.us/wc/*"
   ],
   "background": {
     "service_worker": "src/background.ts"
   },
   "content_scripts": [
     {
-      "matches": ["https://meet.google.com/*"],
+      "matches": ["https://meet.google.com/*", "https://*.zoom.us/wc/*", "https://zoom.us/wc/*"],
       "js": ["src/content.ts"],
       "css": ["src/content.css"],
       "run_at": "document_idle"

@@ -40,6 +40,7 @@ type TabActivatedCallback = (activeInfo: TabActiveInfo) => Promise<void>;
 interface CapturedListeners {
   onUpdated?: TabUpdatedCallback;
   onActivated?: TabActivatedCallback;
+  onRemoved: Array<(tabId: number) => Promise<void>>;
 }
 
 interface MockChromeOptions {
@@ -51,7 +52,9 @@ interface MockChromeOptions {
 let sentMessages: Array<{ type: string; state?: Record<string, unknown> }> = [];
 
 /** Captured listener callbacks registered by the background module */
-const listeners: CapturedListeners = {};
+const listeners: CapturedListeners = {
+  onRemoved: [],
+};
 
 /** The mock tab returned by chrome.tabs.get */
 let mockGetTabResult: Partial<chrome.tabs.Tab> = {};
@@ -95,7 +98,11 @@ function installChromeMock(options: MockChromeOptions = {}) {
           listeners.onActivated = cb;
         },
       },
-      onRemoved: { addListener: () => {} },
+      onRemoved: {
+        addListener: (cb: (tabId: number) => Promise<void>) => {
+          listeners.onRemoved.push(cb);
+        },
+      },
       get: async () => mockGetTabResult,
       query: async () => [],
       sendMessage: async () => {},
@@ -115,6 +122,7 @@ function installChromeMock(options: MockChromeOptions = {}) {
       local: {
         get: async () => ({}),
         set: async () => {},
+        remove: async () => {},
       },
     },
   };
@@ -178,6 +186,30 @@ test("onUpdated: valid meet.google.com URL triggers state initialisation", async
   assert.ok(state, "STATE_UPDATE should have been broadcast");
   assert.equal(state.meetingId, "abc-defg-hij");
   assert.equal(state.meetingUrl, "https://meet.google.com/abc-defg-hij");
+  assert.equal(state.isActive, true);
+});
+
+test("onUpdated: valid zoom.us URL triggers state initialisation", async () => {
+  await ensureLoaded();
+  for (const cb of listeners.onRemoved) {
+    try {
+      await cb(42);
+    } catch {
+      // ignore
+    }
+  }
+  resetMessages();
+
+  await listeners.onUpdated!(
+    43,
+    { status: "complete" },
+    makeTab("https://zoom.us/wc/123456789/join", 43),
+  );
+
+  const state = lastStateUpdate();
+  assert.ok(state, "STATE_UPDATE should have been broadcast for Zoom");
+  assert.equal(state.meetingId, "123456789");
+  assert.equal(state.meetingUrl, "https://zoom.us/wc/123456789/join");
   assert.equal(state.isActive, true);
 });
 
@@ -318,8 +350,25 @@ test("onActivated: valid meet.google.com URL with inactive state updates meeting
   await listeners.onActivated!({ tabId: 50, windowId: 1 });
 
   // We can only assert a state update was broadcast if state was inactive.
-  // Verify no crash at minimum:
   assert.ok(true, "onActivated handler completed without error");
+});
+
+test("onActivated: valid zoom.us URL with inactive state updates meeting fields", async () => {
+  await ensureLoaded();
+  for (const cb of listeners.onRemoved) {
+    try {
+      await cb(43);
+    } catch {
+      // ignore
+    }
+  }
+  resetMessages();
+
+  mockGetTabResult = makeTab("https://zoom.us/wc/123456789/join", 51);
+
+  await listeners.onActivated!({ tabId: 51, windowId: 1 });
+
+  assert.ok(true, "onActivated handler completed without error for Zoom");
 });
 
 test("onActivated: non-Meet URL does not broadcast state", async () => {
