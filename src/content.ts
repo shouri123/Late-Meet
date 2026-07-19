@@ -5,9 +5,8 @@ import {
 } from "./participantDetection.ts";
 
 import { initTheme } from "./theme.js";
-import "./content.css";
 
-initTheme();
+void initTheme().catch((err) => console.error(err));
 
 (() => {
   const COPILOT_PREFIX = "[LateMeet]";
@@ -47,7 +46,23 @@ initTheme();
     ],
     activeSpeakerIndicators: [
       '[aria-label*="speaking" i]',
+      '[aria-label*="hablando" i]',
+      '[aria-label*="parle" i]',
+      '[aria-label*="spricht" i]',
+      '[aria-label*="falando" i]',
+      '[aria-label*="parlando" i]',
+      '[aria-label*="говорит" i]',
+      '[aria-label*="正在讲话" i]',
+      '[aria-label*="話しています" i]',
       '[data-tooltip*="speaking" i]',
+      '[data-tooltip*="hablando" i]',
+      '[data-tooltip*="parle" i]',
+      '[data-tooltip*="spricht" i]',
+      '[data-tooltip*="falando" i]',
+      '[data-tooltip*="parlando" i]',
+      '[data-tooltip*="говорит" i]',
+      '[data-tooltip*="正在讲话" i]',
+      '[data-tooltip*="話しています" i]',
       '[data-is-speaking="true"]',
       '[data-speaking="true"]',
       '[data-active-speaker="true"]',
@@ -90,7 +105,12 @@ initTheme();
 
   function hasActiveSpeakerCue(el: Element): boolean {
     const ariaLabel = String(el.getAttribute("aria-label") || "");
-    if (/\bspeaking\b/i.test(ariaLabel)) return true;
+    if (
+      /(speaking|hablando|parle|spricht|falando|parlando|говорит|正在讲话|話しています)/i.test(
+        ariaLabel,
+      )
+    )
+      return true;
 
     if (
       el.getAttribute("data-is-speaking") === "true" ||
@@ -189,14 +209,32 @@ initTheme();
       ) {
         sendButton.click();
       } else {
-        chatInput.dispatchEvent(
-          new KeyboardEvent("keydown", {
-            key: "Enter",
-            code: "Enter",
-            keyCode: 13,
-            bubbles: true,
-          }),
-        );
+        // Fallback: try to requestSubmit on parent form if available
+        const parentForm = (chatInput as HTMLTextAreaElement).form || chatInput.closest("form");
+        if (parentForm && typeof parentForm.requestSubmit === "function") {
+          parentForm.requestSubmit();
+        } else {
+          // Additional fallback: find any element that has role="button" or similar matching Send inside the parent form or context
+          const fallbackSendButton = chatInput.parentElement?.querySelector(
+            '[role="button"]',
+          ) as HTMLElement | null;
+          if (fallbackSendButton) {
+            fallbackSendButton.click();
+          } else {
+            // Dispatches synthetic Enter key event as final keyboard fallback
+            chatInput.dispatchEvent(
+              new KeyboardEvent("keydown", {
+                key: "Enter",
+                code: "Enter",
+                keyCode: 13,
+                bubbles: true,
+              }),
+            );
+            console.warn(
+              `${COPILOT_PREFIX} Primary send button not clickable; fallback synthetic Enter dispatched.`,
+            );
+          }
+        }
       }
 
       console.log(`${COPILOT_PREFIX} Chat message send attempted.`);
@@ -209,7 +247,12 @@ initTheme();
 
   function upsertBriefOverlay(briefContent: string, targetName?: string) {
     const overlayId = "mc-brief-overlay";
+    const titleId = "mc-brief-title-label";
     let overlay = document.getElementById(overlayId);
+
+    // Track the element that had focus before the overlay opens so we can
+    // restore it when the overlay closes (WCAG 2.4.3 focus order).
+    const previouslyFocused = document.activeElement as HTMLElement | null;
 
     const closeOverlay = () => {
       if (!overlay) return;
@@ -217,6 +260,9 @@ initTheme();
       window.setTimeout(() => {
         overlay?.remove();
         overlay = null;
+        if (previouslyFocused && document.contains(previouslyFocused)) {
+          previouslyFocused.focus();
+        }
       }, 550);
     };
 
@@ -226,6 +272,9 @@ initTheme();
 
       const card = document.createElement("div");
       card.className = "mc-brief-card";
+      card.setAttribute("role", "dialog");
+      card.setAttribute("aria-modal", "true");
+      card.setAttribute("aria-labelledby", titleId);
 
       const header = document.createElement("div");
       header.className = "mc-brief-header";
@@ -236,6 +285,7 @@ initTheme();
 
       const title = document.createElement("div");
       title.className = "mc-brief-title";
+      title.id = titleId;
       title.textContent = targetName ? `Brief for ${targetName}` : "Meeting brief";
 
       const closeBtn = document.createElement("button");
@@ -260,6 +310,35 @@ initTheme();
       footer.textContent = "Late Meet — private brief (only visible to you)";
 
       card.append(header, greeting, text, footer);
+
+      card.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") {
+          event.preventDefault();
+          event.stopPropagation();
+          closeOverlay();
+          return;
+        }
+        if (event.key === "Tab") {
+          const focusable = Array.from(
+            card.querySelectorAll<HTMLElement>(
+              'a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])',
+            ),
+          ).filter((el) => el.offsetParent !== null);
+          if (focusable.length === 0) return;
+          const first = focusable[0];
+          const last = focusable.at(-1)!;
+          if (event.shiftKey) {
+            if (document.activeElement === first) {
+              event.preventDefault();
+              last.focus();
+            }
+          } else if (document.activeElement === last) {
+            event.preventDefault();
+            first.focus();
+          }
+        }
+      });
+
       overlay.appendChild(card);
 
       overlay.addEventListener("click", (event) => {
@@ -267,7 +346,12 @@ initTheme();
       });
 
       document.body.appendChild(overlay);
-      requestAnimationFrame(() => overlay?.classList.add("mc-visible"));
+      requestAnimationFrame(() => {
+        overlay?.classList.add("mc-visible");
+        // Move focus to the close button so keyboard users can immediately
+        // dismiss the dialog without tabbing through the entire Meet UI.
+        closeBtn.focus();
+      });
     } else {
       const title = overlay.querySelector(".mc-brief-title");
       if (title) title.textContent = targetName ? `Brief for ${targetName}` : "Meeting brief";
@@ -282,13 +366,36 @@ initTheme();
     }
   }
 
+  // Configurable option to enable expanding hidden participants
+  const includeHiddenParticipants = true;
+
   async function collectParticipants(): Promise<{
     participants: string[];
     selfName: string | null;
   }> {
+    let closedPanelAfterScrape = false;
+
+    // If includeHiddenParticipants option is enabled, check if the panel is closed.
+    // Expand the participant list temporarily to ensure full collection.
+    if (includeHiddenParticipants) {
+      const chatInputEl = queryFirst(SELECTORS.chatInput);
+      const listPane = document.querySelector('[role="list"]'); // common element containing everyone list in meet pane
+      const isPanelOpen = !!chatInputEl || !!listPane;
+
+      if (!isPanelOpen) {
+        const showEveryoneBtn = document.querySelector(
+          SELECTORS.showEveryoneBtn,
+        ) as HTMLButtonElement | null;
+        if (showEveryoneBtn) {
+          showEveryoneBtn.click();
+          closedPanelAfterScrape = true;
+          await wait(400); // Wait briefly for DOM to render list of participants
+        }
+      }
+    }
+
     const candidates: ParticipantNameCandidate[] = [];
     // We scrape participant elements already present in the DOM (video tiles or side panel).
-    // To prevent disrupting the user's view, we do not force-click the "Show everyone" button in the polling loop.
     const participantElements = new Set<HTMLElement>();
     let selfName: string | null = null;
 
@@ -310,6 +417,16 @@ initTheme();
         selfName: element.getAttribute("data-self-name"),
         text: getTextValue(element),
       });
+    }
+
+    // Restore UI state: close the panel if we opened it ourselves
+    if (closedPanelAfterScrape) {
+      const showEveryoneBtn = document.querySelector(
+        SELECTORS.showEveryoneBtn,
+      ) as HTMLButtonElement | null;
+      if (showEveryoneBtn) {
+        showEveryoneBtn.click();
+      }
     }
 
     return { participants: collectParticipantNames(candidates), selfName };
@@ -336,6 +453,13 @@ initTheme();
         // Service worker idle
       }
     }, 5000);
+  }
+
+  function stopParticipantPolling() {
+    if (participantPollTimer) {
+      clearInterval(participantPollTimer);
+      participantPollTimer = null;
+    }
   }
 
   function scheduleActiveSpeakerCheck() {
@@ -436,6 +560,18 @@ initTheme();
     detectActiveSpeaker();
   }
 
+  function stopActiveSpeakerDetection() {
+    if (activeSpeakerObserver) {
+      activeSpeakerObserver.disconnect();
+      activeSpeakerObserver = null;
+    }
+    if (activeSpeakerCheckTimer) {
+      clearTimeout(activeSpeakerCheckTimer);
+      activeSpeakerCheckTimer = null;
+    }
+    lastActiveSpeakerName = null;
+  }
+
   function injectFloatingButton() {
     const existing = document.getElementById("mc-float-btn");
     if (existing) return;
@@ -444,6 +580,7 @@ initTheme();
     btn.id = "mc-float-btn";
     btn.type = "button";
     btn.setAttribute("aria-label", "Start Late Meet Copilot");
+    btn.setAttribute("tabindex", "0");
 
     const inner = document.createElement("div");
     inner.className = "mc-float-btn-inner";
@@ -486,10 +623,77 @@ initTheme();
   const observer = new MutationObserver(() => {
     if (window.location.pathname.length > 5 && !window.location.pathname.includes("/_")) {
       injectFloatingButton();
+      // Disconnect once the button is successfully injected. Re-injection after
+      // copilot stops is handled by the STATE_UPDATE message listener, so this
+      // observer is no longer needed.
+      if (document.getElementById("mc-float-btn")) {
+        observer.disconnect();
+      }
     }
   });
 
-  observer.observe(document.body, { childList: true, subtree: true });
+  function startFloatingButtonObserver() {
+    if (document.getElementById("mc-float-btn")) return;
+    observer.observe(document.body, { childList: true, subtree: true });
+  }
+
+  startFloatingButtonObserver();
+
+  function cleanUp() {
+    console.log(`${COPILOT_PREFIX} Disconnecting observers and clearing active timers.`);
+
+    if (participantPollTimer) {
+      clearInterval(participantPollTimer);
+      participantPollTimer = null;
+    }
+
+    if (activeSpeakerCheckTimer) {
+      clearTimeout(activeSpeakerCheckTimer);
+      activeSpeakerCheckTimer = null;
+    }
+
+    if (activeSpeakerObserver) {
+      activeSpeakerObserver.disconnect();
+      activeSpeakerObserver = null;
+    }
+  }
+
+  function destroyAll() {
+    cleanUp();
+    if (observer) {
+      observer.disconnect();
+    }
+  }
+
+  // Hook cleanup to page unload/navigation and visibility change.
+  // A single consolidated handler ensures SAVE_SESSION is dispatched *before*
+  // cleanUp() tears down observers and timers (fixes #555 — two separate
+  // listeners would always run cleanUp first due to registration order).
+  globalThis.addEventListener("beforeunload", () => {
+    // 1. Attempt auto-save first, while the runtime is still reachable.
+    try {
+      chrome.runtime.sendMessage({ type: "SAVE_SESSION" }).catch(() => {});
+    } catch {
+      // Ignore — page is already unloading
+    }
+    // 2. Tear down observers and timers after save is dispatched.
+    destroyAll();
+  });
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") {
+      // Clear timers and observers when page is backgrounded or inactive to conserve resources
+      cleanUp();
+    } else if (document.visibilityState === "visible") {
+      // Re-initialize observation when resuming visibility
+      startParticipantPolling();
+      startActiveSpeakerDetection();
+      if (globalThis.location.pathname.length > 5 && !globalThis.location.pathname.includes("/_")) {
+        injectFloatingButton();
+      } else {
+        startFloatingButtonObserver();
+      }
+    }
+  });
 
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message?.type === "SHOW_BRIEF") {
@@ -515,6 +719,17 @@ initTheme();
         const label = btn.querySelector(".mc-float-label");
         if (label) label.textContent = "Start Copilot";
       }
+
+      // Clean up polling and observers when the meeting session ends
+      if (!isActive) {
+        stopParticipantPolling();
+        stopActiveSpeakerDetection();
+      } else {
+        // Restart polling/detection if a new session begins
+        startParticipantPolling();
+        startActiveSpeakerDetection();
+      }
+
       sendResponse({ success: true });
       return false;
     }
@@ -523,9 +738,13 @@ initTheme();
     return false;
   });
 
+  // Note: SAVE_SESSION auto-save on tab close is handled by the consolidated
+  // beforeunload listener registered above (line 615). Do not add a second
+  // beforeunload listener here — see #555.
+
   startParticipantPolling();
   startActiveSpeakerDetection();
-  if (window.location.pathname.length > 5 && !window.location.pathname.includes("/_")) {
+  if (globalThis.location.pathname.length > 5 && !globalThis.location.pathname.includes("/_")) {
     injectFloatingButton();
   }
 })();

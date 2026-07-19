@@ -1,39 +1,94 @@
 // OpenAI and ElevenLabs API wrappers for Meeting Copilot
 
-// @ts-ignore
-import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
 import { getOpenAiApiKey } from "./credentials";
-
-const OPENAI_CHAT_URL = "https://api.openai.com/v1/chat/completions";
-const OPENAI_WHISPER_URL = "https://api.openai.com/v1/audio/transcriptions";
 
 const OPENAI_MODELS_URL = "https://api.openai.com/v1/models";
 const ELEVENLABS_USER_URL = "https://api.elevenlabs.io/v1/user";
 
+// ── Helper Functions ───────────────────────────────────────────────────────
+
+/**
+ * Retries a `fetch` call with exponential backoff on transient failures.
+ *
+ * Retries are triggered on HTTP 429 (Too Many Requests) and any 5xx server
+ * error. Network-level errors (e.g. offline) also trigger a retry. All other
+ * non-OK statuses are returned as-is without retrying.
+ *
+ * @param url - The URL to fetch.
+ * @param options - Standard `RequestInit` options passed directly to `fetch`.
+ * @param retries - Maximum number of retry attempts after the initial request (default: `3`).
+ * @param backoff - Initial delay in milliseconds before the first retry; doubles on each
+ *   subsequent attempt (default: `1000`).
+ * @returns A resolved `Response` once a request succeeds or a non-retryable status is received.
+ * @throws The last caught error if all retry attempts are exhausted.
+ *
+ * @example
+ * const res = await fetchWithRetry("https://api.openai.com/v1/chat/completions", {
+ *   method: "POST",
+ *   headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+ *   body: JSON.stringify(payload),
+ * });
+ */
+export async function fetchWithRetry(
+  url: string,
+  options: RequestInit,
+  retries = 3,
+  backoff = 1000,
+): Promise<Response> {
+  try {
+    const response = await fetch(url, options);
+    // Retry only on 429 (Too Many Requests) or 5xx (Server Errors)
+    if (!response.ok && (response.status === 429 || response.status >= 500) && retries > 0) {
+      throw new Error(`Status ${response.status}`);
+    }
+    return response;
+  } catch (error) {
+    if (retries <= 0) throw error;
+    console.warn(`Retrying request to ${url}... (${retries} attempts left)`);
+    await new Promise((resolve) => setTimeout(resolve, backoff));
+    return fetchWithRetry(url, options, retries - 1, backoff * 2);
+  }
+}
+
 // ── Types ──────────────────────────────────────────────────────────────────
 
+/** A single time-stamped segment returned by the Whisper transcription API. */
 export interface WhisperSegment {
+  /** Zero-based sequential segment index. */
   id: number;
+  /** Segment start time in seconds relative to the audio start. */
   start: number;
+  /** Segment end time in seconds relative to the audio start. */
   end: number;
+  /** Transcribed text for this segment. */
   text: string;
 }
 
+/** Full transcription result returned by the Whisper API (`verbose_json` format). */
 export interface TranscriptionResult {
+  /** Complete transcribed text of the audio. */
   text: string;
+  /** Detected language of the audio (ISO 639-1 code, e.g. `"en"`). */
   language: string;
+  /** Fine-grained time-stamped segments. */
   segments: WhisperSegment[];
+  /** Total audio duration in seconds. */
   duration: number;
 }
 
+/** A single message in an OpenAI chat completion conversation. */
 export interface ChatMessage {
+  /** Conversation role: `"system"` for instructions, `"user"` for input, `"assistant"` for model output. */
   role: "system" | "user" | "assistant";
+  /** Text content of the message. */
   content: string;
 }
 
+/** Minimal shape of the OpenAI chat completion response used by this extension. */
 export interface ChatCompletionResponse {
   choices: Array<{
     message: {
+      /** Generated text from the model. */
       content: string;
     };
   }>;
@@ -42,184 +97,43 @@ export interface ChatCompletionResponse {
 // ── API Functions ──────────────────────────────────────────────────────────
 
 /**
- * @description Retrieves the stored OpenAI API key from browser storage
- * @returns {Promise<string | null>} The API key if available, or null if not set
+ * Retrieves the stored OpenAI API key from secure credential storage.
+ *
+ * @returns The OpenAI API key string, or `null` if none is saved.
+ *
  * @example
- *   const key = await getApiKey();
- *   if (key) console.log("API key is configured");
+ * const key = await getApiKey();
+ * if (!key) throw new Error("OpenAI key not configured");
  */
 export async function getApiKey(): Promise<string | null> {
   return getOpenAiApiKey();
 }
-/**
- * @description Sends a chat message to OpenAI API and receives a JSON response
- * @param {string} systemPrompt - System instructions that define the AI's behavior
- * @param {string} userPrompt - The user's message or question
- * @param {string} apiKey - OpenAI API key for authentication
- * @param {string} [model="gpt-4o-mini"] - The AI model to use (defaults to gpt-4o-mini)
- * @returns {Promise<Record<string, unknown> | null>} Parsed JSON response, or null if parsing fails
- * @throws {Error} If API key is not provided or API call fails
- * @example
- *   const response = await chatCompletion(
- *     "You are a helpful assistant",
- *     "What is 2 + 2?",
- *     "sk-xxxxx"
- *   );
- */
-export async function chatCompletion(
-  systemPrompt: string,
-  userPrompt: string,
-  apiKey: string,
-  model: string = "gpt-4o-mini",
-): Promise<Record<string, unknown> | null> {
-  if (!apiKey) throw new Error("OpenAI API key not configured");
-
-  const response = await fetch(OPENAI_CHAT_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: model,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ] as ChatMessage[],
-      temperature: 0.2,
-      max_tokens: 3000,
-      response_format: { type: "json_object" },
-    }),
-  });
-
-  if (!response.ok) {
-    const err = await response.text();
-    throw new Error(`OpenAI API error: ${response.status} — ${err}`);
-  }
-
-  const data = (await response.json()) as ChatCompletionResponse;
-  const content = data.choices[0]?.message?.content;
-
-  try {
-    return JSON.parse(content) as Record<string, unknown>;
-  } catch {
-    console.error("Failed to parse OpenAI response:", content);
-    return null;
-  }
-}
 
 /**
- * @description Transcribes audio using OpenAI's Whisper API
- * @param {Blob} audioBlob - Audio data as a Blob object
- * @param {string} apiKey - OpenAI API key for authentication
- * @returns {Promise<TranscriptionResult>} Transcribed text, language, segments, and duration
- * @throws {Error} If API key is missing or transcription fails
+ * Validates an OpenAI API key by making a lightweight request to the
+ * `/v1/models` endpoint. The request times out after 5 seconds.
+ *
+ * @param apiKey - The API key string to validate. Returns `false` immediately for empty values.
+ * @returns `true` if the key is accepted by the OpenAI API, `false` otherwise.
+ *
  * @example
- *   const audioBlob = new Blob([data], { type: "audio/webm" });
- *   const result = await whisperTranscribe(audioBlob, "sk-xxxxx");
- *   console.log(result.text); // "Hello, how are you?"
+ * const isValid = await validateOpenAIKey("sk-...");
+ * if (!isValid) showError("Invalid OpenAI key");
  */
-export async function whisperTranscribe(
-  audioBlob: Blob,
-  apiKey: string,
-): Promise<TranscriptionResult> {
-  if (!apiKey) throw new Error("OpenAI API key not configured");
-
-  const formData = new FormData();
-  formData.append("file", audioBlob, "audio.webm");
-  formData.append("model", "whisper-1");
-  formData.append("response_format", "verbose_json");
-
-  const response = await fetch(OPENAI_WHISPER_URL, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: formData,
-  });
-
-  if (!response.ok) {
-    const err = await response.text();
-    throw new Error(`Whisper API error: ${response.status} — ${err}`);
-  }
-
-  const data = (await response.json()) as {
-    text: string;
-    language: string;
-    segments?: WhisperSegment[];
-    duration: number;
-  };
-
-  return {
-    text: data.text,
-    language: data.language,
-    segments: data.segments || [],
-    duration: data.duration,
-  };
-}
-
-/**
- * @description Transcribes audio using ElevenLabs Speech-to-Text API
- * @param {Blob} audioBlob - Audio data as a Blob object
- * @param {string} apiKey - ElevenLabs API key for authentication
- * @returns {Promise<TranscriptionResult>} Transcribed text (language set to "unknown" for ElevenLabs)
- * @throws {Error} If API key is missing or transcription fails
- * @example
- *   const audioBlob = new Blob([data], { type: "audio/webm" });
- *   const result = await elevenlabsTranscribe(audioBlob, "xxxxx-api-key");
- *   console.log(result.text);
- */
-export async function elevenlabsTranscribe(
-  audioBlob: Blob,
-  apiKey: string,
-): Promise<TranscriptionResult> {
-  if (!apiKey) throw new Error("ElevenLabs API key not configured");
-
-  const elevenlabs = new ElevenLabsClient({ apiKey });
-  const file = new File([audioBlob], "audio.webm", { type: "audio/webm" });
-
-  const response = await elevenlabs.speechToText.convert({
-    file: file,
-    modelId: "scribe_v1",
-  });
-
-  return {
-    text: response.text,
-    language: "unknown",
-    segments: [],
-    duration: 0,
-  };
-}
-
-/**
- * @description Validates if an OpenAI API key is valid and active
- * @param {string} apiKey - The OpenAI API key to validate
- * @returns {Promise<boolean>} True if valid, false otherwise (times out after 5 seconds)
- * @example
- *   const isValid = await validateOpenAIKey("sk-xxxxx");
- *   if (isValid) console.log("API key is working!");
- */
-
 export async function validateOpenAIKey(apiKey: string): Promise<boolean> {
   if (!apiKey) return false;
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 5000);
 
   try {
-    const response = await fetch(OPENAI_MODELS_URL, {
+    const response = await fetchWithRetry(OPENAI_MODELS_URL, {
       method: "GET",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-      },
+      headers: { Authorization: `Bearer ${apiKey}` },
       signal: controller.signal,
     });
     return response.ok;
   } catch (error: any) {
-    if (error.name === "AbortError") {
-      console.error("OpenAI validation timed out");
-    } else {
-      console.error("OpenAI validation error:", error);
-    }
+    console.error("OpenAI validation failed after retries:", error);
     return false;
   } finally {
     clearTimeout(timeoutId);
@@ -227,41 +141,30 @@ export async function validateOpenAIKey(apiKey: string): Promise<boolean> {
 }
 
 /**
- * @description Validates if an ElevenLabs API key is valid and accessible
- * @param {string} apiKey - The ElevenLabs API key to validate
- * @returns {Promise<boolean>} True if the key is valid and accessible, false otherwise (times out after 5 seconds)
+ * Validates an ElevenLabs API key by making a lightweight request to the
+ * `/v1/user` endpoint. The request times out after 5 seconds.
+ *
+ * @param apiKey - The API key string to validate. Returns `false` immediately for empty values.
+ * @returns `true` if the key is accepted by the ElevenLabs API, `false` otherwise.
+ *
  * @example
- *   const isValid = await validateElevenLabsKey("xxxxx-api-key");
- *   if (isValid) console.log("ElevenLabs API key is working!");
+ * const isValid = await validateElevenLabsKey("xi-...");
+ * if (!isValid) showError("Invalid ElevenLabs key");
  */
-
 export async function validateElevenLabsKey(apiKey: string): Promise<boolean> {
   if (!apiKey) return false;
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 5000);
 
   try {
-    const response = await fetch(ELEVENLABS_USER_URL, {
+    const response = await fetchWithRetry(ELEVENLABS_USER_URL, {
       method: "GET",
-      headers: {
-        "xi-api-key": apiKey,
-      },
+      headers: { "xi-api-key": apiKey },
       signal: controller.signal,
     });
-    if (response.ok) {
-      return true;
-    }
-    if (response.status === 401) {
-      const data = await response.json();
-      return data?.detail?.status === "missing_permissions";
-    }
-    return false;
+    return response.ok;
   } catch (error: any) {
-    if (error.name === "AbortError") {
-      console.error("ElevenLabs validation timed out");
-    } else {
-      console.error("ElevenLabs validation error:", error);
-    }
+    console.error("ElevenLabs validation failed after retries:", error);
     return false;
   } finally {
     clearTimeout(timeoutId);

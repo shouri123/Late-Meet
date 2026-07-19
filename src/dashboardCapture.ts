@@ -15,6 +15,7 @@ export interface DashboardCaptureStartResponse {
 
 export interface DashboardCaptureStartResult {
   meetingId: string;
+  microphoneEnabled: boolean;
   response: DashboardCaptureStartResponse;
 }
 
@@ -45,8 +46,9 @@ export async function startDashboardAudioCapture({
     throw new Error('Capture permission denied. Try clicking "Start Audio" again.');
   }
 
+  let microphoneEnabled = false;
   try {
-    await requestMicrophonePermission();
+    microphoneEnabled = await requestMicrophonePermission();
   } catch {
     // Microphone capture is optional; the offscreen document can still record tab audio.
   }
@@ -56,12 +58,12 @@ export async function startDashboardAudioCapture({
     meetingId,
     meetingUrl: meetingUrl || meetTab.url || null,
     streamId,
-    includeMicrophone: true,
+    includeMicrophone: microphoneEnabled,
   });
 
   if (!response?.success) {
     throw new Error(response?.error || "Failed to start audio");
   }
 
-  return { meetingId, response };
+  return { meetingId, microphoneEnabled, response };
 }

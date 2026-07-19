@@ -1,0 +1,36 @@
+"type:code":
+  - changed-files:
+      - any-glob-to-any-file: "src/**/*.ts"
+
+"type:style":
+  - changed-files:
+      - any-glob-to-any-file: "src/**/*.css"
+
+"type:ci":
+  - changed-files:
+      - any-glob-to-any-file: ".github/**"
+
+"type:docs":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "docs/**"
+          - "**/*.md"
+
+"type:config":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "*.json"
+          - "*.mjs"
+          - "*.yml"
+          - "*.yaml"
+
+"security-review":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "src/manifest.json"
+          - "src/background.ts"
+          - "src/utils/credentials.ts"
+
+"type:test":
+  - changed-files:
+      - any-glob-to-any-file: "src/**/*.test.ts"

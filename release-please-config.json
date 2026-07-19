@@ -1,0 +1,23 @@
+{
+  "packages": {
+    ".": {
+      "release-type": "node",
+      "bump-minor-pre-major": true,
+      "bump-patch-for-minor-pre-major": true,
+      "changelog-sections": [
+        { "type": "feat", "section": "🚀 Features" },
+        { "type": "fix", "section": "🐛 Bug Fixes" },
+        { "type": "perf", "section": "⚡ Performance" },
+        { "type": "docs", "section": "📚 Documentation" },
+        { "type": "style", "section": "💄 Styles" },
+        { "type": "refactor", "section": "♻️ Refactors" },
+        { "type": "test", "section": "✅ Tests" },
+        { "type": "chore", "section": "🏗️ Chores", "hidden": true },
+        { "type": "ci", "section": "👷 CI/CD", "hidden": true },
+        { "type": "build", "section": "📦 Build", "hidden": true }
+      ],
+      "extra-files": ["src/manifest.json"]
+    }
+  },
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json"
+}
