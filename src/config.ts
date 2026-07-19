@@ -67,3 +67,6 @@ export const MAX_PENDING_CHUNKS = 20;
 
 /** Timeout in milliseconds for draining pending audio chunks before dropping them. */
 export const DRAIN_TIMEOUT_MS = 30000;
+
+/** Maximum size in bytes for a single audio chunk payload. Prevents memory exhaustion from oversized chunks. */
+export const MAX_CHUNK_SIZE_BYTES = 10 * 1024 * 1024;

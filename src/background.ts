@@ -29,6 +29,7 @@ import {
   ELEVENLABS_STT_MODEL,
   JOINER_MESSAGE_MAX_TOKENS,
   MAX_PENDING_AUDIO_CHUNKS,
+  MAX_CHUNK_SIZE_BYTES,
   MAX_PROMPT_LENGTH,
   MIN_MEETING_DURATION_FOR_WELCOME,
   SUMMARIZATION_MAX_TOKENS,
@@ -2027,6 +2028,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           return;
         }
 
+        const senderUrl = sender.url ?? "";
+        if (senderUrl && !senderUrl.endsWith("offscreen.html")) {
+          console.warn("[LateMeet] chunk rejected — unauthorized sender:", senderUrl);
+          sendResponse({ success: false, error: "Unauthorized sender" });
+          return;
+        }
+
         if (typeof message.audioBase64 !== "string" || !message.audioBase64) {
           sendResponse({ success: false, error: "Missing audio chunk payload" });
           return;
@@ -2034,6 +2042,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
         const base64Len = message.audioBase64?.length ?? 0;
         const approxBytes = Math.round((base64Len * 3) / 4);
+        if (approxBytes > MAX_CHUNK_SIZE_BYTES) {
+          console.warn("[LateMeet] chunk rejected — exceeds max size:", approxBytes);
+          sendResponse({ success: false, error: "Chunk exceeds maximum allowed size" });
+          return;
+        }
         if (DEBUG) {
           console.log(
             `[LateMeet] chunk received — ~${approxBytes} bytes  mimeType=${message.mimeType}`,
