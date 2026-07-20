@@ -49,7 +49,8 @@ export async function startPopupAudioCapture({
   let microphoneEnabled: boolean;
   try {
     microphoneEnabled = await requestMicrophonePermission();
-  } catch {
+  } catch (err) {
+    console.debug("[LateMeet] Microphone permission request failed:", err);
     microphoneEnabled = false;
   }
 

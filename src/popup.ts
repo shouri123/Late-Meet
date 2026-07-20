@@ -263,8 +263,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       const micStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
       micStream.getTracks().forEach((track) => track.stop());
       return true;
-    } catch {
-      console.warn("[LateMeet] Microphone permission not granted — recording tab audio only");
+    } catch (err) {
+      console.warn("[LateMeet] Microphone permission not granted — recording tab audio only:", err);
       return false;
     }
   }
@@ -597,8 +597,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   try {
     lastState = await chrome.runtime.sendMessage({ type: "GET_STATE" });
     if (lastState) updateUI(lastState);
-  } catch {
-    /* background script might be idle */
+  } catch (err) {
+    console.debug("[LateMeet] Initial GET_STATE failed (background script may be idle):", err);
   }
 
   // ——— Listen for State Updates ———

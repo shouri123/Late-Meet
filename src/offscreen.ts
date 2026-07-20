@@ -54,7 +54,9 @@ let voiceActivity = new VoiceActivityTracker({
 // open than the offscreen DevTools.
 function relay(message: string) {
   console.log(`[LateMeet][offscreen] ${message}`);
-  chrome.runtime.sendMessage({ type: "OFFSCREEN_LOG", message }).catch(() => {});
+  chrome.runtime
+    .sendMessage({ type: "OFFSCREEN_LOG", message })
+    .catch((err) => console.debug("[LateMeet][offscreen] Relay log send failed:", err));
 }
 
 function blobToBase64(blob: Blob): Promise<string> {
@@ -135,7 +137,9 @@ function sampleAndSendWaveform() {
     buckets.push(Math.min(1, (sum / bucketSize) * WAVEFORM_GAIN));
   }
 
-  chrome.runtime.sendMessage({ type: "WAVEFORM_DATA", buckets }).catch(() => {});
+  chrome.runtime
+    .sendMessage({ type: "WAVEFORM_DATA", buckets })
+    .catch((err) => console.debug("[LateMeet][offscreen] Waveform data send failed:", err));
 }
 
 async function flushAudioChunk(force = false) {
@@ -194,7 +198,7 @@ async function flushAudioChunk(force = false) {
           type: "UNEXPECTED_TRACK_END",
           reason: "Recorder failed to restart after flush",
         })
-        .catch(() => {});
+        .catch((err) => console.debug("[LateMeet][offscreen] Track end notification failed:", err));
       return;
     }
 
@@ -514,7 +518,9 @@ async function startCapture(
             type: "UNEXPECTED_TRACK_END",
             reason: "Track ended unexpectedly (tab closed or mic disconnected)",
           })
-          .catch(() => {});
+          .catch((err) =>
+            console.debug("[LateMeet][offscreen] Track end notification failed:", err),
+          );
       }
     };
   });

@@ -33,7 +33,8 @@ function isMeetHostname(url: string | null | undefined): boolean {
   if (!url) return false;
   try {
     return new URL(url).hostname === "meet.google.com";
-  } catch {
+  } catch (err) {
+    console.debug("[LateMeet] Failed to parse hostname:", err);
     return false;
   }
 }
@@ -319,8 +320,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   try {
     lastState = await chrome.runtime.sendMessage({ type: "GET_STATE" });
     if (lastState) updateDashboard(lastState);
-  } catch {
-    /* no meeting data yet */
+  } catch (err) {
+    console.debug("[LateMeet] Initial GET_STATE failed (no meeting data yet):", err);
   }
 
   // ——— Listen for State Updates ———
@@ -372,8 +373,11 @@ document.addEventListener("DOMContentLoaded", async () => {
       const micStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
       micStream.getTracks().forEach((t) => t.stop());
       return true;
-    } catch {
-      console.warn("[Dashboard] Mic permission not granted — waveform will use tab audio only");
+    } catch (err) {
+      console.warn(
+        "[Dashboard] Mic permission not granted — waveform will use tab audio only:",
+        err,
+      );
       return false;
     }
   }
@@ -2065,7 +2069,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
       await navigator.clipboard.writeText(text);
       showToast("Summary copied to clipboard!", "success");
-    } catch {
+    } catch (err) {
+      console.warn("[Dashboard] Failed to copy summary:", err);
       showToast("Failed to copy summary", "error");
     }
   });

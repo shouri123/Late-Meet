@@ -441,16 +441,16 @@ void initTheme().catch((err) => console.error(err));
     if (participantPollTimer) return;
 
     participantPollTimer = setInterval(async () => {
-      const { participants, selfName } = await collectParticipants();
-
       try {
+        const { participants, selfName } = await collectParticipants();
+
         await chrome.runtime.sendMessage({
           type: "PARTICIPANTS_UPDATED",
           participants,
           selfName,
         });
-      } catch {
-        // Service worker idle
+      } catch (err) {
+        console.debug("[LateMeet] Participant polling failed:", err);
       }
     }, 5000);
   }
@@ -480,8 +480,8 @@ void initTheme().catch((err) => console.error(err));
         name,
       });
       lastActiveSpeakerName = name;
-    } catch {
-      // Service worker idle
+    } catch (err) {
+      console.debug("[LateMeet] Active speaker publish failed:", err);
     }
   }
 
@@ -672,9 +672,11 @@ void initTheme().catch((err) => console.error(err));
   globalThis.addEventListener("beforeunload", () => {
     // 1. Attempt auto-save first, while the runtime is still reachable.
     try {
-      chrome.runtime.sendMessage({ type: "SAVE_SESSION" }).catch(() => {});
-    } catch {
-      // Ignore — page is already unloading
+      chrome.runtime
+        .sendMessage({ type: "SAVE_SESSION" })
+        .catch((err) => console.debug("[LateMeet] Session save failed:", err));
+    } catch (err) {
+      console.debug("[LateMeet] SAVE_SESSION send failed (page unloading):", err);
     }
     // 2. Tear down observers and timers after save is dispatched.
     destroyAll();

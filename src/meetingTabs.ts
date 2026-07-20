@@ -22,7 +22,8 @@ export function getMeetingIdFromUrl(url: string | undefined): string | null {
     if (!MEET_ID_REGEX.test(meetingId)) return null;
 
     return meetingId;
-  } catch {
+  } catch (err) {
+    console.debug("[LateMeet] Failed to parse meeting URL:", err);
     return null;
   }
 }
@@ -61,7 +62,8 @@ export async function resolveManualMeetTab(): Promise<MeetTabSelection> {
 export async function resolveDetectedMeetTab(): Promise<MeetTabSelection | null> {
   try {
     return await resolveManualMeetTab();
-  } catch {
+  } catch (err) {
+    console.debug("[LateMeet] Failed to resolve meet tab:", err);
     return null;
   }
 }

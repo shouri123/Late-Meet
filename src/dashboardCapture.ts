@@ -49,8 +49,11 @@ export async function startDashboardAudioCapture({
   let microphoneEnabled = false;
   try {
     microphoneEnabled = await requestMicrophonePermission();
-  } catch {
-    // Microphone capture is optional; the offscreen document can still record tab audio.
+  } catch (err) {
+    console.debug(
+      "[LateMeet] Microphone permission request failed (optional capture continues):",
+      err,
+    );
   }
 
   const response = await startAudioCapture({
