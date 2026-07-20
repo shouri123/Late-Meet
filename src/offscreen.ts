@@ -22,7 +22,7 @@ let recorderStream: MediaStream | null = null;
 let mediaRecorder: MediaRecorder | null = null;
 let audioContext: AudioContext | null = null;
 let analyserNode: AnalyserNode | null = null;
-let vadTimer: ReturnType<typeof setInterval> | null = null;
+let vadTimer: ReturnType<typeof setTimeout> | null = null;
 let waveformTimer: ReturnType<typeof setInterval> | null = null;
 let audioSources: MediaStreamAudioSourceNode[] = [];
 
@@ -34,7 +34,7 @@ const SILENCE_FLUSH_TICKS = Math.ceil(SILENCE_FLUSH_MS / VAD_SAMPLE_MS);
 let rmsThreshold = 0.012;
 
 let isFlushInProgress = false;
-let isVadBusy = false;
+
 let silenceTicks = 0;
 let bufferStartTime = 0;
 let recorderMimeType = "";
@@ -315,7 +315,6 @@ async function cleanupResources() {
   audioSources = [];
   pendingChunks = [];
   isStopping = false;
-  isVadBusy = false;
   silenceTicks = 0;
   speechActive = false;
   vadTickCounter = 0;
@@ -459,6 +458,55 @@ function createRecorder(): MediaRecorder {
   return recorder;
 }
 
+async function vadLoop() {
+  if (isStopping || isDrainingQueue) {
+    vadTimer = null;
+    return;
+  }
+
+  vadTickCounter += 1;
+  const overflowReached = Date.now() - bufferStartTime >= MAX_BUFFER_MS;
+  const runAnalysis = shouldRunVadAnalysis(speechActive, vadTickCounter);
+
+  if (!runAnalysis && !overflowReached) {
+    vadTimer = setTimeout(vadLoop, VAD_SAMPLE_MS);
+    return;
+  }
+
+  try {
+    let naturalPause = false;
+    let rms = -1;
+
+    if (runAnalysis) {
+      rms = getCurrentRms();
+      voiceActivity.observe(rms);
+      speechActive = rms >= rmsThreshold;
+      if (speechActive) {
+        silenceTicks = 0;
+      } else {
+        silenceTicks++;
+      }
+      naturalPause = silenceTicks >= SILENCE_FLUSH_TICKS;
+    }
+
+    if (naturalPause || overflowReached) {
+      const reason = naturalPause ? "silence-pause" : "overflow-cap";
+      relay(
+        `flush triggered — reason=${reason} rms=${rms >= 0 ? rms.toFixed(4) : "n/a"} silenceTicks=${silenceTicks}`,
+      );
+      silenceTicks = 0;
+      bufferStartTime = Date.now();
+      await flushAudioChunk(overflowReached && !naturalPause);
+    }
+  } catch (err) {
+    console.error("[LateMeet][offscreen] VAD loop error:", err);
+  } finally {
+    if (!isStopping) {
+      vadTimer = setTimeout(vadLoop, VAD_SAMPLE_MS);
+    }
+  }
+}
+
 async function startCapture(
   streamId: string,
   _tabId: number,
@@ -492,7 +540,7 @@ async function startCapture(
 
       try {
         if (vadTimer) {
-          clearInterval(vadTimer);
+          clearTimeout(vadTimer);
           vadTimer = null;
         }
 
@@ -574,51 +622,7 @@ async function startCapture(
   vadTickCounter = 0;
   bufferStartTime = Date.now();
 
-  vadTimer = setInterval(async () => {
-    if (isStopping || isVadBusy || isDrainingQueue) return;
-
-    vadTickCounter += 1;
-    const overflowReached = Date.now() - bufferStartTime >= MAX_BUFFER_MS;
-    const runAnalysis = shouldRunVadAnalysis(speechActive, vadTickCounter);
-
-    // While speech is sustained, skip the analyser read on alternate ticks to
-    // cut CPU (#632). The overflow flush is time-based, so it still runs.
-    if (!runAnalysis && !overflowReached) return;
-
-    isVadBusy = true;
-
-    try {
-      let naturalPause = false;
-      let rms = -1;
-
-      if (runAnalysis) {
-        rms = getCurrentRms();
-        voiceActivity.observe(rms);
-        speechActive = rms >= rmsThreshold;
-        if (speechActive) {
-          silenceTicks = 0;
-        } else {
-          silenceTicks++;
-        }
-        naturalPause = silenceTicks >= SILENCE_FLUSH_TICKS;
-      }
-
-      if (naturalPause || overflowReached) {
-        const reason = naturalPause ? "silence-pause" : "overflow-cap";
-        relay(
-          `flush triggered — reason=${reason} rms=${rms >= 0 ? rms.toFixed(4) : "n/a"} silenceTicks=${silenceTicks}`,
-        );
-        silenceTicks = 0;
-        bufferStartTime = Date.now();
-        // Force-flush on overflow so silent audio doesn't block the buffer cap.
-        await flushAudioChunk(overflowReached && !naturalPause);
-      }
-    } catch (err) {
-      console.error("[LateMeet][offscreen] VAD loop error:", err);
-    } finally {
-      isVadBusy = false;
-    }
-  }, VAD_SAMPLE_MS);
+  vadTimer = setTimeout(vadLoop, VAD_SAMPLE_MS);
 
   relay(`capture started — mic=${Boolean(microphoneStream)} rmsThreshold=${rmsThreshold}`);
 
@@ -637,7 +641,7 @@ async function stopCapture() {
 
   try {
     if (vadTimer) {
-      clearInterval(vadTimer);
+      clearTimeout(vadTimer);
       vadTimer = null;
     }
 

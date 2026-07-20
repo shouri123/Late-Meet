@@ -432,32 +432,36 @@ void initTheme().catch((err) => console.error(err));
     return { participants: collectParticipantNames(candidates), selfName };
   }
 
-  let participantPollTimer: number | NodeJS.Timeout | null = null;
+  let participantPollTimer: ReturnType<typeof setTimeout> | null = null;
   let activeSpeakerObserver: MutationObserver | null = null;
   let activeSpeakerCheckTimer: number | NodeJS.Timeout | null = null;
   let lastActiveSpeakerName: string | null = null;
 
+  async function pollParticipants() {
+    try {
+      const { participants, selfName } = await collectParticipants();
+
+      await chrome.runtime.sendMessage({
+        type: "PARTICIPANTS_UPDATED",
+        participants,
+        selfName,
+      });
+    } catch (err) {
+      console.debug("[LateMeet] Participant polling failed:", err);
+    } finally {
+      participantPollTimer = setTimeout(pollParticipants, 5000);
+    }
+  }
+
   function startParticipantPolling() {
     if (participantPollTimer) return;
 
-    participantPollTimer = setInterval(async () => {
-      const { participants, selfName } = await collectParticipants();
-
-      try {
-        await chrome.runtime.sendMessage({
-          type: "PARTICIPANTS_UPDATED",
-          participants,
-          selfName,
-        });
-      } catch {
-        // Service worker idle
-      }
-    }, 5000);
+    pollParticipants();
   }
 
   function stopParticipantPolling() {
     if (participantPollTimer) {
-      clearInterval(participantPollTimer);
+      clearTimeout(participantPollTimer);
       participantPollTimer = null;
     }
   }
@@ -643,7 +647,7 @@ void initTheme().catch((err) => console.error(err));
     console.log(`${COPILOT_PREFIX} Disconnecting observers and clearing active timers.`);
 
     if (participantPollTimer) {
-      clearInterval(participantPollTimer);
+      clearTimeout(participantPollTimer);
       participantPollTimer = null;
     }
 
