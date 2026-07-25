@@ -2010,6 +2010,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return;
       }
 
+      case "MIC_TRACK_ENDED": {
+        addTimeline(`Microphone disconnected: ${message.reason || "device disconnected"}`);
+        await broadcastStateUpdate(true);
+        sendResponse({ success: true });
+        return;
+      }
+
       case "OFFSCREEN_LOG": {
         if (DEBUG) {
           console.log("[LateMeet][offscreen]", message.message);

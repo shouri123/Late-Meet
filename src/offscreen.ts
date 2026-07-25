@@ -544,10 +544,46 @@ async function startCapture(
       audioSources.push(microphoneSource);
 
       microphoneStream.getTracks().forEach((track) => {
-        track.onended = () => {
+        track.onended = async () => {
           console.warn("[LateMeet][offscreen] Microphone track ended unexpectedly");
           if (isStopping) return;
-          relay("Microphone track ended unexpectedly (input device disconnected)");
+
+          await chrome.runtime
+            .sendMessage({
+              type: "MIC_TRACK_ENDED",
+              reason: "Microphone track ended (device disconnected or revoked)",
+            })
+            .catch(() => {});
+
+          relay("Microphone track ended — attempting auto-recovery");
+
+          try {
+            const recoveredStream = await getMicrophoneStream();
+            if (!recoveredStream || isStopping) return;
+
+            if (audioContext && recorderStream) {
+              const microphoneSource = connectMicrophoneToOffscreenAudioGraph(
+                audioContext,
+                recoveredStream,
+                {
+                  recorderDestination: audioGraph.recorderDestination,
+                  analyser: audioGraph.analyser,
+                },
+              );
+              audioSources.push(microphoneSource);
+            }
+
+            microphoneStream = recoveredStream;
+
+            recoveredStream.getTracks().forEach((newTrack) => {
+              newTrack.onended = track.onended;
+            });
+
+            relay("Microphone auto-recovery succeeded");
+          } catch (err) {
+            console.warn("[LateMeet][offscreen] Mic auto-recovery failed:", err);
+            relay("Microphone auto-recovery failed — continuing without mic");
+          }
         };
       });
     }
