@@ -73,6 +73,6 @@
   },
   "_comment_csp": "Strengthened CSP: scripts restricted to self only, no unsafe-eval or unsafe-inline",
   "content_security_policy": {
-    "extension_pages": "default-src 'none'; script-src 'self'; style-src 'self'; connect-src https://api.openai.com https://api.elevenlabs.io; img-src 'self' data:; font-src 'self' data:; object-src 'none';"
+    "extension_pages": "default-src 'none'; script-src 'self'; style-src 'self'; connect-src https://api.openai.com https://api.elevenlabs.io; img-src 'self' data:; font-src 'self' data:; object-src 'none'; worker-src 'self'; base-uri 'self'; form-action 'self';"
   }
 }
