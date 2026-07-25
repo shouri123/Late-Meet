@@ -10,6 +10,7 @@ export interface OffscreenAudioGraph {
   recorderDestination: MediaStreamAudioDestinationNode;
   analyser: AnalyserNode;
   tabSource: MediaStreamAudioSourceNode;
+  noiseGate: DynamicsCompressorNode;
 }
 
 /**
@@ -22,13 +23,13 @@ export interface OffscreenAudioGraph {
 function connectCaptureSource(
   context: AudioContext,
   stream: MediaStream,
-  recorderDestination: MediaStreamAudioDestinationNode,
+  noiseGate: DynamicsCompressorNode,
   analyser: AnalyserNode,
   playbackDestination?: AudioDestinationNode,
 ): MediaStreamAudioSourceNode {
   const source = context.createMediaStreamSource(stream);
 
-  source.connect(recorderDestination);
+  source.connect(noiseGate);
   source.connect(analyser);
 
   if (playbackDestination) {
@@ -36,6 +37,23 @@ function connectCaptureSource(
   }
 
   return source;
+}
+
+/**
+ * Creates an adaptive noise gate using DynamicsCompressorNode.
+ *
+ * The compressor acts as a noise gate by attenuating signals below a
+ * dynamically computed threshold. With a high ratio and low knee, it
+ * effectively silences ambient noise while passing speech.
+ */
+function createNoiseGate(context: AudioContext): DynamicsCompressorNode {
+  const gate = context.createDynamicsCompressor();
+  gate.threshold.value = -50;
+  gate.knee.value = 6;
+  gate.ratio.value = 12;
+  gate.attack.value = 0.003;
+  gate.release.value = 0.25;
+  return gate;
 }
 
 /**
@@ -47,21 +65,25 @@ export function createOffscreenAudioGraph(
 ): OffscreenAudioGraph {
   const recorderDestination = context.createMediaStreamDestination();
   const analyser = context.createAnalyser();
+  const noiseGate = createNoiseGate(context);
 
   analyser.fftSize = OFFSCREEN_ANALYSER_FFT_SIZE;
 
   const tabSource = connectCaptureSource(
     context,
     tabStream,
-    recorderDestination,
+    noiseGate,
     analyser,
     context.destination,
   );
+
+  noiseGate.connect(recorderDestination);
 
   return {
     recorderDestination,
     analyser,
     tabSource,
+    noiseGate,
   };
 }
 
@@ -76,5 +98,8 @@ export function connectMicrophoneToOffscreenAudioGraph(
   microphoneStream: MediaStream,
   graph: Pick<OffscreenAudioGraph, "recorderDestination" | "analyser">,
 ): MediaStreamAudioSourceNode {
-  return connectCaptureSource(context, microphoneStream, graph.recorderDestination, graph.analyser);
+  const source = context.createMediaStreamSource(microphoneStream);
+  source.connect(graph.recorderDestination);
+  source.connect(graph.analyser);
+  return source;
 }
