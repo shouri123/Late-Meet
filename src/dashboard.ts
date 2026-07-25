@@ -2097,9 +2097,163 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   if (headerPdfBtn) {
-    headerPdfBtn.addEventListener("click", () => {
-      showToast("PDF UI active! Ready for Phase 2 library integration.", "success");
+    headerPdfBtn.addEventListener("click", async () => {
+      try {
+        const state = await chrome.runtime.sendMessage({ type: "GET_STATE" });
+        if (!state) throw new Error("No meeting data available");
+        printPDF(state);
+        showToast("PDF print dialog opened", "success");
+      } catch (err) {
+        showToast(
+          "Failed to export PDF: " + (err instanceof Error ? err.message : String(err)),
+          "error",
+        );
+      }
     });
+  }
+
+  function generatePrintHTML(state: State): string {
+    const dateVal = state.savedAt || state.startTime || Date.now();
+    const date = new Date(dateVal).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+    const duration = (state as State & { duration?: number }).duration || 0;
+    const esc = escapeHtml;
+
+    let sections = "";
+
+    sections += `<section><h2>Attendees</h2>`;
+    if (state.participants?.length) {
+      sections += `<ul>${state.participants.map((p) => `<li>${esc(p)}</li>`).join("")}</ul>`;
+    } else {
+      sections += `<p class="muted">No participants detected</p>`;
+    }
+    sections += `</section>`;
+
+    sections += `<section><h2>Summary</h2>`;
+    if (Array.isArray(state.summaryItems) && state.summaryItems.length > 0) {
+      sections += `<ul class="summary-list">${state.summaryItems
+        .map((item) => {
+          const label = esc(item.timestampLabel || item.timestamp || "");
+          return `<li><span class="summary-text">${esc(item.text || "")}</span>${label ? ` <span class="timestamp">[${label}]</span>` : ""}</li>`;
+        })
+        .join("")}</ul>`;
+    } else {
+      sections += `<p>${esc(state.summary || "No summary available")}</p>`;
+    }
+    sections += `</section>`;
+
+    if (state.topics?.length) {
+      sections += `<section><h2>Topics</h2><ul>`;
+      state.topics.forEach((t) => {
+        sections += `<li>${esc(t.name || "")} <span class="status-badge">${esc(t.status || "")}</span></li>`;
+      });
+      sections += `</ul></section>`;
+    }
+
+    if (state.decisions?.length) {
+      sections += `<section><h2>Key Decisions</h2><ul>`;
+      state.decisions.forEach((d) => {
+        const by = d.by ? ` — ${esc(d.by)}` : "";
+        const cls =
+          d.classification === "tentative" ? ` <span class="tentative">(tentative)</span>` : "";
+        sections += `<li>${esc(d.text || "")}${cls}${by}</li>`;
+      });
+      sections += `</ul></section>`;
+    }
+
+    if (state.actionItems?.length) {
+      sections += `<section><h2>Action Items</h2><ul class="action-list">`;
+      state.actionItems.forEach((a) => {
+        const task = esc(a.task || "");
+        const owner = a.owner ? ` — ${esc(a.owner)}` : "";
+        const deadline = a.deadline ? ` (due: ${esc(a.deadline)})` : "";
+        sections += `<li>${task}${owner}${deadline}</li>`;
+      });
+      sections += `</ul></section>`;
+    }
+
+    if (state.keyInsights?.length) {
+      sections += `<section><h2>Key Insights</h2><ul>`;
+      state.keyInsights
+        .filter((i) => i != null)
+        .forEach((insight) => {
+          const text = typeof insight === "string" ? insight : insight?.text || "";
+          if (text) sections += `<li>${esc(text)}</li>`;
+        });
+      sections += `</ul></section>`;
+    }
+
+    if (state.timeline?.length) {
+      sections += `<section><h2>Timeline</h2><ul>`;
+      state.timeline.forEach((e) => {
+        sections += `<li><span class="timestamp">[${formatDuration(e.elapsed || 0)}]</span> ${esc(e.event || "")}</li>`;
+      });
+      sections += `</ul></section>`;
+    }
+
+    if (state.transcript?.length) {
+      sections += `<section><h2>Transcript</h2><div class="transcript-print">`;
+      state.transcript.forEach((t) => {
+        const time = esc(t.timestampLabel || formatDuration(t.timestamp || 0));
+        sections += `<div class="transcript-entry-print"><span class="timestamp">[${time}]</span> <strong>${esc(t.speaker || "Unknown")}:</strong> ${esc(t.text || "")}</div>`;
+      });
+      sections += `</div></section>`;
+    }
+
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Meeting Summary — ${esc(date)}</title>
+<style>
+  @page { margin: 1in; size: A4; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; font-size: 11pt; line-height: 1.5; color: #1a1a1a; max-width: 700px; margin: 0 auto; padding: 20px; }
+  h1 { font-size: 18pt; margin-bottom: 4px; border-bottom: 2px solid #111; padding-bottom: 6px; }
+  .meta { font-size: 10pt; color: #555; margin-bottom: 16px; }
+  .meta span { margin-right: 16px; }
+  h2 { font-size: 13pt; margin: 16px 0 6px; color: #222; border-bottom: 1px solid #ddd; padding-bottom: 3px; }
+  ul { margin: 4px 0 12px 20px; }
+  li { margin-bottom: 4px; }
+  p { margin-bottom: 8px; }
+  .muted { color: #888; font-style: italic; }
+  .timestamp { color: #666; font-size: 9pt; }
+  .status-badge { font-size: 8pt; background: #eee; padding: 1px 5px; border-radius: 3px; }
+  .tentative { font-size: 8pt; background: #FEF3C7; color: #92400E; padding: 1px 5px; border-radius: 3px; }
+  .summary-list li { margin-bottom: 6px; }
+  .transcript-print { font-size: 9.5pt; }
+  .transcript-entry-print { margin-bottom: 6px; padding-bottom: 4px; border-bottom: 1px solid #f0f0f0; }
+  @media print { body { padding: 0; } }
+</style>
+</head>
+<body>
+  <h1>Meeting Summary — ${esc(date)}</h1>
+  <div class="meta">
+    <span><strong>Meeting:</strong> ${esc(state.meetingId || "N/A")}</span>
+    <span><strong>Duration:</strong> ${formatDuration(duration)}</span>
+    <span><strong>Sentiment:</strong> ${esc(state.sentiment || "neutral")}</span>
+  </div>
+  ${sections}
+</body>
+</html>`;
+  }
+
+  function printPDF(state: State): void {
+    const html = generatePrintHTML(state);
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) {
+      showToast("Pop-up blocked — allow pop-ups for PDF export", "error");
+      return;
+    }
+    printWindow.document.write(html);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => {
+      printWindow.print();
+    }, 300);
   }
 });
 
