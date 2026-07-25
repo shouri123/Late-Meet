@@ -78,11 +78,11 @@ document.addEventListener("DOMContentLoaded", async () => {
   const config = await getApiCredentials();
 
   if (!config.openai_api_key && !config.elevenlabs_api_key) {
-    setupView.style.display = "block";
-    mainView.style.display = "none";
+    if (setupView) setupView.style.display = "block";
+    if (mainView) mainView.style.display = "none";
   } else {
-    setupView.style.display = "none";
-    mainView.style.display = "block";
+    if (setupView) setupView.style.display = "none";
+    if (mainView) mainView.style.display = "block";
   }
 
   void maybeStartPopupTour();
@@ -141,15 +141,15 @@ document.addEventListener("DOMContentLoaded", async () => {
     // Users can configure ElevenLabs in the options page.
 
     await saveApiCredentials({ openai_api_key: apiKey });
-    setupView.style.display = "none";
-    mainView.style.display = "block";
+    if (setupView) setupView.style.display = "none";
+    if (mainView) mainView.style.display = "block";
     void maybeStartPopupTour();
   });
 
   // ——— Toggle API Key Visibility ———
   document.getElementById("toggle-key")?.addEventListener("click", () => {
-    const input = document.getElementById("api-key-input") as HTMLInputElement;
-    input.type = input.type === "password" ? "text" : "password";
+    const input = document.getElementById("api-key-input") as HTMLInputElement | null;
+    if (input) input.type = input.type === "password" ? "text" : "password";
   });
 
   // ——— Settings ———

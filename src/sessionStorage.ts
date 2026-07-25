@@ -236,7 +236,7 @@ export async function persistPendingMeetingSession(storage: StorageArea): Promis
   }
 
   const session = await persistMeetingSession(storage, pendingSession);
-  await storage.set({ [PENDING_SESSION_KEY]: null });
+  await storage.remove(PENDING_SESSION_KEY);
 
   return session;
 }
@@ -294,7 +294,7 @@ export async function persistMeetingSession(
  * @param storage - The storage area to modify.
  */
 export async function discardPendingMeetingSession(storage: StorageArea): Promise<void> {
-  await storage.set({ [PENDING_SESSION_KEY]: null });
+  await storage.remove(PENDING_SESSION_KEY);
 }
 
 /**
