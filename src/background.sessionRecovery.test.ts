@@ -110,6 +110,7 @@ function installChromeMock() {
       onInstalled: ignored,
       onStartup: ignored,
       onSuspend: ignored,
+      onSuspendCanceled: ignored,
     },
     alarms: { onAlarm: ignored, create: noop },
     tabs: {

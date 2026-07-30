@@ -2346,6 +2346,15 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 // Flush guard flags to storage before service worker is terminated
 // ---------------------------------------------------------------------------
 chrome.runtime.onSuspend.addListener(() => {
+  // Clear any pending broadcast timer. The setTimeout callback will never fire
+  // once the service worker is terminated, so cancelling it here keeps the
+  // broadcastTimerHandle consistent within the current lifecycle and avoids a
+  // stale ID being read by broadcastStateUpdate() before termination completes.
+  if (broadcastTimerHandle !== null) {
+    clearTimeout(broadcastTimerHandle);
+    broadcastTimerHandle = null;
+  }
+
   const guards: HydrationStatus = {
     isStartingAudio,
     isStoppingAudio,
@@ -2354,6 +2363,18 @@ chrome.runtime.onSuspend.addListener(() => {
     selfParticipantName,
   };
   chrome.storage.local.set({ activeMeetingGuards: guards }).catch(() => {});
+});
+
+// If Chrome cancels the pending suspension (e.g. a new event arrived), the
+// broadcast timer was already cleared above. Re-schedule it so state updates
+// continue to be debounced as expected.
+chrome.runtime.onSuspendCanceled.addListener(() => {
+  if (broadcastTimerHandle === null) {
+    broadcastTimerHandle = setTimeout(() => {
+      broadcastTimerHandle = null;
+      broadcastStateUpdate();
+    }, 200);
+  }
 });
 
 // Proactive scan on startup/load
