@@ -2346,6 +2346,13 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 // Flush guard flags to storage before service worker is terminated
 // ---------------------------------------------------------------------------
 chrome.runtime.onSuspend.addListener(() => {
+  // An in-flight API call cannot survive service worker suspension — the
+  // promise is abandoned when the worker is killed. Persisting summaryInFlight
+  // as true would cause hydrateState() to restore it on the next wake-up,
+  // permanently blocking summarization for the rest of the session. Always
+  // reset it to false so the next worker instance can summarize normally.
+  summaryInFlight = false;
+
   const guards: HydrationStatus = {
     isStartingAudio,
     isStoppingAudio,
