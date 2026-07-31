@@ -243,6 +243,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   });
 
+  // ——— Clear Data ———
+  document.getElementById("clear-data-btn")?.addEventListener("click", async () => {
+    if (confirm("Are you sure you want to clear all data? This cannot be undone.")) {
+      await chrome.storage.local.clear();
+      alert("All data cleared successfully. The page will now reload.");
+      window.location.reload();
+    }
+  });
   // ——— Passphrase management ———
   const passphraseInput = document.getElementById("passphrase-input") as HTMLInputElement | null;
   const passphraseStatus = document.getElementById("passphrase-status");
