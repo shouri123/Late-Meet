@@ -709,7 +709,15 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       }
 
       sendResponse({ success: true });
+      return;
+    }
 
+    if (message.type === "OFFSCREEN_GET_REMAINING_CHUNKS") {
+      sendResponse({
+        success: true,
+        pending: pendingChunks.length,
+        isDrainingQueue,
+      });
       return;
     }
 

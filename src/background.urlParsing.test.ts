@@ -40,6 +40,7 @@ type TabActivatedCallback = (activeInfo: TabActiveInfo) => Promise<void>;
 interface CapturedListeners {
   onUpdated?: TabUpdatedCallback;
   onActivated?: TabActivatedCallback;
+  onRemoved: Array<(tabId: number) => Promise<void>>;
 }
 
 interface MockChromeOptions {
@@ -51,7 +52,9 @@ interface MockChromeOptions {
 let sentMessages: Array<{ type: string; state?: Record<string, unknown> }> = [];
 
 /** Captured listener callbacks registered by the background module */
-const listeners: CapturedListeners = {};
+const listeners: CapturedListeners = {
+  onRemoved: [],
+};
 
 /** The mock tab returned by chrome.tabs.get */
 let mockGetTabResult: Partial<chrome.tabs.Tab> = {};
@@ -73,6 +76,10 @@ function installChromeMock(options: MockChromeOptions = {}) {
       getURL: (path: string) => `chrome-extension://fakeextid/${path}`,
       sendMessage: async (msg: { type: string; state?: Record<string, unknown> }) => {
         sentMessages.push(msg);
+        if (msg.type === "OFFSCREEN_GET_REMAINING_CHUNKS") {
+          return { success: true, pending: 0, isDrainingQueue: false };
+        }
+        return undefined;
       },
       getContexts: async () => [],
       onMessage: { addListener: () => {} },
@@ -95,7 +102,11 @@ function installChromeMock(options: MockChromeOptions = {}) {
           listeners.onActivated = cb;
         },
       },
-      onRemoved: { addListener: () => {} },
+      onRemoved: {
+        addListener: (cb: (tabId: number) => Promise<void>) => {
+          listeners.onRemoved.push(cb);
+        },
+      },
       get: async () => mockGetTabResult,
       query: async () => [],
       sendMessage: async () => {},
@@ -115,6 +126,7 @@ function installChromeMock(options: MockChromeOptions = {}) {
       local: {
         get: async () => ({}),
         set: async () => {},
+        remove: async () => {},
       },
     },
   };
@@ -472,4 +484,47 @@ test("URL parsing: pathname regex extracts only the first path segment", () => {
       `pathname "${pathname}" → expected meetingId ${JSON.stringify(expected)}`,
     );
   }
+});
+
+test("onRemoved: closing the active meeting tab resets state to idle", async () => {
+  await ensureLoaded();
+  for (const cb of listeners.onRemoved) {
+    try {
+      for (const id of [42, 43, 50, 60, 61, 62, 63, 64, 99]) {
+        await cb(id);
+      }
+    } catch {
+      // ignore
+    }
+  }
+  resetMessages();
+
+  console.log("DEBUG: listeners.onRemoved count =", listeners.onRemoved.length);
+  const tabId = 44;
+  await listeners.onUpdated!(
+    tabId,
+    { status: "complete" },
+    makeTab("https://meet.google.com/abc-defg-hij", tabId),
+  );
+
+  console.log("DEBUG: sentMessages after onUpdated =", JSON.stringify(sentMessages));
+  let state = lastStateUpdate();
+  assert.ok(state, "STATE_UPDATE should have been broadcast");
+  assert.equal(state.isActive, true);
+  assert.equal(state.targetTabId, tabId);
+
+  // Now trigger onRemoved for the target tab
+  for (const cb of listeners.onRemoved) {
+    try {
+      await cb(tabId);
+    } catch {
+      // ignore
+    }
+  }
+
+  const updatedState = lastStateUpdate();
+  assert.ok(updatedState, "STATE_UPDATE should have been broadcast after onRemoved");
+  assert.equal(updatedState.isActive, false, "State should be inactive");
+  assert.equal(updatedState.meetingId, null, "meetingId should be null");
+  assert.equal(updatedState.targetTabId, null, "targetTabId should be null");
 });

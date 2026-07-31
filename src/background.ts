@@ -274,6 +274,7 @@ const state: State = {
   participantCount: 0,
   tokensUsed: 0,
   estimatedCost: 0,
+  speakerStats: {},
 };
 
 async function trackUsage(delta: UsageDelta) {
@@ -533,6 +534,7 @@ function resetState() {
   selfParticipantName = null;
   state.tokensUsed = 0;
   state.estimatedCost = 0;
+  state.speakerStats = {};
 }
 
 function addTimeline(event: string) {
@@ -548,13 +550,41 @@ function getDuration() {
   return Math.round((Date.now() - state.startTime) / 1000);
 }
 
+function computeSpeakerStats(transcript: any[], totalDuration: number): Record<string, number> {
+  const stats: Record<string, number> = {};
+  if (!transcript || transcript.length === 0) return stats;
+
+  let lastTimestamp = 0;
+  for (let i = 0; i < transcript.length; i++) {
+    const entry = transcript[i];
+    const speaker = entry.speaker || "Unknown";
+    const currentTimestamp = entry.timestamp || 0;
+    const duration = Math.max(0, currentTimestamp - lastTimestamp);
+    stats[speaker] = (stats[speaker] || 0) + duration;
+    lastTimestamp = currentTimestamp;
+  }
+
+  const lastEntry = transcript[transcript.length - 1];
+  if (lastEntry && totalDuration > lastTimestamp) {
+    const speaker = lastEntry.speaker || "Unknown";
+    const duration = totalDuration - lastTimestamp;
+    stats[speaker] = (stats[speaker] || 0) + duration;
+  }
+
+  return stats;
+}
+
 function snapshot() {
+  const duration = getDuration();
+  const speakerStats = computeSpeakerStats(state.transcript, duration);
+  state.speakerStats = speakerStats;
+
   return {
     isActive: state.isActive,
     meetingId: state.meetingId,
     meetingUrl: state.meetingUrl,
     startTime: state.startTime,
-    duration: getDuration(),
+    duration,
     summary: state.summary,
     summaryItems: state.summaryItems,
     topics: state.topics,
@@ -578,6 +608,7 @@ function snapshot() {
     pendingJoiners: [...(state.pendingJoiners ?? [])],
     tokensUsed: state.tokensUsed ?? 0,
     estimatedCost: state.estimatedCost ?? 0,
+    speakerStats,
   };
 }
 
@@ -656,6 +687,7 @@ async function loadTabState(tabId: number) {
   state.participantCount = tabState.participantCount ?? 0;
   state.tokensUsed = tabState.tokensUsed ?? 0;
   state.estimatedCost = tabState.estimatedCost ?? 0;
+  state.speakerStats = tabState.speakerStats ?? {};
   pendingJoinersInFlight.clear();
 }
 
@@ -898,6 +930,14 @@ async function transcribeChunk(base64Audio: string, mimeType = "audio/webm", pro
         "[LateMeet] ElevenLabs transcription failed. Aborting fallback to Whisper for privacy reasons:",
         err,
       );
+      const isOffline = typeof navigator !== "undefined" && !navigator.onLine;
+      if (
+        isOffline ||
+        err instanceof TypeError ||
+        String(err).toLowerCase().includes("failed to fetch")
+      ) {
+        throw err;
+      }
       return null;
     }
   }
@@ -1302,7 +1342,31 @@ async function processQueuedAudioChunk({ id, item }: AudioChunkQueueItem<QueuedA
   }
 
   const prompt = getTranscriptionPrompt();
-  const rawText = await transcribeChunk(item.audioBase64, item.mimeType, prompt);
+  let rawText: string | null = null;
+  try {
+    rawText = await transcribeChunk(item.audioBase64, item.mimeType, prompt);
+  } catch (err) {
+    const isOffline = typeof navigator !== "undefined" && !navigator.onLine;
+    if (
+      isOffline ||
+      err instanceof TypeError ||
+      String(err).toLowerCase().includes("failed to fetch")
+    ) {
+      console.warn(
+        `[LateMeet] Network error processing chunk ${id}, pushing to pendingChunks queue`,
+      );
+      try {
+        const data = await chrome.storage.local.get("pendingChunks");
+        const queue = (data.pendingChunks || []) as QueuedAudioChunk[];
+        queue.push(item);
+        await chrome.storage.local.set({ pendingChunks: queue });
+      } catch (storageErr) {
+        console.error("[LateMeet] Failed to save pending chunk:", storageErr);
+      }
+      return;
+    }
+    throw err;
+  }
 
   if (!rawText) {
     console.warn(`[LateMeet] STT returned empty for queued chunk ${id}`);
@@ -1662,14 +1726,15 @@ async function startAudioCapture(
 
     if (createdSession) {
       resetState();
-      await chrome.storage.local.remove("activeMeetingState");
+      await chrome.storage.local.remove(["activeMeetingState", "activeMeetingGuards"]);
       state.isActive = true;
       state.startTime = Date.now();
       state.meetingId = meetingId || "unknown";
       state.meetingUrl = meetingUrl || null;
-      state.targetTabId = tabId;
       addTimeline(`Meeting started (${state.meetingId})`);
     }
+
+    state.targetTabId = tabId;
 
     let streamId = providedStreamId;
 
@@ -1782,7 +1847,7 @@ async function pollRemainingChunks(): Promise<void> {
   while (Date.now() - pollStart < POLL_TIMEOUT) {
     try {
       const pollResponse = await chrome.runtime.sendMessage({
-        type: "GET_REMAINING_CHUNKS",
+        type: "OFFSCREEN_GET_REMAINING_CHUNKS",
       });
       if (pollResponse && typeof pollResponse === "object") {
         const pending = pollResponse.pending ?? 0;
@@ -1828,7 +1893,7 @@ async function stopAudioCapture(reason = "Stopped") {
 
     resetState();
 
-    await chrome.storage.local.remove("activeMeetingState");
+    await chrome.storage.local.remove(["activeMeetingState", "activeMeetingGuards"]);
     await broadcastStateUpdate(true);
 
     if (stopPlan.shouldNotifySessionEnded) {
@@ -2355,6 +2420,34 @@ chrome.runtime.onSuspend.addListener(() => {
   };
   chrome.storage.local.set({ activeMeetingGuards: guards }).catch(() => {});
 });
+
+async function flushPendingChunks() {
+  if (typeof navigator !== "undefined" && !navigator.onLine) return;
+
+  try {
+    const data = await chrome.storage.local.get("pendingChunks");
+    const queue = (data.pendingChunks || []) as QueuedAudioChunk[];
+    if (queue.length === 0) return;
+
+    console.log(`[LateMeet] Online! Flushing ${queue.length} pending chunks.`);
+
+    for (const item of queue) {
+      if (state.isActive) {
+        audioChunkQueue.enqueue(item);
+      }
+    }
+
+    await chrome.storage.local.remove("pendingChunks");
+
+    chrome.runtime.sendMessage({ type: "RECOVERY_TOAST", count: queue.length }).catch(() => {});
+  } catch (err) {
+    console.error("[LateMeet] Failed to flush pending chunks:", err);
+  }
+}
+
+if (typeof self !== "undefined") {
+  self.addEventListener("online", flushPendingChunks);
+}
 
 // Proactive scan on startup/load
 hydrateState()
