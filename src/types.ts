@@ -66,6 +66,13 @@ export interface Contradiction {
   persists: boolean;
 }
 
+/** State representation of an active API error */
+export interface ApiErrorState {
+  errorType: "INVALID_KEY" | "NO_CREDITS" | "GENERIC";
+  provider: "OpenAI" | "ElevenLabs";
+  message: string;
+}
+
 /** Full application state for an active or saved meeting session. */
 export interface State {
   id?: string;
@@ -99,8 +106,7 @@ export interface State {
   participantCount?: number;
   /** Tracks original array lengths before truncation for UI indicators. */
   truncatedCounts?: Record<string, number>;
-  tokensUsed?: number;
-  estimatedCost?: number;
+  apiError?: ApiErrorState | null;
 }
 
 /** Storage metadata summary for a single saved meeting, used in storage usage reports. */

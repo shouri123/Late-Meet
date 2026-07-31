@@ -137,6 +137,11 @@ document.addEventListener("DOMContentLoaded", async () => {
   ) as HTMLDivElement | null;
 
   await loadActionStatuses();
+
+  // ——— API Error Banner ———
+  document.getElementById("api-error-btn")?.addEventListener("click", () => {
+    chrome.runtime.openOptionsPage();
+  });
   // ——— Waveform Visualizer ———
   const WAVEFORM_N = 32;
   const WAVEFORM_H = 48;
@@ -469,6 +474,33 @@ document.addEventListener("DOMContentLoaded", async () => {
   // ——— Update Dashboard ———
   function updateDashboard(state: State) {
     currentMeetingId = state.meetingId || "unknown";
+
+    // API Error Banner
+    const errorBanner = document.getElementById("api-error-banner");
+    const errorMessage = document.getElementById("api-error-message");
+    if (state.apiError) {
+      if (errorBanner && errorMessage) {
+        let msg = "";
+        if (state.apiError.errorType === "INVALID_KEY") {
+          msg =
+            "The configured OpenAI / ElevenLabs API Key is invalid. Please double check your settings.";
+        } else if (state.apiError.errorType === "NO_CREDITS") {
+          msg =
+            "You have exceeded your API usage quota. Please check your billing dashboard on ElevenLabs or OpenAI.";
+        } else {
+          msg = state.apiError.message || "An error occurred with the API.";
+        }
+        errorMessage.textContent = msg;
+        errorBanner.hidden = false;
+        errorBanner.classList.remove("hidden");
+      }
+    } else {
+      if (errorBanner) {
+        errorBanner.hidden = true;
+        errorBanner.classList.add("hidden");
+      }
+    }
+
     // Status
     const statusDot = document.querySelector(".dash-status-dot");
     const statusText = document.getElementById("dash-status-text");

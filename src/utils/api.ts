@@ -170,3 +170,45 @@ export async function validateElevenLabsKey(apiKey: string): Promise<boolean> {
     clearTimeout(timeoutId);
   }
 }
+
+export class ApiError extends Error {
+  public errorType: "INVALID_KEY" | "NO_CREDITS" | "GENERIC";
+  public provider: "OpenAI" | "ElevenLabs";
+
+  constructor(
+    errorType: "INVALID_KEY" | "NO_CREDITS" | "GENERIC",
+    provider: "OpenAI" | "ElevenLabs",
+    message: string,
+  ) {
+    super(message);
+    this.name = "ApiError";
+    this.errorType = errorType;
+    this.provider = provider;
+  }
+}
+
+/**
+ * Checks the status of a fetch response and throws an ApiError if the status is not ok.
+ * Inspects 401 and 429 status codes for specific error handling.
+ */
+export async function checkResponseStatus(
+  response: Response,
+  provider: "OpenAI" | "ElevenLabs",
+): Promise<void> {
+  if (response.ok) return;
+
+  const status = response.status;
+  const text = await response.text().catch(() => "");
+
+  if (status === 401) {
+    throw new ApiError("INVALID_KEY", provider, `Invalid ${provider} API key.`);
+  } else if (status === 429) {
+    throw new ApiError(
+      "NO_CREDITS",
+      provider,
+      `${provider} API error 429: Your API usage quota has been exceeded.`,
+    );
+  } else {
+    throw new ApiError("GENERIC", provider, `${provider} API error ${status}: ${text}`);
+  }
+}
