@@ -627,12 +627,23 @@ async function startCapture(
   };
 }
 
-async function stopCapture() {
+async function stopCapture(): Promise<{
+  drainComplete: boolean;
+  chunksProcessed: number;
+  chunksDropped: number;
+  chunksPending: number;
+}> {
   // Prevent concurrent cleanup execution
   if (isStopping) {
-    return;
+    return {
+      drainComplete: pendingChunks.length === 0,
+      chunksProcessed: 0,
+      chunksDropped: 0,
+      chunksPending: pendingChunks.length,
+    };
   }
 
+  const chunksBefore = pendingChunks.length;
   isStopping = true;
 
   try {
@@ -651,10 +662,25 @@ async function stopCapture() {
     await drainPendingChunks();
 
     await cleanupResources();
+
+    const chunksAfter = pendingChunks.length;
+    return {
+      drainComplete: chunksAfter === 0,
+      chunksProcessed: Math.max(0, chunksBefore - chunksAfter),
+      chunksDropped: 0,
+      chunksPending: chunksAfter,
+    };
   } catch (err) {
     console.error("[LateMeet][offscreen] stopCapture failed:", err);
 
     await cleanupResources();
+
+    return {
+      drainComplete: pendingChunks.length === 0,
+      chunksProcessed: chunksBefore,
+      chunksDropped: pendingChunks.length,
+      chunksPending: pendingChunks.length,
+    };
   }
 }
 
@@ -695,20 +721,22 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     }
 
     if (message.type === "OFFSCREEN_STOP_CAPTURE") {
-      if (isStopping) {
-        sendResponse({ success: false, alreadyStopping: true });
-        return;
-      }
+      const drainResult = await stopCapture();
 
-      try {
-        await stopCapture();
-      } finally {
-        await chrome.runtime.sendMessage({
-          type: "OFFSCREEN_CAPTURE_STOPPED",
-        });
-      }
+      sendResponse({
+        success: true,
+        ...drainResult,
+      });
 
-      sendResponse({ success: true });
+      return;
+    }
+
+    if (message.type === "GET_REMAINING_CHUNKS") {
+      sendResponse({
+        pending: pendingChunks.length,
+        isDrainingQueue,
+        isStopping,
+      });
 
       return;
     }
@@ -720,4 +748,11 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   })();
 
   return true;
+});
+
+// Safety net: if the offscreen document is unloaded unexpectedly, stop all tracks
+self.addEventListener("beforeunload", () => {
+  stopTracks(mediaStream);
+  stopTracks(microphoneStream);
+  stopTracks(recorderStream);
 });

@@ -1814,6 +1814,56 @@ async function stopAudioCapture(reason = "Stopped") {
   isStoppingAudio = true;
   const stopPlan = createAudioCaptureStopPlan(state.audioActive);
   try {
+    // Phase 1: Send stop signal and await drain summary from offscreen
+    let drainSummary: {
+      drainComplete: boolean;
+      chunksProcessed: number;
+      chunksDropped: number;
+      chunksPending: number;
+    } | null = null;
+
+    try {
+      const response = await chrome.runtime.sendMessage({
+        type: "OFFSCREEN_STOP_CAPTURE",
+      });
+      if (response && typeof response === "object") {
+        drainSummary = {
+          drainComplete: !!response.drainComplete,
+          chunksProcessed: response.chunksProcessed ?? 0,
+          chunksDropped: response.chunksDropped ?? 0,
+          chunksPending: response.chunksPending ?? 0,
+        };
+        console.log(
+          `[LateMeet] Offscreen drain summary: complete=${drainSummary.drainComplete} processed=${drainSummary.chunksProcessed} dropped=${drainSummary.chunksDropped} pending=${drainSummary.chunksPending}`,
+        );
+      }
+    } catch {
+      // Ignore if offscreen not running
+    }
+
+    // Phase 2: Poll GET_REMAINING_CHUNKS until confirmed zero pending
+    if (state.audioActive) {
+      const pollStart = Date.now();
+      const POLL_TIMEOUT = 10000;
+
+      while (Date.now() - pollStart < POLL_TIMEOUT) {
+        try {
+          const pollResponse = await chrome.runtime.sendMessage({
+            type: "GET_REMAINING_CHUNKS",
+          });
+          if (pollResponse && typeof pollResponse === "object") {
+            const pending = pollResponse.pending ?? 0;
+            if (pending === 0 && !pollResponse.isDrainingQueue) {
+              break;
+            }
+          }
+        } catch {
+          // Offscreen may have closed; stop polling
+          break;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 200));
+      }
+    }
     await drainOffscreenChunks();
 
     // Phase 3: Close session state
@@ -2001,6 +2051,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       }
 
       case "OFFSCREEN_LOG": {
+        console.log("[LateMeet][offscreen]", message.message);
         if (DEBUG) {
           console.log("[LateMeet][offscreen]", message.message);
         }
