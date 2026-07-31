@@ -417,6 +417,7 @@ body {
 /* Color Circle Grid Picker Styles */
 .accent-picker-grid {
   display: flex;
+  align-items: center; /* keep input element and dots flawlessly baseline centered */
   gap: 12px;
   margin-top: 10px;
 }
@@ -425,19 +426,66 @@ body {
   width: 32px;
   height: 32px;
   border-radius: 50%;
+  border: none; /* remove default mechanical button styles */
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.2s cubic-bezier(0.25, 1, 0.5, 1);
 }
 
 .color-dot:hover {
-  transform: scale(1.15);
+  transform: scale(1.12);
 }
 
-.color-dot.active {
+/* Unified active tracking class ring system */
+.color-dot.active,
+.custom-color-picker.active {
   box-shadow:
     0 0 0 2px var(--bg-app),
     0 0 0 4px hsl(var(--accent-color));
   transform: scale(1.05);
+}
+
+.custom-color-picker {
+  position: relative;
+  width: 32px; /* Changed from 42px to match standard dots layout height exactly */
+  height: 32px; /* Changed from 42px to match standard dots layout height exactly */
+  border-radius: 50%;
+  transition: all 0.2s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.custom-color-picker:hover {
+  transform: scale(1.12);
+}
+
+.custom-color-picker .picker-icon {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  font-size: 14px; /* Scaled down slightly to fit a tighter 32px workspace box */
+  z-index: 2;
+}
+
+.custom-color-picker input[type="color"] {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  padding: 0;
+  background: none;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+/* Remove internal container browser spacing wrappers inside Chrome and edge engine windows */
+.custom-color-picker input[type="color"]::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+.custom-color-picker input[type="color"]::-webkit-color-swatch {
+  border: none;
+  border-radius: 50%;
 }
 
 /* Individual dot colors */

@@ -5,7 +5,7 @@ import {
   isUnlocked,
   isVaultInitialized,
 } from "./utils/credentials";
-import { validateOpenAIKey, validateElevenLabsKey } from "./utils/api.js";
+import { validateOpenAIKey, validateElevenLabsKey } from "./utils/api";
 import { renderStorageDashboard } from "./storageDashboard";
 import { renderApiUsageDashboard } from "./apiUsageDashboard";
 import { MIN_PASSPHRASE_LENGTH, evaluatePassphraseStrength } from "./passphraseStrength";
@@ -52,7 +52,46 @@ type BooleanSettingKey = {
  * giving users instant visual feedback as they interact with the theme controls.
  * When `theme` is `"system"`, the active theme is resolved from the OS preference.
  * @param theme - The desired theme: `"system"`, `"light"`, or `"dark"`.
- * @param accent - A CSS HSL string (e.g. `"210, 100%, 50%"`) for the accent color.
+ * @param accent - A CSS HSL string (e.g. `"210, 100%, 50%"`) for the accent color. */
+function hexToHslRaw(hex: string): string {
+  hex = hex.replace(/^#/, "");
+
+  const r = parseInt(hex.substring(0, 2), 16) / 255;
+  const g = parseInt(hex.substring(2, 4), 16) / 255;
+  const b = parseInt(hex.substring(4, 6), 16) / 255;
+
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  let h = 0;
+  let s = 0;
+  const l = (max + min) / 2;
+
+  if (max !== min) {
+    const d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    switch (max) {
+      case r:
+        h = (g - b) / d + (g < b ? 6 : 0);
+        break;
+      case g:
+        h = (b - r) / d + 2;
+        break;
+      case b:
+        h = (r - g) / d + 4;
+        break;
+    }
+    h /= 6;
+  }
+
+  const hDeg = Math.round(h * 360);
+  const sPct = Math.round(s * 100);
+  const lPct = Math.round(l * 100);
+
+  return `${hDeg}, ${sPct}%, ${lPct}%`;
+}
+
+/**
+ * Applies theme and accent-color CSS variables to the document root immediately.
  */
 function applyThemePreview(theme: "system" | "light" | "dark", accent: string) {
   const root = document.documentElement;
@@ -176,6 +215,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   });
 
+  // ——— Theme & Color Initializations ———
   let selectedAccentColor = settings.accent || "210, 100%, 50%";
 
   // ——— NEW: Theme & Color Initializations ———
@@ -197,7 +237,17 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   });
 
-  // Set the active styling on the matching color dot button
+  const customColorInput = document.getElementById("colorPicker") as HTMLInputElement | null;
+
+  function deactivateAllDots() {
+    document.querySelectorAll(".color-dot").forEach((d) => {
+      d.classList.remove("active");
+      d.setAttribute("aria-pressed", "false");
+    });
+    customColorInput?.parentElement?.classList.remove("active");
+  }
+
+  // Set up predefined standard color buttons
   document.querySelectorAll(".color-dot").forEach((dot) => {
     const dotColor = dot.getAttribute("data-color");
     const isActive = dotColor === currentAccent;
@@ -208,10 +258,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // Listen for color grid selections to give instant feedback
     dot.addEventListener("click", () => {
-      document.querySelectorAll(".color-dot").forEach((d) => {
-        d.classList.remove("active");
-        d.setAttribute("aria-pressed", "false");
-      });
+      deactivateAllDots();
       dot.classList.add("active");
       dot.setAttribute("aria-pressed", "true");
 
@@ -221,7 +268,50 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   });
 
-  // Listen for dropdown theme changes to give instant feedback
+  // ——— Handle Advanced Native Custom Color Selection Event Hooks ———
+function hslRawToHex(hslRaw: string): string | null {
+  const m = hslRaw.match(
+    /^\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)%\s*,\s*(\d+(?:\.\d+)?)%\s*$/
+  );
+  if (!m) return null;
+  const h = ((Number(m[1]) % 360) + 360) % 360;
+  const s = Number(m[2]) / 100;
+  const l = Number(m[3]) / 100;
+  const c = (1 - Math.abs(2 * l - 1)) * s;
+  const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+  const m0 = l - c / 2;
+  let [r, g, b] = [0, 0, 0];
+  if (h < 60) [r, g, b] = [c, x, 0];
+  else if (h < 120) [r, g, b] = [x, c, 0];
+  else if (h < 180) [r, g, b] = [0, c, x];
+  else if (h < 240) [r, g, b] = [0, x, c];
+  else if (h < 300) [r, g, b] = [x, 0, c];
+  else [r, g, b] = [c, 0, x];
+  const toHex = (v: number) => Math.round((v + m0) * 255).toString(16).padStart(2, "0");
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}
+
+  if (customColorInput) {
+    const matchedDot = document.querySelector(`.color-dot[data-color="${currentAccent}"]`);
+    if (!matchedDot && currentAccent) {
+      customColorInput.parentElement?.classList.add("active");
+      const initialHex = hslRawToHex(currentAccent);
+      if (initialHex) customColorInput.value = initialHex;
+    }
+
+    customColorInput.addEventListener("input", (e) => {
+      deactivateAllDots();
+      customColorInput.parentElement?.classList.add("active");
+
+      const hexVal = (e.target as HTMLInputElement).value;
+      selectedAccentColor = hexToHslRaw(hexVal);
+
+      const selectedTheme = (themeSelect?.value as Settings["theme"]) || "system";
+      applyThemePreview(selectedTheme, selectedAccentColor);
+    });
+  }
+  }
+
   themeSelect?.addEventListener("change", () => {
     let selectedTheme = themeSelect.value as Settings["theme"];
     if (!selectedTheme) {
@@ -351,15 +441,13 @@ document.addEventListener("DOMContentLoaded", async () => {
   updatePassphraseUI();
   updateStrengthIndicator();
 
-  // ——— Save ———
+  // ——— Save Settings ———
   document.getElementById("save-btn")?.addEventListener("click", async () => {
     const saveBtn = document.getElementById("save-btn") as HTMLButtonElement;
     const status = document.getElementById("save-status");
 
-    const openaiKey =
-      (document.getElementById("openai-key") as HTMLInputElement | null)?.value.trim() ?? "";
-    const elevenlabsKey =
-      (document.getElementById("elevenlabs-key") as HTMLInputElement | null)?.value.trim() ?? "";
+    const openaiKey = openaiKeyInput?.value.trim() ?? "";
+    const elevenlabsKey = elevenlabsKeyInput?.value.trim() ?? "";
 
     const originalText = saveBtn.textContent?.trim() || "Save Settings";
     saveBtn.disabled = true;
@@ -379,10 +467,10 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (validatedVadThreshold > 1.0) validatedVadThreshold = 1.0;
 
       const newSettings: Settings = {
-        ...settings, // Retain existing unmapped fields
+        ...settings,
         summarizationInterval: validatedInterval,
         vadThreshold: validatedVadThreshold,
-        aiModel: (document.getElementById("ai-model") as HTMLSelectElement)?.value,
+        aiModel: aiModelSelect?.value,
         lateJoinerBriefing: (document.getElementById("late-joiner-toggle") as HTMLInputElement)
           ?.checked,
         publicLateJoinerChat: (
@@ -443,10 +531,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           ? "Settings saved successfully!"
           : "Settings saved. Unlock credential encryption to update API keys.";
         status.classList.add("visible");
-
-        setTimeout(() => {
-          status.classList.remove("visible");
-        }, 3000);
+        setTimeout(() => status.classList.remove("visible"), 3000);
       }
     } catch (error) {
       console.error("Error saving settings:", error);
@@ -461,6 +546,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       saveBtn.textContent = originalText;
     }
   });
+
   // ——— Storage Dashboard ———
   const storageContainer = document.getElementById("storage-dashboard-container");
   if (storageContainer) {
