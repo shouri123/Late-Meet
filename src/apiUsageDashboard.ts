@@ -15,15 +15,15 @@ function escapeHtml(value: string): string {
 }
 
 export async function renderApiUsageDashboard(container: HTMLElement): Promise<void> {
-  container.innerHTML = '<p class="usage-loading">Loading API usage stats…</p>';
+  container.textContent = '<p class="usage-loading">Loading API usage stats…</p>';
 
   try {
     const stats = await getUsageStats();
-    container.innerHTML = buildDashboardHTML(stats);
+    container.textContent = buildDashboardHTML(stats);
     attachEventListeners(container);
   } catch (err) {
     console.error("[LateMeet] Failed to load API usage dashboard:", err);
-    container.innerHTML = '<p class="usage-error">Failed to load API usage data.</p>';
+    container.textContent = '<p class="usage-error">Failed to load API usage data.</p>';
   }
 }
 

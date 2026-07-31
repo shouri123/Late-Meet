@@ -26,7 +26,7 @@ const HTML_ESCAPE_MAP: Record<string, string> = {
  *   their corresponding named HTML entities.
  *
  * @example
- * element.innerHTML = `<span>${escapeHtml(user.displayName)}</span>`;
+ * element.textContent = `<span>${escapeHtml(user.displayName)}</span>`;
  * // Input:  'Alice <script>alert(1)</script>'
  * // Output: 'Alice &lt;script&gt;alert(1)&lt;/script&gt;'
  */
