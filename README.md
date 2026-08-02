@@ -404,6 +404,8 @@ Want to build from source or contribute to the codebase?
 - Node.js v18+ (LTS recommended)
 - npm v9+
 
+> **Note:** Verify your Node.js and npm versions with `node --version` and `npm --version` before installing dependencies.
+
 **① Clone the repository**
 
 ```bash
