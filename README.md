@@ -94,12 +94,12 @@
 - [Documentation Hub](#documentation-hub)
 - [Known Issues](#known-issues)
 - [Extension Shortcuts](#extension-shortcuts)
-- [Global Shortcuts](#global-shortcuts)
 - [Security & Privacy](#security--privacy)
 - [FAQ](#faq)
 - [Community](#community)
 - [License](#license)
 - [Troubleshooting](#troubleshooting)
+- [Global Shortcuts](#global-shortcuts)
 
 ## 🌟 The Problem
 
