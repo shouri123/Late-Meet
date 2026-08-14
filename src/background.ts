@@ -1059,37 +1059,39 @@ function mergeUniqueStrings(existing: string[], incoming: unknown, maxSize = 500
 async function summarizeTranscriptIfNeeded() {
   if (!state.isActive || state.transcript.length === 0) return;
 
-  // Bail out immediately if another summarization is already running.
+  // Claim the in-flight slot before the first await so two concurrent callers
+  // that both reach this point before either awaits cannot both pass the guard
+  // and trigger duplicate API calls (TOCTOU). The finally block below always
+  // resets the flag, including all early-return paths.
   if (summaryInFlight) return;
-
-  const settings = await getSettings();
-  const requestedInterval = Number(settings.summarizationInterval);
-  let intervalSeconds =
-    Number.isFinite(requestedInterval) && requestedInterval > 0 ? requestedInterval : 300;
-
-  if (intervalSeconds < 300) intervalSeconds = 300;
-  if (intervalSeconds > 900) intervalSeconds = 900;
-  const lastSum = state.lastSummarizedAt || 0;
-  const elapsed = Math.floor((Date.now() - lastSum) / 1000);
-  if (lastSum > 0 && elapsed < intervalSeconds) return;
-
-  const apiKey = await getApiKey();
-  if (!apiKey) return;
-
-  const transcriptWindow = state.transcript
-    .slice(-TRANSCRIPT_WINDOW_SIZE)
-    .map((e) => {
-      const chunkId = e.id || "unknown_chunk";
-      const timestampLabel = e.timestampLabel || formatTimestampLabel(Math.floor(e.timestamp || 0));
-      return `[${chunkId}] [${timestampLabel}] ${sanitizePromptText(e.speaker)}: ${sanitizePromptText(e.text)}`;
-    })
-    .join("\n");
-  if (!transcriptWindow.trim()) return;
-
-  // Claim the in-flight slot *after* all cheap pre-checks pass.
   summaryInFlight = true;
 
   try {
+    const settings = await getSettings();
+    const requestedInterval = Number(settings.summarizationInterval);
+    let intervalSeconds =
+      Number.isFinite(requestedInterval) && requestedInterval > 0 ? requestedInterval : 300;
+
+    if (intervalSeconds < 300) intervalSeconds = 300;
+    if (intervalSeconds > 900) intervalSeconds = 900;
+    const lastSum = state.lastSummarizedAt || 0;
+    const elapsed = Math.floor((Date.now() - lastSum) / 1000);
+    if (lastSum > 0 && elapsed < intervalSeconds) return;
+
+    const apiKey = await getApiKey();
+    if (!apiKey) return;
+
+    const transcriptWindow = state.transcript
+      .slice(-TRANSCRIPT_WINDOW_SIZE)
+      .map((e) => {
+        const chunkId = e.id || "unknown_chunk";
+        const timestampLabel =
+          e.timestampLabel || formatTimestampLabel(Math.floor(e.timestamp || 0));
+        return `[${chunkId}] [${timestampLabel}] ${sanitizePromptText(e.speaker)}: ${sanitizePromptText(e.text)}`;
+      })
+      .join("\n");
+    if (!transcriptWindow.trim()) return;
+
     const topicDetectionEnabled = isFeatureEnabled(settings, "topicDetection");
     const decisionDetectionEnabled = isFeatureEnabled(settings, "decisionDetection");
     const actionExtractionEnabled = isFeatureEnabled(settings, "actionExtraction");
