@@ -97,10 +97,15 @@
           </span>
           <div>
             <div class="header-title">Meeting Copilot</div>
-            <div id="status-badge" class="status-badge inactive">
+            <output
+              id="status-badge"
+              class="status-badge inactive"
+              aria-live="polite"
+              aria-atomic="true"
+            >
               <span class="status-dot"></span>
               <span class="status-text">No active meeting</span>
-            </div>
+            </output>
           </div>
         </div>
         <button id="settings-btn" class="icon-btn" aria-label="Settings">⚙️</button>
