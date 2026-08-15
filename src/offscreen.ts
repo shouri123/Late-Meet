@@ -2,6 +2,7 @@ import { VoiceActivityTracker, isChunkViable } from "./audioProcessing";
 import { computeRms, shouldRunVadAnalysis } from "./vadTuning";
 import {
   DRAIN_TIMEOUT_MS,
+  MAX_AUDIO_CHUNK_BYTES,
   MAX_BUFFER_MS,
   MAX_PENDING_CHUNKS,
   SILENCE_FLUSH_MS,
@@ -207,6 +208,13 @@ async function flushAudioChunk(force = false) {
 async function postChunk(blob: Blob) {
   if (!isChunkViable(blob)) {
     relay(`chunk too small, skipped — ${blob?.size ?? 0} bytes (min 5 000)`);
+    return;
+  }
+
+  if (blob.size > MAX_AUDIO_CHUNK_BYTES) {
+    relay(
+      `chunk too large, discarded — ${blob.size} bytes exceeds limit of ${MAX_AUDIO_CHUNK_BYTES} bytes`,
+    );
     return;
   }
 
