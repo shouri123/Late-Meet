@@ -6,6 +6,7 @@ import {
   createOffscreenAudioGraph,
   MICROPHONE_AUDIO_CONSTRAINTS,
   OFFSCREEN_ANALYSER_FFT_SIZE,
+  resumeAudioContextForCapture,
 } from "../src/offscreenAudioGraph.ts";
 
 class MockAudioNode {
@@ -57,6 +58,39 @@ class MockAudioContext {
 
     return source as unknown as MediaStreamAudioSourceNode;
   }
+}
+
+class MockResumableAudioContext {
+  state: AudioContextState = "suspended";
+  resumeError: unknown;
+  resumeCalls = 0;
+  closeCalls = 0;
+
+  async resume(): Promise<void> {
+    this.resumeCalls += 1;
+    if (this.resumeError) throw this.resumeError;
+    this.state = "running";
+  }
+
+  async close(): Promise<void> {
+    this.closeCalls += 1;
+    this.state = "closed";
+  }
+}
+
+function createTrackedStream() {
+  const track = {
+    onended: () => {},
+    stopCalls: 0,
+    stop() {
+      this.stopCalls += 1;
+    },
+  };
+
+  return {
+    stream: { getTracks: () => [track] } as unknown as MediaStream,
+    track,
+  };
 }
 
 function createMockStream(id: string): MediaStream {
@@ -165,4 +199,52 @@ test("enables microphone processing and automatic gain control", () => {
     noiseSuppression: true,
     autoGainControl: true,
   });
+});
+
+test("resumes a suspended audio context before capture", async () => {
+  const context = new MockResumableAudioContext();
+  const { stream, track } = createTrackedStream();
+
+  await resumeAudioContextForCapture(context as unknown as AudioContext, stream, () =>
+    assert.fail("successful resume must not log a warning"),
+  );
+
+  assert.equal(context.resumeCalls, 1);
+  assert.equal(context.closeCalls, 0);
+  assert.equal(track.stopCalls, 0);
+});
+
+test("logs resume errors and releases resources when context stays suspended", async () => {
+  const context = new MockResumableAudioContext();
+  context.resumeError = new Error("gesture required");
+  const { stream, track } = createTrackedStream();
+  const logs: string[] = [];
+
+  await assert.rejects(
+    resumeAudioContextForCapture(context as unknown as AudioContext, stream, (message) =>
+      logs.push(message),
+    ),
+    /AudioContext could not be resumed.*autoplay policy/,
+  );
+
+  assert.deepEqual(logs, ["[warn] AudioContext.resume() failed: gesture required"]);
+  assert.equal(context.closeCalls, 1);
+  assert.equal(track.stopCalls, 1);
+  assert.equal(track.onended, null);
+});
+
+test("fails and releases resources when resume resolves but context stays suspended", async () => {
+  const context = new MockResumableAudioContext();
+  context.resume = async () => {
+    context.resumeCalls += 1;
+  };
+  const { stream, track } = createTrackedStream();
+
+  await assert.rejects(
+    resumeAudioContextForCapture(context as unknown as AudioContext, stream, () => {}),
+    /AudioContext could not be resumed/,
+  );
+
+  assert.equal(context.closeCalls, 1);
+  assert.equal(track.stopCalls, 1);
 });

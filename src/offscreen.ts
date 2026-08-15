@@ -14,6 +14,7 @@ import {
   connectMicrophoneToOffscreenAudioGraph,
   createOffscreenAudioGraph,
   MICROPHONE_AUDIO_CONSTRAINTS,
+  resumeAudioContextForCapture,
 } from "./offscreenAudioGraph";
 
 let mediaStream: MediaStream | null = null;
@@ -521,8 +522,14 @@ async function startCapture(
 
   audioContext = new AudioContext();
 
-  if (audioContext.state === "suspended") {
-    await audioContext.resume();
+  try {
+    await resumeAudioContextForCapture(audioContext, mediaStream, relay);
+  } catch (err) {
+    // The helper has already released both resources. Clear the module-level
+    // references so a later capture attempt starts from a clean state.
+    audioContext = null;
+    mediaStream = null;
+    throw err;
   }
 
   const audioGraph = createOffscreenAudioGraph(audioContext, mediaStream);

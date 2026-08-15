@@ -13,6 +13,38 @@ export interface OffscreenAudioGraph {
 }
 
 /**
+ * Resumes a suspended context before capture starts. If the browser keeps the
+ * context suspended (for example because of autoplay policy), release the
+ * resources allocated for this capture attempt before failing.
+ */
+export async function resumeAudioContextForCapture(
+  context: AudioContext,
+  stream: MediaStream,
+  log: (message: string) => void,
+): Promise<void> {
+  if (context.state !== "suspended") return;
+
+  try {
+    await context.resume();
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    log(`[warn] AudioContext.resume() failed: ${message}`);
+  }
+
+  if (context.state !== "suspended") return;
+
+  await context.close();
+  stream.getTracks().forEach((track) => {
+    track.onended = null;
+    track.stop();
+  });
+
+  throw new Error(
+    "AudioContext could not be resumed — browser may be enforcing autoplay policy. Try initiating capture from a user gesture.",
+  );
+}
+
+/**
  * Connects a media stream to the shared recorder and analyser nodes.
  *
  * Only the tab stream receives a playback destination. The microphone must
