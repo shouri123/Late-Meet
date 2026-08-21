@@ -61,7 +61,7 @@
     "vite": "^8.0.16"
   },
   "dependencies": {
-    "@elevenlabs/elevenlabs-js": "^2.53.1"
+    "@elevenlabs/elevenlabs-js": "^2.64.0"
   },
   "overrides": {
     "rollup": "^2.80.0 || ^4.59.0"
