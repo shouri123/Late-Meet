@@ -657,7 +657,11 @@ git push origin feature/your-feature-name
 
 #### 🟢 Beginner — `level-1`
 
-*No open issues for this level right now! Stay tuned.*
+| # | Title | Skills |
+| :---: | :--- | :--- |
+| [#667](https://github.com/shouri123/Late-Meet/issues/667) | docs: Add a comprehensive developer setup guide and contributing guidelines | General |
+| [#665](https://github.com/shouri123/Late-Meet/issues/665) | refactor: Migrate remaining JavaScript prompt configurations to TypeScript | General |
+
 
 #### 🟡 Intermediate — `level-2`
 
