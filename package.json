@@ -44,7 +44,7 @@
     "@emnapi/runtime": "1.11.1",
     "@eslint/eslintrc": "^3.3.5",
     "@eslint/js": "^10.0.1",
-    "@types/chrome": "^0.1.43",
+    "@types/chrome": "^0.2.7",
     "@types/node": "^26.0.0",
     "@typescript-eslint/eslint-plugin": "^8.61.1",
     "@typescript-eslint/parser": "^8.61.1",
