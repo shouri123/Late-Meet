@@ -665,17 +665,22 @@ git push origin feature/your-feature-name
 | [#660](https://github.com/shouri123/Late-Meet/issues/660) | docs: Document extension permissions audit and privacy policy guidelines | General |
 | [#651](https://github.com/shouri123/Late-Meet/issues/651) | style: Add micro-animations (pulse, slide-in) to recording status indicators | General |
 | [#650](https://github.com/shouri123/Late-Meet/issues/650) | feat: Add a 'Select All' checkbox for bulk actions in storage dashboard | General |
+| [#644](https://github.com/shouri123/Late-Meet/issues/644) | feat: Support export of meeting sessions as CSV spreadsheet | General |
 
 
 #### 🟡 Intermediate — `level-2`
 
-*No open issues for this level right now! Stay tuned.*
+| # | Title | Skills |
+| :---: | :--- | :--- |
+| [#645](https://github.com/shouri123/Late-Meet/issues/645) | feat: Support export of meeting sessions as PDF with clean styling template | General |
+
 
 #### 🔴 Advanced — `level-3`
 
 | # | Title | Skills |
 | :---: | :--- | :--- |
 | [#768](https://github.com/shouri123/Late-Meet/issues/768) | Accessibility Features for Users with Visual, Hearing, and Speech Impairments | General |
+| [#643](https://github.com/shouri123/Late-Meet/issues/643) | feat: Add animated canvas audio waveform visualizer inside popup during capture | General |
 
 
 </div>
