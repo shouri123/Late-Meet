@@ -673,6 +673,7 @@ git push origin feature/your-feature-name
 | # | Title | Skills |
 | :---: | :--- | :--- |
 | [#645](https://github.com/shouri123/Late-Meet/issues/645) | feat: Support export of meeting sessions as PDF with clean styling template | General |
+| [#639](https://github.com/shouri123/Late-Meet/issues/639) | feat: Implement structured JSON mode output for transcript refinements | General |
 
 
 #### 🔴 Advanced — `level-3`
