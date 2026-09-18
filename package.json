@@ -41,7 +41,7 @@
   "devDependencies": {
     "@crxjs/vite-plugin": "^2.7.0",
     "@emnapi/core": "1.11.0",
-    "@emnapi/runtime": "1.11.1",
+    "@emnapi/runtime": "1.11.3",
     "@eslint/eslintrc": "^3.3.5",
     "@eslint/js": "^10.0.1",
     "@types/chrome": "^0.1.43",
