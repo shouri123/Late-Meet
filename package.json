@@ -40,7 +40,7 @@
   "homepage": "https://github.com/shouri123/Late-Meet#readme",
   "devDependencies": {
     "@crxjs/vite-plugin": "^2.7.0",
-    "@emnapi/core": "1.11.0",
+    "@emnapi/core": "1.11.3",
     "@emnapi/runtime": "1.11.1",
     "@eslint/eslintrc": "^3.3.5",
     "@eslint/js": "^10.0.1",
