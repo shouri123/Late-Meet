@@ -657,37 +657,15 @@ git push origin feature/your-feature-name
 
 #### 🟢 Beginner — `level-1`
 
-| # | Title | Skills |
-| :---: | :--- | :--- |
-| [#667](https://github.com/shouri123/Late-Meet/issues/667) | docs: Add a comprehensive developer setup guide and contributing guidelines | General |
-| [#665](https://github.com/shouri123/Late-Meet/issues/665) | refactor: Migrate remaining JavaScript prompt configurations to TypeScript | General |
-| [#661](https://github.com/shouri123/Late-Meet/issues/661) | feat: Add confirmation dialog popup before clearing all local data | General |
-| [#660](https://github.com/shouri123/Late-Meet/issues/660) | docs: Document extension permissions audit and privacy policy guidelines | General |
-| [#651](https://github.com/shouri123/Late-Meet/issues/651) | style: Add micro-animations (pulse, slide-in) to recording status indicators | General |
-| [#650](https://github.com/shouri123/Late-Meet/issues/650) | feat: Add a 'Select All' checkbox for bulk actions in storage dashboard | General |
-| [#644](https://github.com/shouri123/Late-Meet/issues/644) | feat: Support export of meeting sessions as CSV spreadsheet | General |
-| [#638](https://github.com/shouri123/Late-Meet/issues/638) | feat: Support model selection (GPT-4o, GPT-4o-mini, GPT-3.5-turbo) in settings | General |
-| [#634](https://github.com/shouri123/Late-Meet/issues/634) | feat: Implement transcript language selection dropdown (Spanish, French, German, etc.) | General |
-
+*No open issues for this level right now! Stay tuned.*
 
 #### 🟡 Intermediate — `level-2`
 
-| # | Title | Skills |
-| :---: | :--- | :--- |
-| [#645](https://github.com/shouri123/Late-Meet/issues/645) | feat: Support export of meeting sessions as PDF with clean styling template | General |
-| [#639](https://github.com/shouri123/Late-Meet/issues/639) | feat: Implement structured JSON mode output for transcript refinements | General |
-| [#633](https://github.com/shouri123/Late-Meet/issues/633) | feat: Support custom system prompts for summary and action-item generation | General |
-| [#630](https://github.com/shouri123/Late-Meet/issues/630) | fix: Handle audio capture track end events dynamically by resetting recorder | General |
-| [#629](https://github.com/shouri123/Late-Meet/issues/629) | feat: Add configurable VAD (Voice Activity Detection) frame size setting | General |
-
+*No open issues for this level right now! Stay tuned.*
 
 #### 🔴 Advanced — `level-3`
 
-| # | Title | Skills |
-| :---: | :--- | :--- |
-| [#768](https://github.com/shouri123/Late-Meet/issues/768) | Accessibility Features for Users with Visual, Hearing, and Speech Impairments | General |
-| [#643](https://github.com/shouri123/Late-Meet/issues/643) | feat: Add animated canvas audio waveform visualizer inside popup during capture | General |
-
+*No open issues for this level right now! Stay tuned.*
 
 </div>
 <!-- END_ISSUE_TABLES -->
